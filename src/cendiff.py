@@ -1,0 +1,94 @@
+import numpy as np
+import matplotlib.pyplot as plt
+
+''' Programming steps
+
+1) Generate grid for function f with variabels x [0,1] and mu [-1,1] 
+
+2) Choose initial condition
+
+3) Make quick, brute force implementation to update solution for time steps
+
+'''
+
+### Generate grid
+
+class Grid:
+    def __init__(self, Nx: int, Nmu: int):
+        self.Nx = Nx
+        self.Nmu = Nmu
+        self.X = np.linspace(0.0, 1.0, Nx, endpoint=False)
+        self.MU = np.linspace(-1.0, 1.0, Nmu, endpoint=False)
+        self.dx = self.X[1] - self.X[0]
+        self.dmu = self.MU[1] - self.MU[0]
+
+### Set initial condition
+
+def setInitialCondition(grid: Grid, option: str) -> np.ndarray:
+    f0 = np.zeros((grid.Nx, grid.Nmu))
+    sigma = 8e-2
+    if option == "no_mu":
+        xx = 1/(np.sqrt(2 * np.pi * sigma**2)) * np.exp(-(((grid.X-0.5)**2)/(2*sigma))**2)
+        f0[:] = xx
+    elif option == "with_mu":
+        xx = 1/(2 * np.pi * sigma**2) * np.exp(-((grid.X-0.5)**2)/(2*sigma**2))
+        vv = np.exp(-(np.abs(grid.MU)**2)/(2*sigma**2))
+        f0 = np.outer(vv, xx)
+    return f0
+
+### Implementation of solver
+
+def integrate(f0: np.ndarray, grid: Grid, t_f: float, dt: float, epsilon: float):
+    f = np.copy(f0)
+    t = 0
+    time = []
+    while t < t_f:
+        if (t + dt > t_f):
+            dt = t_f - t
+
+        f = f + dt * rhs(f, grid, epsilon)
+        t += dt
+
+        time.append(t)
+
+    return f, time
+
+def rhs(f: np.ndarray, grid: Grid, epsilon: float):
+    # integrate over mu to get rho
+    rho = np.zeros((grid.Nx, grid.Nmu))
+    rho[:] = np.trapz(f, grid.MU, axis=1)
+
+    # do cen diff and rest
+    res = np.zeros((grid.Nx, grid.Nmu))
+    for k in range(0, grid.Nmu):
+        for l in range(1, grid.Nx-1):
+            res[k, l] = -(1/epsilon) * grid.MU[k] * (f[k, l+1] - f[k, l-1]) / (2 * grid.dx) + (1/epsilon**2) * ((1/2) * rho[k, l] - f[k, l])
+
+        res[k, 0] = -(1/epsilon) * grid.MU[k] * (f[k, 1] - f[k, grid.Nx-1]) / (2 * grid.dx) + (1/epsilon**2) * ((1/2) * rho[k, 0] - f[k, 0])
+        res[k, grid.Nx-1] = -(1/epsilon) * grid.MU[k] * (f[k, 0] - f[k, grid.Nx-2]) / (2 * grid.dx) + (1/epsilon**2) * ((1/2) * rho[k, grid.Nx-1] - f[k, grid.Nx-1])
+
+    return(res)      
+
+
+    
+
+
+
+### Check initial condition
+
+grid = Grid(100, 100)
+extent = [grid.X[0], grid.X[-1], grid.MU[0], grid.MU[-1]]
+f0 = setInitialCondition(grid, "no_mu")
+plt.imshow(f0, extent=extent)
+plt.xlabel("$x$")
+plt.ylabel("mu")
+plt.show()
+
+
+### Do simulations
+
+f1 = integrate(f0, grid, 1, 1e-3, 1)[0]
+plt.imshow(f1, extent=extent)
+plt.xlabel("$x$")
+plt.ylabel("mu")
+plt.show()
