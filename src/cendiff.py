@@ -38,7 +38,7 @@ def setInitialCondition(grid: Grid, option: str) -> np.ndarray:
 
 ### Implementation of solver
 
-def integrate(f0: np.ndarray, grid: Grid, t_f: float, dt: float, epsilon: float):
+def integrate(f0: np.ndarray, grid: Grid, t_f: float, dt: float, epsilon: float, option: str):
     f = np.copy(f0)
     t = 0
     time = []
@@ -46,49 +46,69 @@ def integrate(f0: np.ndarray, grid: Grid, t_f: float, dt: float, epsilon: float)
         if (t + dt > t_f):
             dt = t_f - t
 
-        f = f + dt * rhs(f, grid, epsilon)
+        f = f + dt * rhs(f, grid, epsilon, option)
         t += dt
 
         time.append(t)
 
     return f, time
 
-def rhs(f: np.ndarray, grid: Grid, epsilon: float):
+def rhs(f: np.ndarray, grid: Grid, epsilon: float, option: str):
     # integrate over mu to get rho
     rho = np.zeros((grid.Nx, grid.Nmu))
-    rho[:] = np.trapz(f, grid.MU, axis=1)
+    rho[:] = (1/np.sqrt(2)) * np.trapz(f, grid.MU, axis=1)
 
     # do cen diff and rest
     res = np.zeros((grid.Nx, grid.Nmu))
-    for k in range(0, grid.Nmu):
-        for l in range(1, grid.Nx-1):
-            res[k, l] = -(1/epsilon) * grid.MU[k] * (f[k, l+1] - f[k, l-1]) / (2 * grid.dx) + (1/epsilon**2) * ((1/2) * rho[k, l] - f[k, l])
+    if option == "cen_diff":
+        for k in range(0, grid.Nmu):
+            for l in range(1, grid.Nx-1):
+                res[k, l] = -(1/epsilon) * grid.MU[k] * (f[k, l+1] - f[k, l-1]) / (2 * grid.dx) + (1/epsilon**2) * ((1/np.sqrt(2)) * rho[k, l] - f[k, l])
 
-        res[k, 0] = -(1/epsilon) * grid.MU[k] * (f[k, 1] - f[k, grid.Nx-1]) / (2 * grid.dx) + (1/epsilon**2) * ((1/2) * rho[k, 0] - f[k, 0])
-        res[k, grid.Nx-1] = -(1/epsilon) * grid.MU[k] * (f[k, 0] - f[k, grid.Nx-2]) / (2 * grid.dx) + (1/epsilon**2) * ((1/2) * rho[k, grid.Nx-1] - f[k, grid.Nx-1])
+            res[k, 0] = -(1/epsilon) * grid.MU[k] * (f[k, 1] - f[k, grid.Nx-1]) / (2 * grid.dx) + (1/epsilon**2) * ((1/np.sqrt(2)) * rho[k, 0] - f[k, 0])
+            res[k, grid.Nx-1] = -(1/epsilon) * grid.MU[k] * (f[k, 0] - f[k, grid.Nx-2]) / (2 * grid.dx) + (1/epsilon**2) * ((1/np.sqrt(2)) * rho[k, grid.Nx-1] - f[k, grid.Nx-1])
+    elif option == "upwind":
+        for k in range(0, grid.Nmu):
+            if grid.MU[k] >= 0:
+                for l in range(1, grid.Nx):
+                    res[k, l] = -(1/epsilon) * grid.MU[k] * (f[k, l] - f[k, l-1]) / (grid.dx) + (1/epsilon**2) * ((1/np.sqrt(2)) * rho[k, l] - f[k, l])
+                    res[k, 0] = -(1/epsilon) * grid.MU[k] * (f[k, 0] - f[k, grid.Nx-1]) / (grid.dx) + (1/epsilon**2) * ((1/np.sqrt(2)) * rho[k, 0] - f[k, 0])
+            elif grid.MU[k] < 0:
+                for l in range(0, grid.Nx-1):
+                    res[k, l] = -(1/epsilon) * grid.MU[k] * (f[k, l+1] - f[k, l]) / (grid.dx) + (1/epsilon**2) * ((1/np.sqrt(2)) * rho[k, l] - f[k, l])
+                    res[k, grid.Nx-1] = -(1/epsilon) * grid.MU[k] * (f[k, 0] - f[k, grid.Nx-1]) / (grid.dx) + (1/epsilon**2) * ((1/np.sqrt(2)) * rho[k, grid.Nx-1] - f[k, grid.Nx-1])
 
     return(res)      
 
 
-    
-
-
-
 ### Check initial condition
 
-grid = Grid(100, 100)
+grid = Grid(64, 64)
 extent = [grid.X[0], grid.X[-1], grid.MU[0], grid.MU[-1]]
-f0 = setInitialCondition(grid, "no_mu")
+f0 = setInitialCondition(grid, "with_mu")
+plt.subplot(1, 3, 1)
 plt.imshow(f0, extent=extent)
+plt.colorbar()
 plt.xlabel("$x$")
 plt.ylabel("mu")
-plt.show()
+plt.title("inital values")
 
 
 ### Do simulations
 
-f1 = integrate(f0, grid, 1, 1e-3, 1)[0]
+f1 = integrate(f0, grid, 1, 1e-3, 1, "upwind")[0]
+plt.subplot(1, 3, 2)
 plt.imshow(f1, extent=extent)
+plt.colorbar()
 plt.xlabel("$x$")
 plt.ylabel("mu")
+plt.title("upwind")
+
+f2 = integrate(f0, grid, 1, 1e-3, 1, "cen_diff")[0]
+plt.subplot(1, 3, 3)
+plt.imshow(f2, extent=extent)
+plt.colorbar()
+plt.xlabel("$x$")
+plt.ylabel("mu")
+plt.title("cen_diff")
 plt.show()
