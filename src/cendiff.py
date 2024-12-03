@@ -63,21 +63,21 @@ def rhs(f: np.ndarray, grid: Grid, epsilon: float, option: str):
     if option == "cen_diff":
         for k in range(0, grid.Nmu):
             for l in range(1, grid.Nx-1):
-                res[k, l] = -(1/epsilon) * grid.MU[k] * (f[k, l+1] - f[k, l-1]) / (2 * grid.dx) + (1/epsilon**2) * ((1/np.sqrt(2)) * rho[k, l] - f[k, l])
+                res[k, l] = -(1/epsilon) * grid.MU[grid.Nmu-1-k] * (f[k, l+1] - f[k, l-1]) / (2 * grid.dx) + (1/epsilon**2) * ((1/np.sqrt(2)) * rho[k, l] - f[k, l])
 
-            res[k, 0] = -(1/epsilon) * grid.MU[k] * (f[k, 1] - f[k, grid.Nx-1]) / (2 * grid.dx) + (1/epsilon**2) * ((1/np.sqrt(2)) * rho[k, 0] - f[k, 0])
-            res[k, grid.Nx-1] = -(1/epsilon) * grid.MU[k] * (f[k, 0] - f[k, grid.Nx-2]) / (2 * grid.dx) + (1/epsilon**2) * ((1/np.sqrt(2)) * rho[k, grid.Nx-1] - f[k, grid.Nx-1])
+            res[k, 0] = -(1/epsilon) * grid.MU[grid.Nmu-1-k] * (f[k, 1] - f[k, grid.Nx-1]) / (2 * grid.dx) + (1/epsilon**2) * ((1/np.sqrt(2)) * rho[k, 0] - f[k, 0])
+            res[k, grid.Nx-1] = -(1/epsilon) * grid.MU[grid.Nmu-1-k] * (f[k, 0] - f[k, grid.Nx-2]) / (2 * grid.dx) + (1/epsilon**2) * ((1/np.sqrt(2)) * rho[k, grid.Nx-1] - f[k, grid.Nx-1])
     elif option == "upwind":
         for k in range(0, grid.Nmu):
-            if grid.MU[k] >= 0:
+            if grid.MU[grid.Nmu-1-k] >= 0:
                 for l in range(1, grid.Nx):
-                    res[k, l] = -(1/epsilon) * grid.MU[k] * (f[k, l] - f[k, l-1]) / (grid.dx) + (1/epsilon**2) * ((1/np.sqrt(2)) * rho[k, l] - f[k, l])
-                    res[k, 0] = -(1/epsilon) * grid.MU[k] * (f[k, 0] - f[k, grid.Nx-1]) / (grid.dx) + (1/epsilon**2) * ((1/np.sqrt(2)) * rho[k, 0] - f[k, 0])
-            elif grid.MU[k] < 0:
+                    res[k, l] = -(1/epsilon) * grid.MU[grid.Nmu-1-k] * (f[k, l] - f[k, l-1]) / (grid.dx) + (1/epsilon**2) * ((1/np.sqrt(2)) * rho[k, l] - f[k, l])
+                    res[k, 0] = -(1/epsilon) * grid.MU[grid.Nmu-1-k] * (f[k, 0] - f[k, grid.Nx-1]) / (grid.dx) + (1/epsilon**2) * ((1/np.sqrt(2)) * rho[k, 0] - f[k, 0])
+            elif grid.MU[grid.Nmu-1-k] < 0:
                 for l in range(0, grid.Nx-1):
-                    res[k, l] = -(1/epsilon) * grid.MU[k] * (f[k, l+1] - f[k, l]) / (grid.dx) + (1/epsilon**2) * ((1/np.sqrt(2)) * rho[k, l] - f[k, l])
-                    res[k, grid.Nx-1] = -(1/epsilon) * grid.MU[k] * (f[k, 0] - f[k, grid.Nx-1]) / (grid.dx) + (1/epsilon**2) * ((1/np.sqrt(2)) * rho[k, grid.Nx-1] - f[k, grid.Nx-1])
-
+                    res[k, l] = -(1/epsilon) * grid.MU[grid.Nmu-1-k] * (f[k, l+1] - f[k, l]) / (grid.dx) + (1/epsilon**2) * ((1/np.sqrt(2)) * rho[k, l] - f[k, l])
+                    res[k, grid.Nx-1] = -(1/epsilon) * grid.MU[grid.Nmu-1-k] * (f[k, 0] - f[k, grid.Nx-1]) / (grid.dx) + (1/epsilon**2) * ((1/np.sqrt(2)) * rho[k, grid.Nx-1] - f[k, grid.Nx-1])
+    # I want low k to be at bottom of graph, high k to be at the top (thus restructure res)
     return(res)      
 
 
