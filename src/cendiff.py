@@ -41,7 +41,9 @@ def setInitialCondition(grid: Grid, option: str) -> np.ndarray:
 def integrate(f0: np.ndarray, grid: Grid, t_f: float, dt: float, epsilon: float, option: str):
     f = np.copy(f0)
     t = 0
-    time = []
+    time = [0]
+    rank = []
+    rank.append(np.linalg.matrix_rank(f))
     while t < t_f:
         if (t + dt > t_f):
             dt = t_f - t
@@ -50,8 +52,9 @@ def integrate(f0: np.ndarray, grid: Grid, t_f: float, dt: float, epsilon: float,
         t += dt
 
         time.append(t)
+        rank.append(np.linalg.matrix_rank(f))
 
-    return f, time
+    return f, time, rank
 
 def rhs(f: np.ndarray, grid: Grid, epsilon: float, option: str):
     # integrate over mu to get rho
@@ -80,7 +83,8 @@ def rhs(f: np.ndarray, grid: Grid, epsilon: float, option: str):
     # I want low k to be at bottom of graph, high k to be at the top (thus restructure res)
     return(res)      
 
-
+'''
+# First simulation
 ### Check initial condition
 
 grid = Grid(64, 64)
@@ -112,3 +116,26 @@ plt.xlabel("$x$")
 plt.ylabel("mu")
 plt.title("cen_diff")
 plt.show()
+'''
+
+'''
+# Plot rank of solution over time
+grid = Grid(16, 16)
+extent = [grid.X[0], grid.X[-1], grid.MU[0], grid.MU[-1]]
+f0 = setInitialCondition(grid, "with_mu")
+f1 = integrate(f0, grid, 1, 1e-3, 1, "cen_diff")
+plt.plot(f1[1], f1[2])
+plt.title("full rank of solution, 16x16 grid")
+plt.xlabel("time")
+plt.ylabel("rank")
+plt.show()
+'''
+
+# Plot singular values over time
+grid = Grid(16, 16)
+extent = [grid.X[0], grid.X[-1], grid.MU[0], grid.MU[-1]]
+f0 = setInitialCondition(grid, "with_mu")
+tfinal = np.linspace(0,1,11)
+for t in tfinal:
+    f = integrate(f0, grid, t, 1e-3, 1, "cen_diff")[0]
+    print(np.linalg.svd(f)[1])
