@@ -32,8 +32,8 @@ def setInitialCondition(grid: Grid, option: str) -> np.ndarray:
         f0[:] = xx
     elif option == "with_mu":
         xx = 1/(2 * np.pi * sigma**2) * np.exp(-((grid.X-0.5)**2)/(2*sigma**2))
-        vv = np.exp(-(np.abs(grid.MU)**2)/(2*sigma**2))
-        f0 = np.outer(vv, xx)
+        vv = np.exp(-(np.abs(grid.MU)**2)/(16*sigma**2))
+        f0 = np.outer(xx, vv)
     return f0
 
 ### Implementation of solver
