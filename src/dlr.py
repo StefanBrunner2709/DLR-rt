@@ -24,8 +24,14 @@ def setInitialCondition(grid):
 
     sigma = 1
     U[:, 0] = 1/(2 * np.pi * sigma**2) * np.exp(-((grid.X-0.5)**2)/(2*sigma**2))
-    V[:, 0] = np.exp(-(np.abs(grid.MU)**2)/(2*sigma**2))
+    V[:, 0] = np.exp(-(np.abs(grid.MU)**2)/(16*sigma**2))
     S[0, 0] = 1.0
+
+    sigma_x = 1e-1
+    sigma_mu = 1
+    #U[:, 0] = 1/(2 * np.pi * sigma_x**2) * np.exp(-((grid.X-0.5)**2)/(2*sigma_x**2))
+    #V[:, 0] = np.exp(-(np.abs(grid.MU)**2)/(sigma_mu**2))
+    #S[0, 0] = 1.0
 
     U_ortho, R_U = np.linalg.qr(U, mode="reduced")
     V_ortho, R_V = np.linalg.qr(V, mode="reduced")
@@ -47,20 +53,28 @@ def RK4(f, rhs, dt):
 
 def computeC(lr, grid):
 
-    # Alternatively: (faster but otherwise I understand it better)
+    # Alternatively: (slower but easier to understand)
     # inner1 = lr.V.T @ np.diag(grid.MU) @ lr.V
     # C1 = inner1 * grid.dmu
 
-    muV = grid.MU[:, None] * lr.V
-    C1 = lr.V.T @ muV * grid.dmu         #still should implement trapezoidal instead of just multiplying by dmu everywhere
+    # muV = grid.MU[:, None] * lr.V
+    # C1 = lr.V.T @ muV * grid.dmu         #still should implement trapezoidal instead of just multiplying by dmu everywhere
 
-    C2 = lr.V * grid.dmu
+    # C2 = lr.V * grid.dmu
+
+    C1 = (lr.V.T @ np.diag(grid.MU) @ lr.V) * grid.dmu
+
+    # C2 = lr.V * grid.dmu
+
+    C2 = (lr.V.T @ np.ones((grid.Nmu,grid.Nmu))).T * grid.dmu
 
     return C1, C2
 
 def computeB(L, grid):
 
-    B1 = L * grid.dmu
+    # B1 = L * grid.dmu
+
+    B1 = (L.T @ np.ones((grid.Nmu,grid.Nmu))).T * grid.dmu
 
     return B1
 
@@ -81,7 +95,8 @@ def Sstep(S, C1, C2, D1):
     return rhs
 
 def Lstep(L, D1, B1, grid):
-    rhs = - np.diag(grid.MU) @ L @ D1 + 0.5 * B1 - L
+    # rhs = - D1 @ L @ np.diag(grid.MU) + 0.5 * B1 - L
+    rhs = - np.diag(grid.MU) @ L @ D1.T + 0.5 * B1 - L
     return rhs
 
 def integrate(lr0, grid, t_f, dt):
@@ -108,9 +123,12 @@ def integrate(lr0, grid, t_f, dt):
         lr.S += dt * RK4(lr.S, lambda S: Sstep(S, C1, C2, D1), dt) # Projector-splitting integrator + or - here?
 
         # L step
+        # L = lr.S @ lr.V.T
         L = lr.V @ lr.S.T
         B1 = computeB(L, grid)
         L += dt * RK4(L, lambda L: Lstep(L, D1, B1, grid), dt)
+        # lr.S, Vt = np.linalg.qr(L, mode="reduced")
+        # lr.V = Vt.T
         lr.V, St = np.linalg.qr(L, mode="reduced")
         lr.S = St.T
         lr.V /= np.sqrt(grid.dmu)
@@ -136,14 +154,14 @@ f = lr.U @ lr.S @ lr.V.T
 extent = [grid.X[0], grid.X[-1], grid.MU[0], grid.MU[-1]]
 
 plt.subplot(1, 2, 1)
-plt.imshow(f0, extent=extent)
+plt.imshow(f0.T, extent=extent, origin='lower')
 plt.colorbar()
 plt.xlabel("$x$")
 plt.ylabel("mu")
 plt.title("t=0")
 
 plt.subplot(1, 2, 2)
-plt.imshow(f, extent=extent)
+plt.imshow(f.T, extent=extent, origin='lower')
 plt.colorbar()
 plt.xlabel("$x$")
 plt.ylabel("mu")

@@ -26,7 +26,7 @@ class Grid:
 
 def setInitialCondition(grid: Grid, option: str) -> np.ndarray:
     f0 = np.zeros((grid.Nx, grid.Nmu))
-    sigma = 8e-2
+    sigma = 1
     if option == "no_mu":
         xx = 1/(np.sqrt(2 * np.pi * sigma**2)) * np.exp(-(((grid.X-0.5)**2)/(2*sigma))**2)
         f0[:] = xx
@@ -66,21 +66,20 @@ def rhs(f: np.ndarray, grid: Grid, epsilon: float, option: str):
     if option == "cen_diff":
         for k in range(0, grid.Nmu):
             for l in range(1, grid.Nx-1):
-                res[k, l] = -(1/epsilon) * grid.MU[grid.Nmu-1-k] * (f[k, l+1] - f[k, l-1]) / (2 * grid.dx) + (1/epsilon**2) * ((1/np.sqrt(2)) * rho[k, l] - f[k, l])
+                res[l, k] = -(1/epsilon) * grid.MU[k] * (f[l+1, k] - f[l-1, k]) / (2 * grid.dx) + (1/epsilon**2) * ((1/np.sqrt(2)) * rho[l, k] - f[l, k])
 
-            res[k, 0] = -(1/epsilon) * grid.MU[grid.Nmu-1-k] * (f[k, 1] - f[k, grid.Nx-1]) / (2 * grid.dx) + (1/epsilon**2) * ((1/np.sqrt(2)) * rho[k, 0] - f[k, 0])
-            res[k, grid.Nx-1] = -(1/epsilon) * grid.MU[grid.Nmu-1-k] * (f[k, 0] - f[k, grid.Nx-2]) / (2 * grid.dx) + (1/epsilon**2) * ((1/np.sqrt(2)) * rho[k, grid.Nx-1] - f[k, grid.Nx-1])
+            res[0, k] = -(1/epsilon) * grid.MU[k] * (f[1, k] - f[grid.Nx-1, k]) / (2 * grid.dx) + (1/epsilon**2) * ((1/np.sqrt(2)) * rho[0, k] - f[0, k])
+            res[grid.Nx-1, k] = -(1/epsilon) * grid.MU[k] * (f[0, k] - f[grid.Nx-2, k]) / (2 * grid.dx) + (1/epsilon**2) * ((1/np.sqrt(2)) * rho[grid.Nx-1, k] - f[grid.Nx-1, k])
     elif option == "upwind":
         for k in range(0, grid.Nmu):
-            if grid.MU[grid.Nmu-1-k] >= 0:
+            if grid.MU[k] >= 0:
                 for l in range(1, grid.Nx):
-                    res[k, l] = -(1/epsilon) * grid.MU[grid.Nmu-1-k] * (f[k, l] - f[k, l-1]) / (grid.dx) + (1/epsilon**2) * ((1/np.sqrt(2)) * rho[k, l] - f[k, l])
-                    res[k, 0] = -(1/epsilon) * grid.MU[grid.Nmu-1-k] * (f[k, 0] - f[k, grid.Nx-1]) / (grid.dx) + (1/epsilon**2) * ((1/np.sqrt(2)) * rho[k, 0] - f[k, 0])
-            elif grid.MU[grid.Nmu-1-k] < 0:
+                    res[l, k] = -(1/epsilon) * grid.MU[k] * (f[l, k] - f[l-1, k]) / (grid.dx) + (1/epsilon**2) * ((1/np.sqrt(2)) * rho[l, k] - f[l, k])
+                    res[0, k] = -(1/epsilon) * grid.MU[k] * (f[0, k] - f[grid.Nx-1, k]) / (grid.dx) + (1/epsilon**2) * ((1/np.sqrt(2)) * rho[0, k] - f[0, k])
+            elif grid.MU[k] < 0:
                 for l in range(0, grid.Nx-1):
-                    res[k, l] = -(1/epsilon) * grid.MU[grid.Nmu-1-k] * (f[k, l+1] - f[k, l]) / (grid.dx) + (1/epsilon**2) * ((1/np.sqrt(2)) * rho[k, l] - f[k, l])
-                    res[k, grid.Nx-1] = -(1/epsilon) * grid.MU[grid.Nmu-1-k] * (f[k, 0] - f[k, grid.Nx-1]) / (grid.dx) + (1/epsilon**2) * ((1/np.sqrt(2)) * rho[k, grid.Nx-1] - f[k, grid.Nx-1])
-    # I want low k to be at bottom of graph, high k to be at the top (thus restructure res)
+                    res[l, k] = -(1/epsilon) * grid.MU[k] * (f[l+1, k] - f[l, k]) / (grid.dx) + (1/epsilon**2) * ((1/np.sqrt(2)) * rho[l, k] - f[l, k])
+                    res[grid.Nx-1, k] = -(1/epsilon) * grid.MU[k] * (f[0, k] - f[grid.Nx-1, k]) / (grid.dx) + (1/epsilon**2) * ((1/np.sqrt(2)) * rho[grid.Nx-1, k] - f[grid.Nx-1, k])
     return(res)      
 
 # First simulation
@@ -90,7 +89,7 @@ grid = Grid(64, 64)
 extent = [grid.X[0], grid.X[-1], grid.MU[0], grid.MU[-1]]
 f0 = setInitialCondition(grid, "with_mu")
 plt.subplot(1, 3, 1)
-plt.imshow(f0, extent=extent)
+plt.imshow(f0.T, extent=extent, origin='lower')
 plt.colorbar(orientation='horizontal', pad=0.08, fraction=0.035)
 plt.xlabel("$x$")
 plt.ylabel("mu")
@@ -100,7 +99,7 @@ plt.title("inital values")
 
 f1 = integrate(f0, grid, 1, 1e-3, 1, "upwind")[0]
 plt.subplot(1, 3, 2)
-plt.imshow(f1, extent=extent)
+plt.imshow(f1.T, extent=extent, origin='lower')
 plt.colorbar(orientation='horizontal', pad=0.08, fraction=0.035)
 plt.xlabel("$x$")
 plt.ylabel("mu")
@@ -108,13 +107,14 @@ plt.title("upwind")
 
 f2 = integrate(f0, grid, 1, 1e-3, 1, "cen_diff")[0]
 plt.subplot(1, 3, 3)
-plt.imshow(f2, extent=extent)
+plt.imshow(f2.T, extent=extent, origin='lower')
 plt.colorbar(orientation='horizontal', pad=0.08, fraction=0.035)
 plt.xlabel("$x$")
 plt.ylabel("mu")
 plt.title("cen_diff")
 plt.show()
 
+'''
 # Print singular values over time
 grid = Grid(64, 64)
 extent = [grid.X[0], grid.X[-1], grid.MU[0], grid.MU[-1]]
@@ -135,3 +135,4 @@ ax.plot(tfinal, f_rank)
 ax.set_xlabel("$t$")
 ax.set_ylabel("rank $r(t)$")
 plt.show()
+'''
