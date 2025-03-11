@@ -38,12 +38,12 @@ def setInitialCondition(grid: Grid, option: str) -> np.ndarray:
 
 ### Implementation of solver
 
-def integrate(f0: np.ndarray, grid: Grid, t_f: float, dt: float, epsilon: float, option: str):
+def integrate(f0: np.ndarray, grid: Grid, t_f: float, dt: float, epsilon: float, option: str, tol):
     f = np.copy(f0)
     t = 0
     time = [0]
     rank = []
-    rank.append(np.linalg.matrix_rank(f))
+    rank.append(np.linalg.matrix_rank(f, tol))
     while t < t_f:
         if (t + dt > t_f):
             dt = t_f - t
@@ -52,7 +52,7 @@ def integrate(f0: np.ndarray, grid: Grid, t_f: float, dt: float, epsilon: float,
         t += dt
 
         time.append(t)
-        rank.append(np.linalg.matrix_rank(f))
+        rank.append(np.linalg.matrix_rank(f, tol))
 
     return f, time, rank
 
@@ -97,7 +97,7 @@ plt.title("inital values")
 
 ### Do simulations
 
-f1 = integrate(f0, grid, 1, 1e-3, 1, "upwind")[0]
+f1 = integrate(f0, grid, 1, 1e-3, 1, "upwind", 1e-2)[0]
 plt.subplot(1, 3, 2)
 plt.imshow(f1.T, extent=extent, origin='lower')
 plt.colorbar(orientation='horizontal', pad=0.08, fraction=0.035)
@@ -105,7 +105,7 @@ plt.xlabel("$x$")
 plt.ylabel("mu")
 plt.title("upwind")
 
-f2 = integrate(f0, grid, 1, 1e-3, 1, "cen_diff")[0]
+f2 = integrate(f0, grid, 1, 1e-3, 1, "cen_diff", 1e-2)[0]
 plt.subplot(1, 3, 3)
 plt.imshow(f2.T, extent=extent, origin='lower')
 plt.colorbar(orientation='horizontal', pad=0.08, fraction=0.035)
@@ -121,7 +121,7 @@ extent = [grid.X[0], grid.X[-1], grid.MU[0], grid.MU[-1]]
 f0 = setInitialCondition(grid, "with_mu")
 tfinal = np.linspace(0,1,11)
 for t in tfinal:
-    f = integrate(f0, grid, t, 1e-3, 1, "cen_diff")[0]
+    f = integrate(f0, grid, t, 1e-3, 1, "cen_diff", 1e-2)[0]
     print(np.linalg.svd(f)[1])
 
 # Plot rank of solution over time
@@ -129,10 +129,22 @@ grid = Grid(64, 64)
 extent = [grid.X[0], grid.X[-1], grid.MU[0], grid.MU[-1]]
 f0 = setInitialCondition(grid, "with_mu")
 tfinal = np.linspace(0,10,11)
-f_rank = [np.linalg.matrix_rank(integrate(f0, grid, t, 1e-3, 1, "cen_diff")[0], tol=1e-2) for t in tfinal]
+f_rank = [np.linalg.matrix_rank(integrate(f0, grid, t, 1e-3, 1, "cen_diff", 1e-2)[0], tol=1e-4) for t in tfinal]
 fig, ax = plt.subplots()
 ax.plot(tfinal, f_rank)
 ax.set_xlabel("$t$")
 ax.set_ylabel("rank $r(t)$")
 plt.show()
 '''
+
+# Plot rank of solution over time
+grid = Grid(64, 64)
+f0 = setInitialCondition(grid, "with_mu")
+res = integrate(f0, grid, 10, 1e-3, 1, "cen_diff", 1e-2)
+time_array = res[1]
+rank_array = res[2]
+fig, ax = plt.subplots()
+ax.plot(time_array, rank_array)
+ax.set_xlabel("$t$")
+ax.set_ylabel("rank $r(t)$")
+plt.show()
