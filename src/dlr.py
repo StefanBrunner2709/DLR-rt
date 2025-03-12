@@ -103,6 +103,9 @@ def integrate(lr0, grid, t_f, dt):
     lr = lr0
     t = 0
     time = []
+    time.append(t)
+    # lr_array = []     # only needed for error plots
+    # lr_array.append(lr.U @ lr.S @ lr.V.T)
     while t < t_f:
         if (t + dt > t_f):
             dt = t_f - t
@@ -134,11 +137,13 @@ def integrate(lr0, grid, t_f, dt):
         lr.V /= np.sqrt(grid.dmu)
         lr.S *= np.sqrt(grid.dmu)
 
-    return lr, time
+        # lr_array.append(lr.U @ lr.S @ lr.V.T)
+
+    return lr, time #, lr_array
 
 
-
-r = 64
+''' # Original plotting
+r = 32
 Nx = 64
 Nmu = 64
 dt = 1e-3
@@ -167,3 +172,165 @@ plt.xlabel("$x$")
 plt.ylabel("mu")
 plt.title("t=1")
 plt.show()
+'''
+
+''' # New plots with 4 plots in one figure
+Nx = 64
+Nmu = 64
+dt = 1e-3
+t_f = 1.0
+
+fig, axes = plt.subplots(2, 2, figsize=(8, 8))
+
+grid = Grid(Nx, Nmu, 4)
+lr0 = setInitialCondition(grid)
+f0 = lr0.U @ lr0.S @ lr0.V.T
+lr, time = integrate(lr0, grid, t_f, dt)
+f = lr.U @ lr.S @ lr.V.T
+extent = [grid.X[0], grid.X[-1], grid.MU[0], grid.MU[-1]]
+
+im1 = axes[0, 0].imshow(f.T, extent=extent, origin='lower')
+axes[0, 0].set_title("$r=4$")
+axes[0, 0].set_xlabel("$x$")
+axes[0, 0].set_ylabel("mu")
+
+grid = Grid(Nx, Nmu, 8)
+lr0 = setInitialCondition(grid)
+f0 = lr0.U @ lr0.S @ lr0.V.T
+lr, time = integrate(lr0, grid, t_f, dt)
+f = lr.U @ lr.S @ lr.V.T
+extent = [grid.X[0], grid.X[-1], grid.MU[0], grid.MU[-1]]
+
+im2 = axes[0, 1].imshow(f.T, extent=extent, origin='lower')
+axes[0, 1].set_title("$r=8$")
+axes[0, 1].set_xlabel("$x$")
+axes[0, 1].set_ylabel("mu")
+
+grid = Grid(Nx, Nmu, 16)
+lr0 = setInitialCondition(grid)
+f0 = lr0.U @ lr0.S @ lr0.V.T
+lr, time = integrate(lr0, grid, t_f, dt)
+f = lr.U @ lr.S @ lr.V.T
+extent = [grid.X[0], grid.X[-1], grid.MU[0], grid.MU[-1]]
+
+im3 = axes[1, 0].imshow(f.T, extent=extent, origin='lower')
+axes[1, 0].set_title("$r=16$")
+axes[1, 0].set_xlabel("$x$")
+axes[1, 0].set_ylabel("mu")
+
+grid = Grid(Nx, Nmu, 32)
+lr0 = setInitialCondition(grid)
+f0 = lr0.U @ lr0.S @ lr0.V.T
+lr, time = integrate(lr0, grid, t_f, dt)
+f = lr.U @ lr.S @ lr.V.T
+extent = [grid.X[0], grid.X[-1], grid.MU[0], grid.MU[-1]]
+
+im4 = axes[1, 1].imshow(f.T, extent=extent, origin='lower')
+axes[1, 1].set_title("$r=32$")
+axes[1, 1].set_xlabel("$x$")
+axes[1, 1].set_ylabel("mu")
+
+fig.colorbar(im1, ax=axes[0, 0])
+fig.colorbar(im2, ax=axes[0, 1])
+fig.colorbar(im3, ax=axes[1, 0])
+fig.colorbar(im4, ax=axes[1, 1])
+
+plt.tight_layout()
+plt.savefig("C:/Users/brunn/OneDrive/Dokumente/00_Uni/Masterarbeit/PHD_project_master_thesis/Second_results/Plots_low_rank/test.pdf")
+'''
+
+''' # Error plots
+Nx = 64
+Nmu = 64
+dt = 1e-3
+t_f = 5.0
+
+grid = Grid(Nx, Nmu, 64)
+lr0 = setInitialCondition(grid)
+f0 = lr0.U @ lr0.S @ lr0.V.T
+lr64, time64, lr_array64 = integrate(lr0, grid, t_f, dt)
+
+grid = Grid(Nx, Nmu, 4)
+lr0 = setInitialCondition(grid)
+f0 = lr0.U @ lr0.S @ lr0.V.T
+lr4, time4, lr_array4 = integrate(lr0, grid, t_f, dt)
+
+grid = Grid(Nx, Nmu, 8)
+lr0 = setInitialCondition(grid)
+f0 = lr0.U @ lr0.S @ lr0.V.T
+lr8, time8, lr_array8 = integrate(lr0, grid, t_f, dt)
+
+grid = Grid(Nx, Nmu, 16)
+lr0 = setInitialCondition(grid)
+f0 = lr0.U @ lr0.S @ lr0.V.T
+lr16, time16, lr_array16 = integrate(lr0, grid, t_f, dt)
+
+grid = Grid(Nx, Nmu, 32)
+lr0 = setInitialCondition(grid)
+f0 = lr0.U @ lr0.S @ lr0.V.T
+lr32, time32, lr_array32 = integrate(lr0, grid, t_f, dt)
+
+
+
+error_array4=[]
+error_array8=[]
+error_array16=[]
+error_array32=[]
+for i in range(len(lr_array64)):
+    error_array4.append(np.linalg.norm(lr_array64[i]-lr_array4[i]))
+    error_array8.append(np.linalg.norm(lr_array64[i]-lr_array8[i]))
+    error_array16.append(np.linalg.norm(lr_array64[i]-lr_array16[i]))
+    error_array32.append(np.linalg.norm(lr_array64[i]-lr_array32[i]))
+
+plt.semilogy(time64, error_array4, label='$r=4$')
+plt.semilogy(time64, error_array8, label='$r=8$')
+plt.semilogy(time64, error_array16, label='$r=16$')
+plt.semilogy(time64, error_array32, label='$r=32$')
+plt.xlabel("t")
+plt.ylabel("error")
+plt.legend()
+plt.show()
+'''
+
+''' # Plots for different times
+Nx = 64
+Nmu = 64
+dt = 1e-3
+r = 32
+
+grid = Grid(Nx, Nmu, r)
+lr0 = setInitialCondition(grid)
+f0 = lr0.U @ lr0.S @ lr0.V.T
+extent = [grid.X[0], grid.X[-1], grid.MU[0], grid.MU[-1]]
+
+lr1, time1 = integrate(lr0, grid, 1.0, dt)
+f1 = lr1.U @ lr1.S @ lr1.V.T
+
+plt.subplot(1, 3, 1)
+plt.imshow(f1.T, extent=extent, origin='lower')
+plt.colorbar(orientation='horizontal', pad=0.08, fraction=0.035)
+plt.xlabel("$x$")
+plt.ylabel("mu")
+plt.title("t=1")
+
+lr3, time1 = integrate(lr0, grid, 3.0, dt)
+f3 = lr3.U @ lr3.S @ lr3.V.T
+
+plt.subplot(1, 3, 2)
+plt.imshow(f3.T, extent=extent, origin='lower')
+plt.colorbar(orientation='horizontal', pad=0.08, fraction=0.035)
+plt.xlabel("$x$")
+plt.ylabel("mu")
+plt.title("t=3")
+
+lr5, time1 = integrate(lr0, grid, 5.0, dt)
+f5 = lr5.U @ lr5.S @ lr5.V.T
+
+plt.subplot(1, 3, 3)
+plt.imshow(f5.T, extent=extent, origin='lower')
+plt.colorbar(orientation='horizontal', pad=0.08, fraction=0.035)
+plt.xlabel("$x$")
+plt.ylabel("mu")
+plt.title("t=5")
+plt.show()
+'''
