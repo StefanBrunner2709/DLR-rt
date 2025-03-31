@@ -54,6 +54,15 @@ def integrate(f0: np.ndarray, grid: Grid, t_f: float, dt: float, epsilon: float,
         time.append(t)
         rank.append(np.linalg.matrix_rank(f, tol))
 
+        # Clock for progress
+        if np.round(t*1000) % 100 == 0:
+            print(f"Timestep: {t}")
+
+        # Write values to file
+        if np.round(t*1000) % 1000 == 0:
+            time_string = str(np.round(t*1000))
+            np.save("C:/Users/brunn/OneDrive/Dokumente/00_Uni/Masterarbeit/PHD_project_master_thesis/Plots_after_correction/Plots_classical/_" + option + "_" + time_string + "_.npy", f)
+
     return f, time, rank
 
 def rhs(f: np.ndarray, grid: Grid, epsilon: float, option: str):
@@ -82,6 +91,7 @@ def rhs(f: np.ndarray, grid: Grid, epsilon: float, option: str):
                     res[grid.Nx-1, k] = -(1/epsilon) * grid.MU[k] * (f[0, k] - f[grid.Nx-1, k]) / (grid.dx) + (1/epsilon**2) * ((1/np.sqrt(2)) * rho[grid.Nx-1, k] - f[grid.Nx-1, k])
     return(res)      
 
+'''
 # First simulation
 ### Check initial condition
 
@@ -113,7 +123,7 @@ plt.xlabel("$x$")
 plt.ylabel("mu")
 plt.title("cen_diff")
 plt.show()
-
+'''
 '''
 # Print singular values over time
 grid = Grid(64, 64)
@@ -136,7 +146,7 @@ ax.set_xlabel("$t$")
 ax.set_ylabel("rank $r(t)$")
 plt.show()
 '''
-
+'''
 # Plot rank of solution over time
 grid = Grid(64, 64)
 f0 = setInitialCondition(grid, "with_mu")
@@ -148,3 +158,132 @@ ax.plot(time_array, rank_array)
 ax.set_xlabel("$t$")
 ax.set_ylabel("rank $r(t)$")
 plt.show()
+'''
+
+# Plotting after correction
+
+fs = 16
+n = 256
+t_final = 0.5
+t_string = "t005"
+
+
+# Inital condition plot
+'''
+grid = Grid(n, n)
+extent = [grid.X[0], grid.X[-1], grid.MU[0], grid.MU[-1]]
+f0 = setInitialCondition(grid, "with_mu")
+plt.imshow(f0.T, extent=extent, origin='lower', aspect=0.5, vmin=0.13, vmax=0.16)
+cbar = plt.colorbar()
+cbar.set_ticks([0.13, 0.145, 0.16])
+cbar.ax.tick_params(labelsize=fs)
+plt.xlabel("$x$", fontsize=fs)
+plt.ylabel("$\mu$", fontsize=fs)
+plt.xticks([0, 0.5, 1], fontsize=fs)
+plt.yticks([-1, 0, 1], fontsize=fs)
+plt.tick_params(axis='x', pad=10)  # Moves x-axis labels farther
+plt.tick_params(axis='y', pad=10)  # Moves y-axis labels farther
+plt.title("$f(t=0,x,\mu)$", fontsize=fs)
+plt.tight_layout()
+plt.savefig("C:/Users/brunn/OneDrive/Dokumente/00_Uni/Masterarbeit/PHD_project_master_thesis/Plots_after_correction/Plots_classical/init_cond_sigma1.pdf")
+'''
+
+
+# Distribution function f for different times using centered differences
+
+grid = Grid(n, n)
+extent = [grid.X[0], grid.X[-1], grid.MU[0], grid.MU[-1]]
+f0 = setInitialCondition(grid, "with_mu")
+f1_all = integrate(f0, grid, t_final, 1e-4, 1, "cen_diff", 1e-4)
+f1 = f1_all[0]
+
+# Save resulting matrix
+np.save("C:/Users/brunn/OneDrive/Dokumente/00_Uni/Masterarbeit/PHD_project_master_thesis/Plots_after_correction/Plots_classical/f1_" + t_string + "_.npy", f1)
+
+plt.figure()
+plt.imshow(f1.T, extent=extent, origin='lower', aspect=0.5, vmin=0.13, vmax=0.16)
+cbar_fixed = plt.colorbar()
+cbar_fixed.set_ticks([0.13, 0.145, 0.16])
+cbar_fixed.ax.tick_params(labelsize=fs)
+plt.xlabel("$x$", fontsize=fs)
+plt.ylabel("$\mu$", fontsize=fs)
+plt.xticks([0, 0.5, 1], fontsize=fs)
+plt.yticks([-1, 0, 1], fontsize=fs)
+plt.tick_params(axis='x', pad=10)
+plt.tick_params(axis='y', pad=10)
+plt.title("RK4, centered differences", fontsize=fs)
+plt.tight_layout()
+plt.savefig("C:/Users/brunn/OneDrive/Dokumente/00_Uni/Masterarbeit/PHD_project_master_thesis/Plots_after_correction/Plots_classical/distr_funct_" + t_string + "_cendiff_sigma1_fixedaxis.pdf")
+
+plt.figure()
+plt.imshow(f1.T, extent=extent, origin='lower', aspect=0.5)
+cbar_f1 = plt.colorbar()
+cbar_f1.set_ticks([np.ceil(np.min(f1)*10000)/10000, np.floor(np.max(f1)*10000)/10000])
+cbar_f1.ax.tick_params(labelsize=fs)
+plt.xlabel("$x$", fontsize=fs)
+plt.ylabel("$\mu$", fontsize=fs)
+plt.xticks([0, 0.5, 1], fontsize=fs)
+plt.yticks([-1, 0, 1], fontsize=fs)
+plt.tick_params(axis='x', pad=10)
+plt.tick_params(axis='y', pad=10)
+plt.title("RK4, centered differences", fontsize=fs)
+plt.tight_layout()
+plt.savefig("C:/Users/brunn/OneDrive/Dokumente/00_Uni/Masterarbeit/PHD_project_master_thesis/Plots_after_correction/Plots_classical/distr_funct_" + t_string + "_cendiff_sigma1.pdf")
+
+# Distribution function f for different times using upwind
+
+f2_all = integrate(f0, grid, t_final, 1e-3, 1, "upwind", 1e-2)
+f2 = f2_all[0]
+
+# Save resulting matrix
+np.save("C:/Users/brunn/OneDrive/Dokumente/00_Uni/Masterarbeit/PHD_project_master_thesis/Plots_after_correction/Plots_classical/f2_" + t_string + "_.npy", f2)
+
+plt.figure()
+plt.imshow(f2.T, extent=extent, origin='lower', aspect=0.5, vmin=0.13, vmax=0.16)
+cbar_fixed = plt.colorbar()
+cbar_fixed.set_ticks([0.13, 0.145, 0.16])
+cbar_fixed.ax.tick_params(labelsize=fs)
+plt.xlabel("$x$", fontsize=fs)
+plt.ylabel("$\mu$", fontsize=fs)
+plt.xticks([0, 0.5, 1], fontsize=fs)
+plt.yticks([-1, 0, 1], fontsize=fs)
+plt.tick_params(axis='x', pad=10)
+plt.tick_params(axis='y', pad=10)
+plt.title("Explicit Euler, upwind", fontsize=fs)
+plt.tight_layout()
+plt.savefig("C:/Users/brunn/OneDrive/Dokumente/00_Uni/Masterarbeit/PHD_project_master_thesis/Plots_after_correction/Plots_classical/distr_funct_" + t_string + "_upwind_sigma1_fixedaxis.pdf")
+
+plt.figure()
+plt.imshow(f2.T, extent=extent, origin='lower', aspect=0.5)
+cbar_f1 = plt.colorbar()
+cbar_f1.set_ticks([np.ceil(np.min(f2)*10000)/10000, np.floor(np.max(f2)*1000)/1000])
+cbar_f1.ax.tick_params(labelsize=fs)
+plt.xlabel("$x$", fontsize=fs)
+plt.ylabel("$\mu$", fontsize=fs)
+plt.xticks([0, 0.5, 1], fontsize=fs)
+plt.yticks([-1, 0, 1], fontsize=fs)
+plt.tick_params(axis='x', pad=10)
+plt.tick_params(axis='y', pad=10)
+plt.title("Explicit Euler, upwind", fontsize=fs)
+plt.tight_layout()
+plt.savefig("C:/Users/brunn/OneDrive/Dokumente/00_Uni/Masterarbeit/PHD_project_master_thesis/Plots_after_correction/Plots_classical/distr_funct_" + t_string + "_upwind_sigma1.pdf")
+
+# Rank plot for multiple times
+'''
+fig, ax = plt.subplots()
+ax.plot(f1_all[1], f1_all[2])
+ax.set_xlabel("$t$", fontsize=fs)
+ax.set_ylabel("rank $r(t)$", fontsize=fs)
+ax.tick_params(axis='both', labelsize=fs)
+plt.tight_layout()
+plt.savefig("C:/Users/brunn/OneDrive/Dokumente/00_Uni/Masterarbeit/PHD_project_master_thesis/Plots_after_correction/Plots_classical/rank_over_time_cendiff_sigma1_tol1e-4.pdf")
+
+
+fig, ax = plt.subplots()
+ax.plot(f2_all[1], f2_all[2])
+ax.set_xlabel("$t$", fontsize=fs)
+ax.set_ylabel("rank $r(t)$", fontsize=fs)
+ax.tick_params(axis='both', labelsize=fs)
+plt.tight_layout()
+plt.savefig("C:/Users/brunn/OneDrive/Dokumente/00_Uni/Masterarbeit/PHD_project_master_thesis/Plots_after_correction/Plots_classical/rank_over_time_upwind_sigma1_tol1e-2.pdf")
+'''
