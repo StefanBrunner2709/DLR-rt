@@ -292,11 +292,11 @@ plt.legend()
 plt.show()
 '''
 
-''' # Plots for different times
-Nx = 64
-Nmu = 64
+# Plots for different times
+Nx = 256
+Nmu = 256
 dt = 1e-3
-r = 32
+r = 16
 
 grid = Grid(Nx, Nmu, r)
 lr0 = setInitialCondition(grid)
@@ -333,4 +333,3 @@ plt.xlabel("$x$")
 plt.ylabel("mu")
 plt.title("t=5")
 plt.show()
-'''
