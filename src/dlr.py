@@ -13,25 +13,18 @@ class Grid:
         self.Nmu = Nmu
         self.r = r
         self.X = np.linspace(0.0, 1.0, Nx, endpoint=False)
-        self.MU = np.linspace(-1.0, 1.0, Nmu, endpoint=False)
+        self.MU = np.linspace(-1.0, 1.0, Nmu, endpoint=True)
         self.dx = self.X[1] - self.X[0]
         self.dmu = self.MU[1] - self.MU[0]
 
-def setInitialCondition(grid):
+def setInitialCondition(grid, sigma):
     U = np.zeros((grid.Nx, grid.r))
     V = np.zeros((grid.Nmu, grid.r))
     S = np.zeros((grid.r, grid.r))
 
-    sigma = 1
     U[:, 0] = 1/(2 * np.pi * sigma**2) * np.exp(-((grid.X-0.5)**2)/(2*sigma**2))
     V[:, 0] = np.exp(-(np.abs(grid.MU)**2)/(16*sigma**2))
     S[0, 0] = 1.0
-
-    sigma_x = 1e-1
-    sigma_mu = 1
-    #U[:, 0] = 1/(2 * np.pi * sigma_x**2) * np.exp(-((grid.X-0.5)**2)/(2*sigma_x**2))
-    #V[:, 0] = np.exp(-(np.abs(grid.MU)**2)/(sigma_mu**2))
-    #S[0, 0] = 1.0
 
     U_ortho, R_U = np.linalg.qr(U, mode="reduced")
     V_ortho, R_V = np.linalg.qr(V, mode="reduced")
@@ -53,26 +46,18 @@ def RK4(f, rhs, dt):
 
 def computeC(lr, grid):
 
-    # Alternatively: (slower but easier to understand)
-    # inner1 = lr.V.T @ np.diag(grid.MU) @ lr.V
-    # C1 = inner1 * grid.dmu
-
-    # muV = grid.MU[:, None] * lr.V
-    # C1 = lr.V.T @ muV * grid.dmu         #still should implement trapezoidal instead of just multiplying by dmu everywhere
-
-    # C2 = lr.V * grid.dmu
-
     C1 = (lr.V.T @ np.diag(grid.MU) @ lr.V) * grid.dmu
 
-    # C2 = lr.V * grid.dmu
-
     C2 = (lr.V.T @ np.ones((grid.Nmu,grid.Nmu))).T * grid.dmu
+
+    ### Alternative option, faster but harder to understand
+    # muV = grid.MU[:, None] * lr.V
+    # C1 = lr.V.T @ muV * grid.dmu
+    # C2 = lr.V * grid.dmu
 
     return C1, C2
 
 def computeB(L, grid):
-
-    # B1 = L * grid.dmu
 
     B1 = (L.T @ np.ones((grid.Nmu,grid.Nmu))).T * grid.dmu
 
@@ -95,11 +80,10 @@ def Sstep(S, C1, C2, D1):
     return rhs
 
 def Lstep(L, D1, B1, grid):
-    # rhs = - D1 @ L @ np.diag(grid.MU) + 0.5 * B1 - L
     rhs = - np.diag(grid.MU) @ L @ D1.T + 0.5 * B1 - L
     return rhs
 
-def integrate(lr0, grid, t_f, dt):
+def integrate(lr0: LR, grid: Grid, t_f: float, dt: float, option: str = "lie"):
     lr = lr0
     t = 0
     time = []
@@ -113,223 +97,281 @@ def integrate(lr0, grid, t_f, dt):
         t += dt
         time.append(t)
 
-        # K step
-        C1, C2 = computeC(lr, grid)
-        K = lr.U @ lr.S
-        K += dt * RK4(K, lambda K: Kstep(K, C1, C2, grid), dt)
-        lr.U, lr.S = np.linalg.qr(K, mode="reduced")
-        lr.U /= np.sqrt(grid.dx)
-        lr.S *= np.sqrt(grid.dx)
+        if option=="lie":
+            # K step
+            C1, C2 = computeC(lr, grid)
+            K = lr.U @ lr.S
+            K += dt * RK4(K, lambda K: Kstep(K, C1, C2, grid), dt)
+            lr.U, lr.S = np.linalg.qr(K, mode="reduced")
+            lr.U /= np.sqrt(grid.dx)
+            lr.S *= np.sqrt(grid.dx)
 
-        # S step
-        D1 = computeD(lr, grid)
-        lr.S += dt * RK4(lr.S, lambda S: Sstep(S, C1, C2, D1), dt) # Projector-splitting integrator + or - here?
+            # S step
+            D1 = computeD(lr, grid)
+            lr.S += dt * RK4(lr.S, lambda S: Sstep(S, C1, C2, D1), dt)
 
-        # L step
-        # L = lr.S @ lr.V.T
-        L = lr.V @ lr.S.T
-        B1 = computeB(L, grid)
-        L += dt * RK4(L, lambda L: Lstep(L, D1, B1, grid), dt)
-        # lr.S, Vt = np.linalg.qr(L, mode="reduced")
-        # lr.V = Vt.T
-        lr.V, St = np.linalg.qr(L, mode="reduced")
-        lr.S = St.T
-        lr.V /= np.sqrt(grid.dmu)
-        lr.S *= np.sqrt(grid.dmu)
+            # L step
+            L = lr.V @ lr.S.T
+            B1 = computeB(L, grid)
+            L += dt * RK4(L, lambda L: Lstep(L, D1, B1, grid), dt)
+            lr.V, St = np.linalg.qr(L, mode="reduced")
+            lr.S = St.T
+            lr.V /= np.sqrt(grid.dmu)
+            lr.S *= np.sqrt(grid.dmu)
+        
+        if option=="strang":
+            # 1/2 K step
+            C1, C2 = computeC(lr, grid)
+            K = lr.U @ lr.S
+            K += 0.5 * dt * RK4(K, lambda K: Kstep(K, C1, C2, grid), 0.5 * dt)
+            lr.U, lr.S = np.linalg.qr(K, mode="reduced")
+            lr.U /= np.sqrt(grid.dx)
+            lr.S *= np.sqrt(grid.dx)
 
-        # lr_array.append(lr.U @ lr.S @ lr.V.T)
+            # 1/2 S step
+            D1 = computeD(lr, grid)
+            lr.S += 0.5 * dt * RK4(lr.S, lambda S: Sstep(S, C1, C2, D1), 0.5 * dt)
+
+            # L step
+            L = lr.V @ lr.S.T
+            B1 = computeB(L, grid)
+            L += dt * RK4(L, lambda L: Lstep(L, D1, B1, grid), dt)
+            lr.V, St = np.linalg.qr(L, mode="reduced")
+            lr.S = St.T
+            lr.V /= np.sqrt(grid.dmu)
+            lr.S *= np.sqrt(grid.dmu)
+
+            # 1/2 S step
+            C1, C2 = computeC(lr, grid)     # need to recalculate C1 and C2 because we changed V in L step     
+            lr.S += 0.5 * dt * RK4(lr.S, lambda S: Sstep(S, C1, C2, D1), 0.5 * dt)
+
+            # 1/2 K step
+            K = lr.U @ lr.S
+            K += 0.5 * dt * RK4(K, lambda K: Kstep(K, C1, C2, grid), 0.5 * dt)
+            lr.U, lr.S = np.linalg.qr(K, mode="reduced")
+            lr.U /= np.sqrt(grid.dx)
+            lr.S *= np.sqrt(grid.dx)
+
+        # lr_array.append(lr.U @ lr.S @ lr.V.T)     # again only for error plots
 
     return lr, time #, lr_array
 
 
-''' # Original plotting
+''' ### Just one plot for certain rank and certain time
+
+Nx = 64
+Nmu = 64
+dt = 1e-3
 r = 32
-Nx = 64
-Nmu = 64
-dt = 1e-3
-t_f = 1.0
+t_f = 3.0
+sigma = 1
+fs = 16
+savepath = "C:/Users/brunn/OneDrive/Dokumente/00_Uni/Masterarbeit/PHD_project_master_thesis/Plots_after_correction/Plots_low_rank/"
 
-t_f_array = np.linspace(0.0, t_f, 11)
+fig, axes = plt.subplots(1, 1, figsize=(10, 8))
+
 grid = Grid(Nx, Nmu, r)
-lr0 = setInitialCondition(grid)
+lr0 = setInitialCondition(grid, sigma)
 f0 = lr0.U @ lr0.S @ lr0.V.T
-lr, time = integrate(lr0, grid, t_f, dt)
-f = lr.U @ lr.S @ lr.V.T
-
-extent = [grid.X[0], grid.X[-1], grid.MU[0], grid.MU[-1]]
-
-plt.subplot(1, 2, 1)
-plt.imshow(f0.T, extent=extent, origin='lower')
-plt.colorbar()
-plt.xlabel("$x$")
-plt.ylabel("mu")
-plt.title("t=0")
-
-plt.subplot(1, 2, 2)
-plt.imshow(f.T, extent=extent, origin='lower')
-plt.colorbar()
-plt.xlabel("$x$")
-plt.ylabel("mu")
-plt.title("t=1")
-plt.show()
-'''
-
-''' # New plots with 4 plots in one figure
-Nx = 64
-Nmu = 64
-dt = 1e-3
-t_f = 1.0
-
-fig, axes = plt.subplots(2, 2, figsize=(8, 8))
-
-grid = Grid(Nx, Nmu, 4)
-lr0 = setInitialCondition(grid)
-f0 = lr0.U @ lr0.S @ lr0.V.T
-lr, time = integrate(lr0, grid, t_f, dt)
+lr, time = integrate(lr0, grid, t_f, dt, "strang")
 f = lr.U @ lr.S @ lr.V.T
 extent = [grid.X[0], grid.X[-1], grid.MU[0], grid.MU[-1]]
 
-im1 = axes[0, 0].imshow(f.T, extent=extent, origin='lower')
-axes[0, 0].set_title("$r=4$")
-axes[0, 0].set_xlabel("$x$")
-axes[0, 0].set_ylabel("mu")
+im = axes.imshow(f.T, extent=extent, origin='lower', aspect=0.5, vmin=0.13, vmax=0.16)
+axes.set_xlabel("$x$", fontsize=fs)
+axes.set_ylabel("$\mu$", fontsize=fs, labelpad=-5)
+axes.set_xticks([0, 0.5, 1])
+axes.set_yticks([-1, 0, 1])
+axes.tick_params(axis='both', labelsize=fs, pad=10)
 
-grid = Grid(Nx, Nmu, 8)
-lr0 = setInitialCondition(grid)
-f0 = lr0.U @ lr0.S @ lr0.V.T
-lr, time = integrate(lr0, grid, t_f, dt)
-f = lr.U @ lr.S @ lr.V.T
-extent = [grid.X[0], grid.X[-1], grid.MU[0], grid.MU[-1]]
-
-im2 = axes[0, 1].imshow(f.T, extent=extent, origin='lower')
-axes[0, 1].set_title("$r=8$")
-axes[0, 1].set_xlabel("$x$")
-axes[0, 1].set_ylabel("mu")
-
-grid = Grid(Nx, Nmu, 16)
-lr0 = setInitialCondition(grid)
-f0 = lr0.U @ lr0.S @ lr0.V.T
-lr, time = integrate(lr0, grid, t_f, dt)
-f = lr.U @ lr.S @ lr.V.T
-extent = [grid.X[0], grid.X[-1], grid.MU[0], grid.MU[-1]]
-
-im3 = axes[1, 0].imshow(f.T, extent=extent, origin='lower')
-axes[1, 0].set_title("$r=16$")
-axes[1, 0].set_xlabel("$x$")
-axes[1, 0].set_ylabel("mu")
-
-grid = Grid(Nx, Nmu, 32)
-lr0 = setInitialCondition(grid)
-f0 = lr0.U @ lr0.S @ lr0.V.T
-lr, time = integrate(lr0, grid, t_f, dt)
-f = lr.U @ lr.S @ lr.V.T
-extent = [grid.X[0], grid.X[-1], grid.MU[0], grid.MU[-1]]
-
-im4 = axes[1, 1].imshow(f.T, extent=extent, origin='lower')
-axes[1, 1].set_title("$r=32$")
-axes[1, 1].set_xlabel("$x$")
-axes[1, 1].set_ylabel("mu")
-
-fig.colorbar(im1, ax=axes[0, 0])
-fig.colorbar(im2, ax=axes[0, 1])
-fig.colorbar(im3, ax=axes[1, 0])
-fig.colorbar(im4, ax=axes[1, 1])
+cbar_fixed = fig.colorbar(im, ax=axes)
+cbar_fixed.set_ticks([0.13, 0.145, 0.16])
+cbar_fixed.ax.tick_params(labelsize=fs)
 
 plt.tight_layout()
-plt.savefig("C:/Users/brunn/OneDrive/Dokumente/00_Uni/Masterarbeit/PHD_project_master_thesis/Second_results/Plots_low_rank/test.pdf")
+plt.savefig(savepath + "test.pdf")
 '''
 
-''' # Error plots
+
+''' ### 4 plots, same time, different ranks
+
 Nx = 64
 Nmu = 64
 dt = 1e-3
-t_f = 5.0
+r_array = [4, 8, 16, 32]
+t_f = 1.0
+sigma = 1
+fs = 16
+savepath = "C:/Users/brunn/OneDrive/Dokumente/00_Uni/Masterarbeit/PHD_project_master_thesis/Plots_after_correction/Plots_low_rank/"
 
-grid = Grid(Nx, Nmu, 64)
-lr0 = setInitialCondition(grid)
+fig, axes = plt.subplots(2, 2, figsize=(10, 8))
+
+grid = Grid(Nx, Nmu, r_array[0])
+lr0 = setInitialCondition(grid, sigma)
 f0 = lr0.U @ lr0.S @ lr0.V.T
-lr64, time64, lr_array64 = integrate(lr0, grid, t_f, dt)
+lr, time = integrate(lr0, grid, t_f, dt)
+f = lr.U @ lr.S @ lr.V.T
+extent = [grid.X[0], grid.X[-1], grid.MU[0], grid.MU[-1]]
 
-grid = Grid(Nx, Nmu, 4)
-lr0 = setInitialCondition(grid)
+im1 = axes[0, 0].imshow(f.T, extent=extent, origin='lower', aspect=0.5, vmin=0.13, vmax=0.16)
+axes[0, 0].set_title("$r=$" + str(r_array[0]), fontsize=fs)
+axes[0, 0].set_xlabel("$x$", fontsize=fs)
+axes[0, 0].set_ylabel("$\mu$", fontsize=fs, labelpad=-5)
+axes[0, 0].set_xticks([0, 0.5, 1])
+axes[0, 0].set_yticks([-1, 0, 1])
+axes[0, 0].tick_params(axis='both', labelsize=fs, pad=10)
+
+grid = Grid(Nx, Nmu, r_array[1])
+lr0 = setInitialCondition(grid, sigma)
 f0 = lr0.U @ lr0.S @ lr0.V.T
-lr4, time4, lr_array4 = integrate(lr0, grid, t_f, dt)
+lr, time = integrate(lr0, grid, t_f, dt)
+f = lr.U @ lr.S @ lr.V.T
+extent = [grid.X[0], grid.X[-1], grid.MU[0], grid.MU[-1]]
 
-grid = Grid(Nx, Nmu, 8)
-lr0 = setInitialCondition(grid)
+im2 = axes[0, 1].imshow(f.T, extent=extent, origin='lower', aspect=0.5, vmin=0.13, vmax=0.16)
+axes[0, 1].set_title("$r=$" + str(r_array[1]), fontsize=fs)
+axes[0, 1].set_xlabel("$x$", fontsize=fs)
+axes[0, 1].set_ylabel("$\mu$", fontsize=fs, labelpad=-5)
+axes[0, 1].set_xticks([0, 0.5, 1])
+axes[0, 1].set_yticks([-1, 0, 1])
+axes[0, 1].tick_params(axis='both', labelsize=fs, pad=10)
+
+grid = Grid(Nx, Nmu, r_array[2])
+lr0 = setInitialCondition(grid, sigma)
 f0 = lr0.U @ lr0.S @ lr0.V.T
-lr8, time8, lr_array8 = integrate(lr0, grid, t_f, dt)
+lr, time = integrate(lr0, grid, t_f, dt)
+f = lr.U @ lr.S @ lr.V.T
+extent = [grid.X[0], grid.X[-1], grid.MU[0], grid.MU[-1]]
 
-grid = Grid(Nx, Nmu, 16)
-lr0 = setInitialCondition(grid)
+im3 = axes[1, 0].imshow(f.T, extent=extent, origin='lower', aspect=0.5, vmin=0.13, vmax=0.16)
+axes[1, 0].set_title("$r=$" + str(r_array[2]), fontsize=fs)
+axes[1, 0].set_xlabel("$x$", fontsize=fs)
+axes[1, 0].set_ylabel("$\mu$", fontsize=fs, labelpad=-5)
+axes[1, 0].set_xticks([0, 0.5, 1])
+axes[1, 0].set_yticks([-1, 0, 1])
+axes[1, 0].tick_params(axis='both', labelsize=fs, pad=10)
+
+grid = Grid(Nx, Nmu, r_array[3])
+lr0 = setInitialCondition(grid, sigma)
 f0 = lr0.U @ lr0.S @ lr0.V.T
-lr16, time16, lr_array16 = integrate(lr0, grid, t_f, dt)
+lr, time = integrate(lr0, grid, t_f, dt)
+f = lr.U @ lr.S @ lr.V.T
+extent = [grid.X[0], grid.X[-1], grid.MU[0], grid.MU[-1]]
 
-grid = Grid(Nx, Nmu, 32)
-lr0 = setInitialCondition(grid)
-f0 = lr0.U @ lr0.S @ lr0.V.T
-lr32, time32, lr_array32 = integrate(lr0, grid, t_f, dt)
+im4 = axes[1, 1].imshow(f.T, extent=extent, origin='lower', aspect=0.5, vmin=0.13, vmax=0.16)
+axes[1, 1].set_title("$r=$" + str(r_array[3]), fontsize=fs)
+axes[1, 1].set_xlabel("$x$", fontsize=fs)
+axes[1, 1].set_ylabel("$\mu$", fontsize=fs, labelpad=-5)
+axes[1, 1].set_xticks([0, 0.5, 1])
+axes[1, 1].set_yticks([-1, 0, 1])
+axes[1, 1].tick_params(axis='both', labelsize=fs, pad=10)
 
+cbar_fixed1 = fig.colorbar(im1, ax=axes[0, 0])
+cbar_fixed1.set_ticks([0.13, 0.145, 0.16])
+cbar_fixed1.ax.tick_params(labelsize=fs)
+cbar_fixed2 = fig.colorbar(im2, ax=axes[0, 1])
+cbar_fixed2.set_ticks([0.13, 0.145, 0.16])
+cbar_fixed2.ax.tick_params(labelsize=fs)
+cbar_fixed3 = fig.colorbar(im3, ax=axes[1, 0])
+cbar_fixed3.set_ticks([0.13, 0.145, 0.16])
+cbar_fixed3.ax.tick_params(labelsize=fs)
+cbar_fixed4 = fig.colorbar(im4, ax=axes[1, 1])
+cbar_fixed4.set_ticks([0.13, 0.145, 0.16])
+cbar_fixed4.ax.tick_params(labelsize=fs)
 
-
-error_array4=[]
-error_array8=[]
-error_array16=[]
-error_array32=[]
-for i in range(len(lr_array64)):
-    error_array4.append(np.linalg.norm(lr_array64[i]-lr_array4[i]))
-    error_array8.append(np.linalg.norm(lr_array64[i]-lr_array8[i]))
-    error_array16.append(np.linalg.norm(lr_array64[i]-lr_array16[i]))
-    error_array32.append(np.linalg.norm(lr_array64[i]-lr_array32[i]))
-
-plt.semilogy(time64, error_array4, label='$r=4$')
-plt.semilogy(time64, error_array8, label='$r=8$')
-plt.semilogy(time64, error_array16, label='$r=16$')
-plt.semilogy(time64, error_array32, label='$r=32$')
-plt.xlabel("t")
-plt.ylabel("error")
-plt.legend()
-plt.show()
+plt.tight_layout()
+plt.subplots_adjust(wspace=0.3, hspace=0.6)
+plt.savefig(savepath + "test.pdf")
 '''
 
-# Plots for different times
+
+''' ### 4 plots, same rank, different times
+
 Nx = 256
 Nmu = 256
 dt = 1e-3
 r = 16
+t_f_array = [0.5, 1.0, 2.0, 3.0]
+sigma = 1
+fs = 16
+savepath = "C:/Users/brunn/OneDrive/Dokumente/00_Uni/Masterarbeit/PHD_project_master_thesis/Plots_after_correction/Plots_low_rank/"
+
+fig, axes = plt.subplots(2, 2, figsize=(10, 8))
 
 grid = Grid(Nx, Nmu, r)
-lr0 = setInitialCondition(grid)
+lr0 = setInitialCondition(grid, sigma)
 f0 = lr0.U @ lr0.S @ lr0.V.T
+lr, time = integrate(lr0, grid, t_f_array[0], dt)
+f = lr.U @ lr.S @ lr.V.T
 extent = [grid.X[0], grid.X[-1], grid.MU[0], grid.MU[-1]]
 
-lr1, time1 = integrate(lr0, grid, 1.0, dt)
-f1 = lr1.U @ lr1.S @ lr1.V.T
+im1 = axes[0, 0].imshow(f.T, extent=extent, origin='lower', aspect=0.5, vmin=0.13, vmax=0.16)
+axes[0, 0].set_title("$t=$" + str(t_f_array[0]), fontsize=fs)
+axes[0, 0].set_xlabel("$x$", fontsize=fs)
+axes[0, 0].set_ylabel("$\mu$", fontsize=fs, labelpad=-5)
+axes[0, 0].set_xticks([0, 0.5, 1])
+axes[0, 0].set_yticks([-1, 0, 1])
+axes[0, 0].tick_params(axis='both', labelsize=fs, pad=10)
 
-plt.subplot(1, 3, 1)
-plt.imshow(f1.T, extent=extent, origin='lower')
-plt.colorbar(orientation='horizontal', pad=0.08, fraction=0.035)
-plt.xlabel("$x$")
-plt.ylabel("mu")
-plt.title("t=1")
+grid = Grid(Nx, Nmu, r)
+lr0 = setInitialCondition(grid, sigma)
+f0 = lr0.U @ lr0.S @ lr0.V.T
+lr, time = integrate(lr0, grid, t_f_array[1], dt)
+f = lr.U @ lr.S @ lr.V.T
+extent = [grid.X[0], grid.X[-1], grid.MU[0], grid.MU[-1]]
 
-lr3, time1 = integrate(lr0, grid, 3.0, dt)
-f3 = lr3.U @ lr3.S @ lr3.V.T
+im2 = axes[0, 1].imshow(f.T, extent=extent, origin='lower', aspect=0.5, vmin=0.13, vmax=0.16)
+axes[0, 1].set_title("$t=$" + str(t_f_array[1]), fontsize=fs)
+axes[0, 1].set_xlabel("$x$", fontsize=fs)
+axes[0, 1].set_ylabel("$\mu$", fontsize=fs, labelpad=-5)
+axes[0, 1].set_xticks([0, 0.5, 1])
+axes[0, 1].set_yticks([-1, 0, 1])
+axes[0, 1].tick_params(axis='both', labelsize=fs, pad=10)
 
-plt.subplot(1, 3, 2)
-plt.imshow(f3.T, extent=extent, origin='lower')
-plt.colorbar(orientation='horizontal', pad=0.08, fraction=0.035)
-plt.xlabel("$x$")
-plt.ylabel("mu")
-plt.title("t=3")
+grid = Grid(Nx, Nmu, r)
+lr0 = setInitialCondition(grid, sigma)
+f0 = lr0.U @ lr0.S @ lr0.V.T
+lr, time = integrate(lr0, grid, t_f_array[2], dt)
+f = lr.U @ lr.S @ lr.V.T
+extent = [grid.X[0], grid.X[-1], grid.MU[0], grid.MU[-1]]
 
-lr5, time1 = integrate(lr0, grid, 5.0, dt)
-f5 = lr5.U @ lr5.S @ lr5.V.T
+im3 = axes[1, 0].imshow(f.T, extent=extent, origin='lower', aspect=0.5, vmin=0.13, vmax=0.16)
+axes[1, 0].set_title("$t=$" + str(t_f_array[2]), fontsize=fs)
+axes[1, 0].set_xlabel("$x$", fontsize=fs)
+axes[1, 0].set_ylabel("$\mu$", fontsize=fs, labelpad=-5)
+axes[1, 0].set_xticks([0, 0.5, 1])
+axes[1, 0].set_yticks([-1, 0, 1])
+axes[1, 0].tick_params(axis='both', labelsize=fs, pad=10)
 
-plt.subplot(1, 3, 3)
-plt.imshow(f5.T, extent=extent, origin='lower')
-plt.colorbar(orientation='horizontal', pad=0.08, fraction=0.035)
-plt.xlabel("$x$")
-plt.ylabel("mu")
-plt.title("t=5")
-plt.show()
+grid = Grid(Nx, Nmu, r)
+lr0 = setInitialCondition(grid, sigma)
+f0 = lr0.U @ lr0.S @ lr0.V.T
+lr, time = integrate(lr0, grid, t_f_array[3], dt)
+f = lr.U @ lr.S @ lr.V.T
+extent = [grid.X[0], grid.X[-1], grid.MU[0], grid.MU[-1]]
+
+im4 = axes[1, 1].imshow(f.T, extent=extent, origin='lower', aspect=0.5, vmin=0.13, vmax=0.16)
+axes[1, 1].set_title("$t=$" + str(t_f_array[3]), fontsize=fs)
+axes[1, 1].set_xlabel("$x$", fontsize=fs)
+axes[1, 1].set_ylabel("$\mu$", fontsize=fs, labelpad=-5)
+axes[1, 1].set_xticks([0, 0.5, 1])
+axes[1, 1].set_yticks([-1, 0, 1])
+axes[1, 1].tick_params(axis='both', labelsize=fs, pad=10)
+
+cbar_fixed1 = fig.colorbar(im1, ax=axes[0, 0])
+cbar_fixed1.set_ticks([0.13, 0.145, 0.16])
+cbar_fixed1.ax.tick_params(labelsize=fs)
+cbar_fixed2 = fig.colorbar(im2, ax=axes[0, 1])
+cbar_fixed2.set_ticks([0.13, 0.145, 0.16])
+cbar_fixed2.ax.tick_params(labelsize=fs)
+cbar_fixed3 = fig.colorbar(im3, ax=axes[1, 0])
+cbar_fixed3.set_ticks([0.13, 0.145, 0.16])
+cbar_fixed3.ax.tick_params(labelsize=fs)
+cbar_fixed4 = fig.colorbar(im4, ax=axes[1, 1])
+cbar_fixed4.set_ticks([0.13, 0.145, 0.16])
+cbar_fixed4.ax.tick_params(labelsize=fs)
+
+plt.tight_layout()
+plt.subplots_adjust(wspace=0.3, hspace=0.6)
+plt.savefig(savepath + "test.pdf")
+'''
