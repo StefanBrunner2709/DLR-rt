@@ -49,16 +49,18 @@ def RK4(f, rhs, dt):
     return b_coeff[0] * k_coeff0 + b_coeff[1] * k_coeff1 + b_coeff[2] * k_coeff2 + b_coeff[3] * k_coeff3
 
 
-def computeK_bdry(lr, grid):
+def computeK_bdry(lr, grid, t):
 
     e_vec_left = np.zeros([len(grid.MU)])
     e_vec_right = np.zeros([len(grid.MU)])
 
     for i in range(len(grid.MU)):       # compute e-vector
         if grid.MU[i] > 0:
-            e_vec_left[i] = np.exp(-(grid.MU[i])**2/2)
+            # e_vec_left[i] = np.exp(-(grid.MU[i])**2/2)
+            e_vec_left[i] = np.tanh(t)
         elif grid.MU[i] < 0:
-            e_vec_right[i] = np.exp(-(grid.MU[i])**2/2)
+            # e_vec_right[i] = np.exp(-(grid.MU[i])**2/2)
+            e_vec_right[i] = np.tanh(t)
 
     int_exp_left = (e_vec_left @ lr.V) * grid.dmu   # compute integral from inflow, contains information from inflow from every K_j
     int_exp_right = (e_vec_right @ lr.V) * grid.dmu
@@ -115,16 +117,16 @@ def computeB(L, grid):
 
     return B1
 
-def computeD(lr, grid):
+def computeD(lr, grid, t):
 
-    K_bdry_left, K_bdry_right = computeK_bdry(lr, grid)
+    K_bdry_left, K_bdry_right = computeK_bdry(lr, grid, t)
     dxK = computedxK(lr, K_bdry_left, K_bdry_right, grid)
     D1 = lr.U.T @ dxK * grid.dx
 
     return D1
 
-def Kstep(K, C1, C2, grid, lr):
-    K_bdry_left, K_bdry_right = computeK_bdry(lr, grid)
+def Kstep(K, C1, C2, grid, lr, t):
+    K_bdry_left, K_bdry_right = computeK_bdry(lr, grid, t)
     dxK = computedxK(lr, K_bdry_left, K_bdry_right, grid)    
     rhs = - dxK @ C1 + 0.5 * K @ C2.T @ C2 - K
     return rhs
@@ -137,7 +139,7 @@ def Lstep(L, D1, B1, grid, lr):
     rhs = - np.diag(grid.MU) @ lr.V @ D1.T + 0.5 * B1 - L
     return rhs
 
-def integrate(lr0, grid, t_f, dt):      # Maybe some CHANGES
+def integrate(lr0, grid, t_f, dt):
     lr = lr0
     t = 0
     time = []
@@ -146,19 +148,16 @@ def integrate(lr0, grid, t_f, dt):      # Maybe some CHANGES
         if (t + dt > t_f):
             dt = t_f - t
 
-        t += dt
-        time.append(t)
-
         # K step
         C1, C2 = computeC(lr, grid)
         K = lr.U @ lr.S
-        K += dt * RK4(K, lambda K: Kstep(K, C1, C2, grid, lr), dt)
+        K += dt * RK4(K, lambda K: Kstep(K, C1, C2, grid, lr, t), dt)
         lr.U, lr.S = np.linalg.qr(K, mode="reduced")
         lr.U /= np.sqrt(grid.dx)
         lr.S *= np.sqrt(grid.dx)
 
         # S step
-        D1 = computeD(lr, grid)
+        D1 = computeD(lr, grid, t)
         lr.S += dt * RK4(lr.S, lambda S: Sstep(S, C1, C2, D1), dt)
 
         # L step
@@ -170,6 +169,9 @@ def integrate(lr0, grid, t_f, dt):      # Maybe some CHANGES
         lr.V /= np.sqrt(grid.dmu)
         lr.S *= np.sqrt(grid.dmu)
 
+        t += dt
+        time.append(t)
+
     return lr, time
 
 
@@ -179,13 +181,14 @@ Nx = 64
 Nmu = 64
 dt = 1e-3
 r = 64
+t_f = 1.0
 
 grid = Grid(Nx, Nmu, r)
 lr0 = setInitialCondition(grid)
 f0 = lr0.U @ lr0.S @ lr0.V.T
 extent = [grid.X[0], grid.X[-1], grid.MU[0], grid.MU[-1]]
 
-lr1, time1 = integrate(lr0, grid, 1, dt)
+lr1, time1 = integrate(lr0, grid, t_f, dt)
 f1 = lr1.U @ lr1.S @ lr1.V.T
 
 plt.subplot(1, 2, 1)
