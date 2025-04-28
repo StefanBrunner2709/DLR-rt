@@ -194,7 +194,11 @@ def integrate(lr0: LR, grid: Grid, t_f: float, dt: float, option: str = "lie", t
 
         # QR-decomp
         lr.U, R_U = np.linalg.qr(lr.U, mode="reduced")
+        lr.U /= np.sqrt(grid.dx)
+        R_U *= np.sqrt(grid.dx)
         lr.V, R_V = np.linalg.qr(lr.V, mode="reduced")
+        lr.V /= np.sqrt(grid.dmu)
+        R_V *= np.sqrt(grid.dmu)
         lr.S = R_U @ lr.S @ R_V.T
 
         grid.r += r_b
