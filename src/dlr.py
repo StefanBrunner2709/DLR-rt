@@ -86,8 +86,8 @@ def Lstep(L, D1, B1, grid):
 
 def compute_mass(lr, grid):
     K = lr.U @ lr.S
-    rho = K @ np.trapz(lr.V, dx=grid.dmu, axis=0).T
-    M = np.trapz(rho, dx=grid.dx, axis=0)
+    rho = K @ np.trapezoid(lr.V, dx=grid.dmu, axis=0).T
+    M = np.trapezoid(rho, dx=grid.dx, axis=0)
     return M
 
 def integrate(lr0: LR, grid: Grid, t_f: float, dt: float, option: str = "lie"):
