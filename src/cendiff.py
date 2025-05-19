@@ -67,11 +67,11 @@ def integrate(f0: np.ndarray, grid: Grid, t_f: float, dt: float, epsilon: float,
         if np.round(t*1000) % 100 == 0:
             print(f"Timestep: {t}")
 
-        ### Write values to file
-        #if np.round(t*1000) % 500 == 0:
-        #    time_string = str(np.round(t*1000))
-        #    np.save("C:/Users/brunn/OneDrive/Dokumente/00_Uni/Masterarbeit/PHD_project_master_thesis/Plots_after_correction/Plots_classical/_" + option + "_" + time_string + "_.npy", f)
-
+        ''' ### Write values to file
+        if np.round(t*1000) % 50 == 0:
+            time_string = str(np.round(t*1000))
+            np.save("C:/Users/brunn/OneDrive/Dokumente/00_Uni/Masterarbeit/PHD_project_master_thesis/Plots_250418/Plots_classical/solution_matrices/" + option + "_" + time_string + ".npy", f)
+        '''
     return f, time, rank, rank2
 
 ### Implementation of cen_diff and upwind
@@ -106,14 +106,14 @@ def rhs(f: np.ndarray, grid: Grid, epsilon: float, option: str):
 ### Plotting after correction
 
 fs = 16
-n = 64
+n = 256
 t_final = 3.0
 t_string = "t03"
 sigma = 1.0
-savepath = "C:/Users/brunn/OneDrive/Dokumente/00_Uni/Masterarbeit/PHD_project_master_thesis/Plots_after_correction/Plots_classical/Experiment_after_correction_250415/"
+savepath = "C:/Users/brunn/OneDrive/Dokumente/00_Uni/Masterarbeit/PHD_project_master_thesis/Plots_latex_250430/"
 
 
-### Inital condition plot
+''' ### Inital condition plot
 grid = Grid(n, n)
 extent = [grid.X[0], grid.X[-1], grid.MU[0], grid.MU[-1]]
 f0 = setInitialCondition(grid, "with_mu", sigma)
@@ -240,3 +240,4 @@ ax.set_ylabel("rank $r(t)$", fontsize=fs)
 ax.tick_params(axis='both', labelsize=fs)
 plt.tight_layout()
 plt.savefig(savepath + "rank_over_time_upwind_sigma" + str(sigma) + "_tol1e-4.pdf")
+'''

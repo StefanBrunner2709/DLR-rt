@@ -396,24 +396,24 @@ plt.subplots_adjust(wspace=0.3, hspace=0.6)
 plt.savefig(savepath + "distr_funct_different_times_r" + str(r) + "_" + method + "_1e-3.pdf")
 '''
 
-''' ### Values for colorbar sigma 1
+''' ### Values for colorbar sigma 8e-2
 
-im1 = axes[0, 0].imshow(f.T, extent=extent, origin='lower', aspect=0.5, vmin=0.138, vmax=0.158)
-im2 = axes[0, 1].imshow(f.T, extent=extent, origin='lower', aspect=0.5, vmin=0.143, vmax=0.155)
-im3 = axes[1, 0].imshow(f.T, extent=extent, origin='lower', aspect=0.5, vmin=0.1484, vmax=0.1526)
-im4 = axes[1, 1].imshow(f.T, extent=extent, origin='lower', aspect=0.5, vmin=0.1505, vmax=0.1521)
+im1 = axes[0, 0].imshow(f.T, extent=extent, origin='lower', aspect=0.5, vmin=0, vmax=17.2)
+im2 = axes[0, 1].imshow(f.T, extent=extent, origin='lower', aspect=0.5, vmin=0, vmax=11.5)
+im3 = axes[1, 0].imshow(f.T, extent=extent, origin='lower', aspect=0.5, vmin=0.91, vmax=5.17)
+im4 = axes[1, 1].imshow(f.T, extent=extent, origin='lower', aspect=0.5, vmin=1.2, vmax=2.81)
 
 cbar_fixed1 = fig.colorbar(im1, ax=axes[0, 0])
-cbar_fixed1.set_ticks([0.139, 0.148, 0.157])
+cbar_fixed1.set_ticks([0, 8, 16])
 cbar_fixed1.ax.tick_params(labelsize=fs)
 cbar_fixed2 = fig.colorbar(im2, ax=axes[0, 1])
-cbar_fixed2.set_ticks([0.144, 0.149, 0.154])
+cbar_fixed2.set_ticks([0, 5.5, 11])
 cbar_fixed2.ax.tick_params(labelsize=fs)
 cbar_fixed3 = fig.colorbar(im3, ax=axes[1, 0])
-cbar_fixed3.set_ticks([0.149, 0.152])
+cbar_fixed3.set_ticks([1, 3, 5])
 cbar_fixed3.ax.tick_params(labelsize=fs)
 cbar_fixed4 = fig.colorbar(im4, ax=axes[1, 1])
-cbar_fixed4.set_ticks([0.151, 0.152])
+cbar_fixed4.set_ticks([1.2, 2.0, 2.8])
 cbar_fixed4.ax.tick_params(labelsize=fs)
 '''
 
@@ -426,11 +426,9 @@ r = 16
 t_f = 3.0
 t_string = "03"
 sigma = 1
-fs = 16
+fs = 26
 savepath = "C:/Users/brunn/OneDrive/Dokumente/00_Uni/Masterarbeit/PHD_project_master_thesis/Plots_latex_250430/periodic_dlr/sigma1/"
 method = "strang"
-
-fig, axes = plt.subplots(1, 1, figsize=(10, 8))
 
 grid = Grid(Nx, Nmu, r)
 lr0 = setInitialCondition(grid, sigma)
@@ -439,9 +437,13 @@ lr, time, mass = integrate(lr0, grid, t_f, dt, method)
 f = lr.U @ lr.S @ lr.V.T
 extent = [grid.X[0], grid.X[-1], grid.MU[0], grid.MU[-1]]
 
-plt.plot(time, mass)
-plt.xlabel("$t$")
-plt.ylabel("mass")
+fig, ax = plt.subplots(figsize=(16, 8))
+ax.plot(time, mass)
+ax.set_xlabel("$t$", fontsize=fs)
+ax.set_ylabel("mass", fontsize=fs)
+ax.tick_params(axis='both', labelsize=fs)
+ax.set_yticks([0.2985, 0.3000, 0.3015])
+plt.tight_layout()
 
 plt.savefig(savepath + "mass_over_time_" + method + "_1e-3_r" + str(r) + "_sigma" + str(sigma) + ".pdf")
 '''

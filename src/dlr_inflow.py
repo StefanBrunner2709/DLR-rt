@@ -45,10 +45,10 @@ def computeF_b(f, grid, t):
     F_b = np.zeros((2, len(grid.MU)))
     """
     # values from inflow:
-    if grid.MU[10] > 0:     # leftmost entries are for negative mu, rightmost por positive mu
-        F_b[0, 10] = np.tanh(t)
-    elif grid.MU[10] < 0:
-        F_b[1, 10] = np.tanh(t)
+    if grid.MU[191] > 0:     # leftmost entries are for negative mu, rightmost por positive mu
+        F_b[0, 191] = np.tanh(t)
+    elif grid.MU[191] < 0:
+        F_b[1, 191] = np.tanh(t)
     """
     for i in range(len(grid.MU)):
         if grid.MU[i] > 0:
@@ -69,10 +69,10 @@ def computeK_bdry(lr, grid, t):
     e_vec_left = np.zeros([len(grid.MU)])
     e_vec_right = np.zeros([len(grid.MU)])
     """
-    if grid.MU[10] > 0:
-        e_vec_left[10] = np.tanh(t)
-    elif grid.MU[10] < 0:
-        e_vec_right[10] = np.tanh(t)
+    if grid.MU[191] > 0:
+        e_vec_left[191] = np.tanh(t)
+    elif grid.MU[191] < 0:
+        e_vec_right[191] = np.tanh(t)
     """
     for i in range(len(grid.MU)):       # compute e-vector
         if grid.MU[i] > 0:
@@ -269,6 +269,8 @@ def integrate(lr0: LR, grid: Grid, t_f: float, dt: float, option: str = "lie", t
             ### Drop basis for adaptive rank strategy:
             U, sing_val, QT = np.linalg.svd(lr.S)
             r_prime = np.sum(sing_val > drop_tol)
+            if r_prime < 5:
+                r_prime = 5
             lr.S = np.zeros((r_prime, r_prime))
             np.fill_diagonal(lr.S, sing_val[:r_prime])
             U = U[:, :r_prime]
@@ -293,11 +295,11 @@ def integrate(lr0: LR, grid: Grid, t_f: float, dt: float, option: str = "lie", t
 Nx = 256
 Nmu = 256
 dt = 1e-4
-r = 8
-t_f = 1.0
-fs = 16
+r = 5
+t_f = 0.5
+fs = 30
 method = "lie"
-savepath = "C:/Users/brunn/OneDrive/Dokumente/00_Uni/Masterarbeit/PHD_project_master_thesis/Plots_250418/Plots_inflow/"
+savepath = "C:/Users/brunn/OneDrive/Dokumente/00_Uni/Masterarbeit/PHD_project_master_thesis/Plots_latex_250430/inflow/tol1e-5/"
 
 fig, axes = plt.subplots(1, 1, figsize=(10, 8))
 
@@ -306,27 +308,30 @@ lr0 = setInitialCondition(grid)
 f0 = lr0.U @ lr0.S @ lr0.V.T
 extent = [grid.X[0], grid.X[-1], grid.MU[0], grid.MU[-1]]
 
-lr, time, rank = integrate(lr0, grid, t_f, dt, option=method)
+lr, time, rank = integrate(lr0, grid, t_f, dt, option=method, tol_sing_val=1e-5, drop_tol=1e-5)
 f = lr.U @ lr.S @ lr.V.T
 
-im = axes.imshow(f.T, extent=extent, origin='lower', aspect=0.5)
+#im = axes.imshow(f.T, extent=extent, origin='lower', aspect=0.5)
+im = axes.imshow(f.T, extent=extent, origin='lower', aspect=0.5, vmin=0.0, vmax=1.0)
 axes.set_xlabel("$x$", fontsize=fs)
 axes.set_ylabel("$\mu$", fontsize=fs, labelpad=-5)
 axes.set_xticks([0, 0.5, 1])
 axes.set_yticks([-1, 0, 1])
-axes.tick_params(axis='both', labelsize=fs, pad=10)
+axes.tick_params(axis='both', labelsize=fs, pad=20)
+axes.set_title("$t=$" + str(t_f), fontsize=fs)
 
 cbar_fixed = fig.colorbar(im, ax=axes)
-cbar_fixed.set_ticks([np.ceil(np.min(f)*10000)/10000, np.floor(np.max(f)*10000)/10000])
+#cbar_fixed.set_ticks([np.ceil(np.min(f)*10000)/10000, np.floor(np.max(f)*10000)/10000])
+cbar_fixed.set_ticks([0, 0.5, 1])
 cbar_fixed.ax.tick_params(labelsize=fs)
 
 plt.tight_layout()
-plt.savefig(savepath + "distr_funct_initalltanh_t" + str(t_f) + "_" + method + "_" + str(dt) + "_adaptrank_" + str(Nx) + "x" + str(Nmu) + ".pdf")
+plt.savefig(savepath + "distr_funct_initalltanh_fixedcol_t" + str(t_f) + "_" + method + "_" + str(dt) + "_adaptrank_" + str(Nx) + "x" + str(Nmu) + ".pdf")
 
 fig, ax = plt.subplots()
 ax.plot(time, rank)
-ax.set_xlabel("$t$", fontsize=fs)
-ax.set_ylabel("adaptive rank", fontsize=fs)
-ax.tick_params(axis='both', labelsize=fs)
+ax.set_xlabel("$t$", fontsize=22)
+ax.set_ylabel("rank $r(t)$", fontsize=22)
+ax.tick_params(axis='both', labelsize=22)
 plt.tight_layout()
 plt.savefig(savepath + "adaptive_rank_initalltanh_t" + str(t_f) + "_" + method + "_" + str(dt) + "_adaptrank_" + str(Nx) + "x" + str(Nmu) + ".pdf")
