@@ -97,9 +97,9 @@ def integrate(lr0: LR, grid: Grid, t_f: float, dt: float, option: str = "lie"):
     time.append(t)
     # lr_array = []     # only needed for error plots
     # lr_array.append(lr.U @ lr.S @ lr.V.T)
-    # mass_array = []     # only needed for mass plots
-    # mass_initial = compute_mass(lr, grid)
-    # mass_array.append(0)
+    mass_array = []     # only needed for mass plots
+    mass_initial = compute_mass(lr, grid)
+    mass_array.append(0)
 
     with tqdm(total=t_f/dt, desc="Running Simulation") as pbar:
 
@@ -170,9 +170,9 @@ def integrate(lr0: LR, grid: Grid, t_f: float, dt: float, option: str = "lie"):
 
             # lr_array.append(lr.U @ lr.S @ lr.V.T)     # again only for error plots
 
-            # mass_array.append((compute_mass(lr, grid) - mass_initial)/mass_initial)       # again only for mass plots
+            mass_array.append((compute_mass(lr, grid) - mass_initial)/mass_initial)       # again only for mass plots
 
-    return lr, time
+    return lr, time, mass_array
 
 
 ''' ### Just one plot for certain rank and certain time
@@ -428,7 +428,7 @@ t_f = 3.0
 t_string = "03"
 sigma = 1
 fs = 26
-savepath = "C:/Users/brunn/OneDrive/Dokumente/00_Uni/Masterarbeit/PHD_project_master_thesis/Plots_latex_250430/periodic_dlr/sigma1/"
+savepath = "C:/Users/brunn/OneDrive/Dokumente/00_Uni/Masterarbeit/PHD_project_master_thesis/Plots_latex_250430/periodic_dlr/"
 method = "strang"
 
 grid = Grid(Nx, Nmu, r)
@@ -444,6 +444,7 @@ ax.set_xlabel("$t$", fontsize=fs)
 ax.set_ylabel(r'$\frac{m(t)-m(0)}{m(0)}$', fontsize=32, labelpad=20)
 ax.tick_params(axis='both', labelsize=fs)
 ax.set_yticks([0, 0.002, 0.004])
+ax.margins(x=0)
 plt.tight_layout()
 
 plt.savefig(savepath + "mass_over_time_" + method + "_1e-3_r" + str(r) + "_sigma" + str(sigma) + ".pdf")

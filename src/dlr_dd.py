@@ -8,13 +8,23 @@ class LR:
         self.S = S
         self.V = V
 
-class Grid:
+class Grid_left:
     def __init__(self, Nx, Nmu, r):
-        self.Nx = Nx
+        self.Nx = int(Nx/2)
         self.Nmu = Nmu
         self.r = r
-        self.X = np.linspace(0.0, 1.0, Nx+1, endpoint=False)[1:]     # We don't want starting point because of our boundary conditions now
-        self.MU = np.linspace(-1.0, 1.0, Nmu, endpoint=True)       # For mu we don't have boundary conditions
+        self.X = np.linspace(0.0, 1.0, Nx + 1, endpoint=False)[1:int(Nx/2)+1]
+        self.MU = np.linspace(-1.0, 1.0, Nmu, endpoint=True)
+        self.dx = self.X[1] - self.X[0]
+        self.dmu = self.MU[1] - self.MU[0]
+
+class Grid_right:
+    def __init__(self, Nx, Nmu, r):
+        self.Nx = int(Nx/2)
+        self.Nmu = Nmu
+        self.r = r
+        self.X = np.linspace(0.0, 1.0, Nx + 1, endpoint=False)[int(Nx/2)+1:]
+        self.MU = np.linspace(-1.0, 1.0, Nmu, endpoint=True)
         self.dx = self.X[1] - self.X[0]
         self.dmu = self.MU[1] - self.MU[0]
 
@@ -40,40 +50,45 @@ def RK4(f, rhs, dt):
 
     return b_coeff[0] * k_coeff0 + b_coeff[1] * k_coeff1 + b_coeff[2] * k_coeff2 + b_coeff[3] * k_coeff3
 
-def computeF_b(f, grid, t):
+def computeF_b(f_left, f_right, grid_left, grid_right, t):
     
-    F_b = np.zeros((2, len(grid.MU)))
+    F_b_left = np.zeros((2, len(grid_left.MU)))
+    F_b_right = np.zeros((2, len(grid_right.MU)))
+
+    #Values from boundary condition left domain:
+    for i in range(len(grid_left.MU)):
+        if grid_left.MU[i] > 0:
+            F_b_left[0, i] = np.tanh(t)
+        elif grid_left.MU[i] < 0:
+            F_b_left[1, i] = f_right[0, i]      # is this ok for inflow boundary from right domain or do I need to extrapolate?
+
+    #Values from extrapolation from f left domain:
+    for i in range(int(grid_left.Nx/2)):
+        F_b_left[0, i] = f_left[0,i] - (f_left[1,i]-f_left[0,i])/grid_left.dx * grid_left.X[0]
+    for i in range(int(grid_left.Nx/2), grid_left.Nx):
+        F_b_left[1, i] = f_left[grid_left.Nx-1,i] + (f_left[grid_left.Nx-1,i]-f_left[grid_left.Nx-2,i])/grid_left.dx * (1-grid_left.X[grid_left.Nx-1])
     
-    # values from inflow:
-    if grid.MU[191] > 0:     # leftmost entries are for negative mu, rightmost por positive mu
-        F_b[0, 191] = np.tanh(t)
-    elif grid.MU[191] < 0:
-        F_b[1, 191] = np.tanh(t)
-    """
-    for i in range(len(grid.MU)):
-        if grid.MU[i] > 0:
-            F_b[0, i] = np.tanh(t)
-        elif grid.MU[i] < 0:
-            F_b[1, i] = np.tanh(t)
-    """
-    #Values from extrapolation from f:          # not completely sure about indices
-    for i in range(int(grid.Nx/2)):
-        F_b[0, i] = f[0,i] - (f[1,i]-f[0,i])/grid.dx * grid.X[0]
-    for i in range(int(grid.Nx/2), grid.Nx):
-        F_b[1, i] = f[grid.Nx-1,i] + (f[grid.Nx-1,i]-f[grid.Nx-2,i])/grid.dx * (1-grid.X[grid.Nx-1])
+    #Values from boundary condition right domain:
+    for i in range(len(grid_right.MU)):
+        if grid_right.MU[i] > 0:
+            F_b_right[0, i] = f_left[grid_left.Nx-1, i]      # is this ok for inflow boundary from left domain or do I need to extrapolate?
+        elif grid_right.MU[i] < 0:
+            F_b_right[1, i] = np.tanh(t)
+
+    #Values from extrapolation from f right domain:
+    for i in range(int(grid_right.Nx/2)):
+        F_b_right[0, i] = f_right[0,i] - (f_right[1,i]-f_right[0,i])/grid_right.dx * grid_right.X[0]
+    for i in range(int(grid_right.Nx/2), grid_right.Nx):
+        F_b_right[1, i] = f_right[grid_right.Nx-1,i] + (f_right[grid_right.Nx-1,i]-f_right[grid_right.Nx-2,i])/grid_right.dx * (1-grid_right.X[grid_right.Nx-1])
     
-    return F_b
+    return F_b_left, F_b_right
 
 def computeK_bdry(lr, grid, t):
 
     e_vec_left = np.zeros([len(grid.MU)])
     e_vec_right = np.zeros([len(grid.MU)])
-    
-    if grid.MU[191] > 0:
-        e_vec_left[191] = np.tanh(t)
-    elif grid.MU[191] < 0:
-        e_vec_right[191] = np.tanh(t)
-    """
+
+    #Values from boundary condition:
     for i in range(len(grid.MU)):       # compute e-vector
         if grid.MU[i] > 0:
             # e_vec_left[i] = np.exp(-(grid.MU[i])**2/2)
@@ -81,7 +96,7 @@ def computeK_bdry(lr, grid, t):
         elif grid.MU[i] < 0:
             # e_vec_right[i] = np.exp(-(grid.MU[i])**2/2)
             e_vec_right[i] = np.tanh(t)
-    """
+    
     int_exp_left = (e_vec_left @ lr.V) * grid.dmu   # compute integral from inflow, contains information from inflow from every K_j
     int_exp_right = (e_vec_right @ lr.V) * grid.dmu
 
@@ -159,16 +174,17 @@ def Lstep(L, D1, B1, grid, lr):
     rhs = - np.diag(grid.MU) @ lr.V @ D1.T + 0.5 * B1 - L
     return rhs
 
-def integrate(lr0: LR, grid: Grid, t_f: float, dt: float, option: str = "lie", tol: float = 1e-2, tol_sing_val: float = 1e-6, drop_tol: float = 1e-6):
-    lr = lr0
+def integrate(lr0_left: LR, lr0_right: LR, grid_left, grid_right, t_f: float, dt: float, option: str = "lie", tol: float = 1e-2, tol_sing_val: float = 1e-6, drop_tol: float = 1e-6):
+    lr_left = lr0_left
+    lr_right = lr0_right
     t = 0
     time = []
     time.append(t)
     #rank = []
-    adapt_rank = []
-    f = lr.U @ lr.S @ lr.V.T
+    #adapt_rank = []
+    #f = lr.U @ lr.S @ lr.V.T
     #rank.append(np.linalg.matrix_rank(f, tol))
-    adapt_rank.append(grid.r)
+    #adapt_rank.append(grid.r)
 
     with tqdm(total=t_f/dt, desc="Running Simulation") as pbar:
 
@@ -181,8 +197,16 @@ def integrate(lr0: LR, grid: Grid, t_f: float, dt: float, option: str = "lie", t
             
             ### Add basis for adaptive rank strategy:
 
+            print(np.shape(lr_left.U), np.shape(lr_left.S), np.shape(lr_left.V.T))
+            print(np.shape(lr_right.U), np.shape(lr_right.S), np.shape(lr_right.V.T))
+
             # Compute F_b
-            F_b = computeF_b(lr.U @ lr.S @ lr.V.T, grid, t)
+            F_b_left, F_b_right = computeF_b(lr_left.U @ lr_left.S @ lr_left.V.T, lr_right.U @ lr_right.S @ lr_right.V.T, grid_left, grid_right, t)
+
+            print("F_b_left:", F_b_left)
+            print("F_b_right:", F_b_right)
+
+            grid, lr, F_b = grid_left, lr_left, F_b_left
 
             # Compute SVD and drop singular values
             X, sing_val, QT = np.linalg.svd(F_b)
@@ -233,18 +257,66 @@ def integrate(lr0: LR, grid: Grid, t_f: float, dt: float, option: str = "lie", t
                 lr.V /= np.sqrt(grid.dmu)
                 lr.S *= np.sqrt(grid.dmu)
 
-            if option=="strang":
-                # 1/2 K step
+            ### Drop basis for adaptive rank strategy:
+            U, sing_val, QT = np.linalg.svd(lr.S)
+            r_prime = np.sum(sing_val > drop_tol)
+            if r_prime < 5:
+                r_prime = 5
+            lr.S = np.zeros((r_prime, r_prime))
+            np.fill_diagonal(lr.S, sing_val[:r_prime])
+            U = U[:, :r_prime]
+            Q = QT.T[:, :r_prime]
+            lr.U = lr.U @ U
+            lr.V = lr.V @ Q
+            grid.r = r_prime
+
+            grid_temp, lr_temp, F_b_temp = grid_left, lr_left, F_b_left
+
+
+
+            # Update right side
+
+            grid, lr, F_b = grid_right, lr_right, F_b_right
+
+            # Compute SVD and drop singular values
+            X, sing_val, QT = np.linalg.svd(F_b)
+            r_b = np.sum(sing_val > tol_sing_val)
+            Sigma = np.zeros((F_b.shape[0], r_b))
+            np.fill_diagonal(Sigma, sing_val[:r_b])
+            Q = QT.T[:,:r_b]
+
+            # Concatenate
+            X_h = np.random.rand(grid.Nx, r_b)
+            lr.U = np.concatenate((lr.U, X_h), axis=1)
+            lr.V = np.concatenate((lr.V, Q), axis=1)
+            S_extended = np.zeros((grid.r + r_b, grid.r + r_b))
+            S_extended[:grid.r, :grid.r] = lr.S
+            lr.S = S_extended
+
+            # QR-decomp
+            lr.U, R_U = np.linalg.qr(lr.U, mode="reduced")
+            lr.U /= np.sqrt(grid.dx)
+            R_U *= np.sqrt(grid.dx)
+            lr.V, R_V = np.linalg.qr(lr.V, mode="reduced")
+            lr.V /= np.sqrt(grid.dmu)
+            R_V *= np.sqrt(grid.dmu)
+            lr.S = R_U @ lr.S @ R_V.T
+
+            grid.r += r_b
+
+            if option=="lie":
+
+                # K step
                 C1, C2 = computeC(lr, grid)
                 K = lr.U @ lr.S
-                K += 0.5 * dt * RK4(K, lambda K: Kstep(K, C1, C2, grid, lr, t), 0.5 * dt)
+                K += dt * RK4(K, lambda K: Kstep(K, C1, C2, grid, lr, t), dt)
                 lr.U, lr.S = np.linalg.qr(K, mode="reduced")
                 lr.U /= np.sqrt(grid.dx)
                 lr.S *= np.sqrt(grid.dx)
 
-                # 1/2 S step
+                # S step
                 D1 = computeD(lr, grid, t)
-                lr.S += 0.5 * dt * RK4(lr.S, lambda S: Sstep(S, C1, C2, D1), 0.5 * dt)
+                lr.S += dt * RK4(lr.S, lambda S: Sstep(S, C1, C2, D1), dt)
 
                 # L step
                 L = lr.V @ lr.S.T
@@ -254,17 +326,6 @@ def integrate(lr0: LR, grid: Grid, t_f: float, dt: float, option: str = "lie", t
                 lr.S = St.T
                 lr.V /= np.sqrt(grid.dmu)
                 lr.S *= np.sqrt(grid.dmu)
-
-                # 1/2 S step
-                C1, C2 = computeC(lr, grid)     # need to recalculate C1 and C2 because we changed V in L step     
-                lr.S += 0.5 * dt * RK4(lr.S, lambda S: Sstep(S, C1, C2, D1), 0.5 * dt)
-
-                # 1/2 K step
-                K = lr.U @ lr.S
-                K += 0.5 * dt * RK4(K, lambda K: Kstep(K, C1, C2, grid, lr, t), 0.5 * dt)      # ToDo: Do i need t + 0.5*dt for K-step?
-                lr.U, lr.S = np.linalg.qr(K, mode="reduced")
-                lr.U /= np.sqrt(grid.dx)
-                lr.S *= np.sqrt(grid.dx)
 
             ### Drop basis for adaptive rank strategy:
             U, sing_val, QT = np.linalg.svd(lr.S)
@@ -279,38 +340,50 @@ def integrate(lr0: LR, grid: Grid, t_f: float, dt: float, option: str = "lie", t
             lr.V = lr.V @ Q
             grid.r = r_prime
 
+
+
+            grid_right, lr_right, F_b_right = grid, lr, F_b
+            grid_left, lr_left, F_b_left = grid_temp, lr_temp, F_b_temp
+
+
+
+            # Update time
             t += dt
             time.append(t)
 
-            f = lr.U @ lr.S @ lr.V.T
+            #f = lr.U @ lr.S @ lr.V.T
             #rank.append(np.linalg.matrix_rank(f, tol))
-            adapt_rank.append(grid.r)
+            #adapt_rank.append(grid.r)
 
-    return lr, time, adapt_rank
+    return lr_left, lr_right, time
 
 
 
 ### Just one plot for certain rank and certain time
 
-Nx = 256
-Nmu = 256
+Nx = 16
+Nmu = 16
 dt = 1e-4
 r = 5
-t_f = 2.0
+t_f = 0.001
 fs = 30
 method = "lie"
-savepath = "C:/Users/brunn/OneDrive/Dokumente/00_Uni/Masterarbeit/PHD_project_master_thesis/Plots_latex_250430/inflow/"
+savepath = "C:/Users/brunn/OneDrive/Dokumente/00_Uni/Masterarbeit/PHD_project_master_thesis/Try_domain_decomp/"
 
 fig, axes = plt.subplots(1, 1, figsize=(10, 8))
 
-grid = Grid(Nx, Nmu, r)
-lr0 = setInitialCondition(grid)
-f0 = lr0.U @ lr0.S @ lr0.V.T
-extent = [grid.X[0], grid.X[-1], grid.MU[0], grid.MU[-1]]
+grid_left = Grid_left(Nx, Nmu, r)
+grid_right = Grid_right(Nx, Nmu, r)
+lr0_left = setInitialCondition(grid_left)
+lr0_right = setInitialCondition(grid_right)
+extent = [grid_left.X[0], grid_right.X[-1], grid_left.MU[0], grid_left.MU[-1]]
 
-lr, time, rank = integrate(lr0, grid, t_f, dt, option=method, tol_sing_val=1e-5, drop_tol=1e-5)
-f = lr.U @ lr.S @ lr.V.T
-'''
+lr_left, lr_right, time = integrate(lr0_left, lr0_right, grid_left, grid_right, t_f, dt, option=method, tol_sing_val=1e-4, drop_tol=1e-4)
+f_left = lr_left.U @ lr_left.S @ lr_left.V.T
+f_right = lr_right.U @ lr_right.S @ lr_right.V.T
+# Concatenate left and right domain
+f = np.concatenate((f_left, f_right), axis=0)
+
 #im = axes.imshow(f.T, extent=extent, origin='lower', aspect=0.5)
 im = axes.imshow(f.T, extent=extent, origin='lower', aspect=0.5, vmin=0.0, vmax=1.0)
 axes.set_xlabel("$x$", fontsize=fs)
@@ -326,14 +399,4 @@ cbar_fixed.set_ticks([0, 0.5, 1])
 cbar_fixed.ax.tick_params(labelsize=fs)
 
 plt.tight_layout()
-plt.savefig(savepath + "distr_funct_initalltanh_fixedcol_t" + str(t_f) + "_" + method + "_" + str(dt) + "_adaptrank_" + str(Nx) + "x" + str(Nmu) + ".pdf")
-'''
-fig, ax = plt.subplots()
-ax.plot(time, rank)
-ax.set_xlabel("$t$", fontsize=22)
-ax.set_ylabel("rank $r(t)$", fontsize=22)
-ax.tick_params(axis='both', labelsize=22)
-ax.set_yticks([5])
-ax.margins(x=0)
-plt.tight_layout()
-plt.savefig(savepath + "adaptive_rank_initsingletanh_t" + str(t_f) + "_" + method + "_" + str(dt) + "_adaptrank_" + str(Nx) + "x" + str(Nmu) + ".pdf")
+plt.savefig(savepath + "dd_distr_funct_initalltanh_fixedcol_t" + str(t_f) + "_" + method + "_" + str(dt) + "_adaptrank_" + str(Nx) + "x" + str(Nmu) + ".pdf")

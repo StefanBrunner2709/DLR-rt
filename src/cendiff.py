@@ -206,17 +206,25 @@ plt.title("Explicit Euler, upwind", fontsize=fs)
 plt.tight_layout()
 plt.savefig(savepath + "distr_funct_" + t_string + "_upwind_sigma" + str(sigma) + ".pdf")
 
-
+'''
 ### Rank plot for multiple times
+
+grid = Grid(n, n)
+extent = [grid.X[0], grid.X[-1], grid.MU[0], grid.MU[-1]]
+f0 = setInitialCondition(grid, "with_mu", sigma)
+f1_all = integrate(f0, grid, t_final, 1e-3, 1, "cen_diff")
+f1 = f1_all[0]
 
 fig, ax = plt.subplots()
 ax.plot(f1_all[1], f1_all[2])
 ax.set_xlabel("$t$", fontsize=fs)
 ax.set_ylabel("rank $r(t)$", fontsize=fs)
 ax.tick_params(axis='both', labelsize=fs)
+ax.set_yticks([2, 4, 6, 8, 10, 12, 14])
+ax.margins(x=0)
 plt.tight_layout()
 plt.savefig(savepath + "rank_over_time_cendiff_sigma" + str(sigma) + "_tol1e-2.pdf")
-
+'''
 fig, ax = plt.subplots()
 ax.plot(f1_all[1], f1_all[3])
 ax.set_xlabel("$t$", fontsize=fs)
