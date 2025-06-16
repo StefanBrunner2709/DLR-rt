@@ -54,48 +54,61 @@ def computeF_b(f_left, f_right, grid_left, grid_right, t):
     
     F_b_left = np.zeros((2, len(grid_left.MU)))
     F_b_right = np.zeros((2, len(grid_right.MU)))
-
+    
+    #Values from extrapolation from f left domain:
+    for i in range(len(grid_left.MU)):
+        if grid_left.MU[i] > 0:
+            F_b_left[1, i] = f_left[grid_left.Nx-1,i] + (f_left[grid_left.Nx-1,i]-f_left[grid_left.Nx-2,i])/grid_left.dx * (1-grid_left.X[grid_left.Nx-1])
+        elif grid_left.MU[i] < 0:
+            F_b_left[0, i] = f_left[0,i] - (f_left[1,i]-f_left[0,i])/grid_left.dx * grid_left.X[0]
+        
+    #Values from extrapolation from f right domain:
+    for i in range(len(grid_right.MU)):
+        if grid_right.MU[i] > 0:
+            F_b_right[1, i] = f_right[grid_right.Nx-1,i] + (f_right[grid_right.Nx-1,i]-f_right[grid_right.Nx-2,i])/grid_right.dx * (1-grid_right.X[grid_right.Nx-1])
+        elif grid_right.MU[i] < 0:
+            F_b_right[0, i] = f_right[0,i] - (f_right[1,i]-f_right[0,i])/grid_right.dx * grid_right.X[0]
+            
     #Values from boundary condition left domain:
     for i in range(len(grid_left.MU)):
         if grid_left.MU[i] > 0:
             F_b_left[0, i] = np.tanh(t)
         elif grid_left.MU[i] < 0:
-            F_b_left[1, i] = f_right[0, i]      # is this ok for inflow boundary from right domain or do I need to extrapolate?
-
-    #Values from extrapolation from f left domain:
-    for i in range(int(grid_left.Nx/2)):
-        F_b_left[0, i] = f_left[0,i] - (f_left[1,i]-f_left[0,i])/grid_left.dx * grid_left.X[0]
-    for i in range(int(grid_left.Nx/2), grid_left.Nx):
-        F_b_left[1, i] = f_left[grid_left.Nx-1,i] + (f_left[grid_left.Nx-1,i]-f_left[grid_left.Nx-2,i])/grid_left.dx * (1-grid_left.X[grid_left.Nx-1])
+            #F_b_left[1, i] = f_right[0, i]      # is this ok for inflow boundary from right domain or do I need to extrapolate?
+            F_b_left[1, i] = F_b_right[0, i]
     
     #Values from boundary condition right domain:
     for i in range(len(grid_right.MU)):
         if grid_right.MU[i] > 0:
-            F_b_right[0, i] = f_left[grid_left.Nx-1, i]      # is this ok for inflow boundary from left domain or do I need to extrapolate?
+            #F_b_right[0, i] = f_left[grid_left.Nx-1, i]      # is this ok for inflow boundary from left domain or do I need to extrapolate?
+            F_b_right[0, i] = F_b_left[1, i]
         elif grid_right.MU[i] < 0:
             F_b_right[1, i] = np.tanh(t)
 
-    #Values from extrapolation from f right domain:
-    for i in range(int(grid_right.Nx/2)):
-        F_b_right[0, i] = f_right[0,i] - (f_right[1,i]-f_right[0,i])/grid_right.dx * grid_right.X[0]
-    for i in range(int(grid_right.Nx/2), grid_right.Nx):
-        F_b_right[1, i] = f_right[grid_right.Nx-1,i] + (f_right[grid_right.Nx-1,i]-f_right[grid_right.Nx-2,i])/grid_right.dx * (1-grid_right.X[grid_right.Nx-1])
-    
     return F_b_left, F_b_right
 
-def computeK_bdry(lr, grid, t):
+def computeK_bdry(lr, grid, t, left_right, F_b_left, F_b_right):
 
     e_vec_left = np.zeros([len(grid.MU)])
     e_vec_right = np.zeros([len(grid.MU)])
 
-    #Values from boundary condition:
-    for i in range(len(grid.MU)):       # compute e-vector
-        if grid.MU[i] > 0:
-            # e_vec_left[i] = np.exp(-(grid.MU[i])**2/2)
-            e_vec_left[i] = np.tanh(t)
-        elif grid.MU[i] < 0:
-            # e_vec_right[i] = np.exp(-(grid.MU[i])**2/2)
-            e_vec_right[i] = np.tanh(t)
+    if left_right == "left":
+
+        #Values from boundary condition:
+        for i in range(len(grid.MU)):       # compute e-vector
+            if grid.MU[i] > 0:
+                e_vec_left[i] = np.tanh(t)
+            elif grid.MU[i] < 0:
+                e_vec_right[i] = F_b_left[1, i]
+
+    if left_right == "right":
+
+        #Values from boundary condition:
+        for i in range(len(grid.MU)):       # compute e-vector
+            if grid.MU[i] > 0:
+                e_vec_left[i] = F_b_right[0, i]
+            elif grid.MU[i] < 0:
+                e_vec_right[i] = np.tanh(t)
     
     int_exp_left = (e_vec_left @ lr.V) * grid.dmu   # compute integral from inflow, contains information from inflow from every K_j
     int_exp_right = (e_vec_right @ lr.V) * grid.dmu
@@ -108,9 +121,9 @@ def computeK_bdry(lr, grid, t):
         K_extrapol_right[i] = K[grid.Nx-1,i] + (K[grid.Nx-1,i]-K[grid.Nx-2,i])/grid.dx * (1-grid.X[grid.Nx-1])
 
     V_indicator_left = np.copy(lr.V)     # generate V*indicator, Note: Only works for Nx even
-    V_indicator_left[int(grid.Nx/2):,:] = 0
+    V_indicator_left[int(grid.Nmu/2):,:] = 0
     V_indicator_right = np.copy(lr.V)
-    V_indicator_right[:int(grid.Nx/2),:] = 0
+    V_indicator_right[:int(grid.Nmu/2),:] = 0
 
     int_V_left = (V_indicator_left.T @ lr.V) * grid.dmu        # compute integrals over V
     int_V_right = (V_indicator_right.T @ lr.V) * grid.dmu 
@@ -152,16 +165,16 @@ def computeB(L, grid):
 
     return B1
 
-def computeD(lr, grid, t):
+def computeD(lr, grid, t, left_right, F_b_left, F_b_right):
 
-    K_bdry_left, K_bdry_right = computeK_bdry(lr, grid, t)
+    K_bdry_left, K_bdry_right = computeK_bdry(lr, grid, t, left_right, F_b_left, F_b_right)
     dxK = computedxK(lr, K_bdry_left, K_bdry_right, grid)
     D1 = lr.U.T @ dxK * grid.dx
 
     return D1
 
-def Kstep(K, C1, C2, grid, lr, t):
-    K_bdry_left, K_bdry_right = computeK_bdry(lr, grid, t)
+def Kstep(K, C1, C2, grid, lr, t, left_right, F_b_left, F_b_right):
+    K_bdry_left, K_bdry_right = computeK_bdry(lr, grid, t, left_right, F_b_left, F_b_right)
     dxK = computedxK(lr, K_bdry_left, K_bdry_right, grid)    
     rhs = - dxK @ C1 + 0.5 * K @ C2.T @ C2 - K
     return rhs
@@ -197,154 +210,148 @@ def integrate(lr0_left: LR, lr0_right: LR, grid_left, grid_right, t_f: float, dt
             
             ### Add basis for adaptive rank strategy:
 
-            print(np.shape(lr_left.U), np.shape(lr_left.S), np.shape(lr_left.V.T))
-            print(np.shape(lr_right.U), np.shape(lr_right.S), np.shape(lr_right.V.T))
+            #print(np.shape(lr_left.U), np.shape(lr_left.S), np.shape(lr_left.V.T))
+            #print(np.shape(lr_right.U), np.shape(lr_right.S), np.shape(lr_right.V.T))
 
             # Compute F_b
             F_b_left, F_b_right = computeF_b(lr_left.U @ lr_left.S @ lr_left.V.T, lr_right.U @ lr_right.S @ lr_right.V.T, grid_left, grid_right, t)
 
-            print("F_b_left:", F_b_left)
-            print("F_b_right:", F_b_right)
+            #print("F_b_left:", F_b_left)
+            #print("F_b_right:", F_b_right)
 
-            grid, lr, F_b = grid_left, lr_left, F_b_left
+
+            # Update left side
+
+            left_right = "left"
 
             # Compute SVD and drop singular values
-            X, sing_val, QT = np.linalg.svd(F_b)
+            X, sing_val, QT = np.linalg.svd(F_b_left)
             r_b = np.sum(sing_val > tol_sing_val)
-            Sigma = np.zeros((F_b.shape[0], r_b))
+            Sigma = np.zeros((F_b_left.shape[0], r_b))
             np.fill_diagonal(Sigma, sing_val[:r_b])
             Q = QT.T[:,:r_b]
 
             # Concatenate
-            X_h = np.random.rand(grid.Nx, r_b)
-            lr.U = np.concatenate((lr.U, X_h), axis=1)
-            lr.V = np.concatenate((lr.V, Q), axis=1)
-            S_extended = np.zeros((grid.r + r_b, grid.r + r_b))
-            S_extended[:grid.r, :grid.r] = lr.S
-            lr.S = S_extended
+            X_h = np.random.rand(grid_left.Nx, r_b)
+            lr_left.U = np.concatenate((lr_left.U, X_h), axis=1)
+            lr_left.V = np.concatenate((lr_left.V, Q), axis=1)
+            S_extended = np.zeros((grid_left.r + r_b, grid_left.r + r_b))
+            S_extended[:grid_left.r, :grid_left.r] = lr_left.S
+            lr_left.S = S_extended
 
             # QR-decomp
-            lr.U, R_U = np.linalg.qr(lr.U, mode="reduced")
-            lr.U /= np.sqrt(grid.dx)
-            R_U *= np.sqrt(grid.dx)
-            lr.V, R_V = np.linalg.qr(lr.V, mode="reduced")
-            lr.V /= np.sqrt(grid.dmu)
-            R_V *= np.sqrt(grid.dmu)
-            lr.S = R_U @ lr.S @ R_V.T
+            lr_left.U, R_U = np.linalg.qr(lr_left.U, mode="reduced")
+            lr_left.U /= np.sqrt(grid_left.dx)
+            R_U *= np.sqrt(grid_left.dx)
+            lr_left.V, R_V = np.linalg.qr(lr_left.V, mode="reduced")
+            lr_left.V /= np.sqrt(grid_left.dmu)
+            R_V *= np.sqrt(grid_left.dmu)
+            lr_left.S = R_U @ lr_left.S @ R_V.T
 
-            grid.r += r_b
+            grid_left.r += r_b
 
             if option=="lie":
 
                 # K step
-                C1, C2 = computeC(lr, grid)
-                K = lr.U @ lr.S
-                K += dt * RK4(K, lambda K: Kstep(K, C1, C2, grid, lr, t), dt)
-                lr.U, lr.S = np.linalg.qr(K, mode="reduced")
-                lr.U /= np.sqrt(grid.dx)
-                lr.S *= np.sqrt(grid.dx)
+                C1, C2 = computeC(lr_left, grid_left)
+                K = lr_left.U @ lr_left.S
+                K += dt * RK4(K, lambda K: Kstep(K, C1, C2, grid_left, lr_left, t, left_right, F_b_left, F_b_right), dt)
+                lr_left.U, lr_left.S = np.linalg.qr(K, mode="reduced")
+                lr_left.U /= np.sqrt(grid_left.dx)
+                lr_left.S *= np.sqrt(grid_left.dx)
 
                 # S step
-                D1 = computeD(lr, grid, t)
-                lr.S += dt * RK4(lr.S, lambda S: Sstep(S, C1, C2, D1), dt)
+                D1 = computeD(lr_left, grid_left, t, left_right, F_b_left, F_b_right)
+                lr_left.S += dt * RK4(lr_left.S, lambda S: Sstep(S, C1, C2, D1), dt)
 
                 # L step
-                L = lr.V @ lr.S.T
-                B1 = computeB(L, grid)
-                L += dt * RK4(L, lambda L: Lstep(L, D1, B1, grid, lr), dt)
-                lr.V, St = np.linalg.qr(L, mode="reduced")
-                lr.S = St.T
-                lr.V /= np.sqrt(grid.dmu)
-                lr.S *= np.sqrt(grid.dmu)
+                L = lr_left.V @ lr_left.S.T
+                B1 = computeB(L, grid_left)
+                L += dt * RK4(L, lambda L: Lstep(L, D1, B1, grid_left, lr_left), dt)
+                lr_left.V, St = np.linalg.qr(L, mode="reduced")
+                lr_left.S = St.T
+                lr_left.V /= np.sqrt(grid_left.dmu)
+                lr_left.S *= np.sqrt(grid_left.dmu)
 
             ### Drop basis for adaptive rank strategy:
-            U, sing_val, QT = np.linalg.svd(lr.S)
+            U, sing_val, QT = np.linalg.svd(lr_left.S)
             r_prime = np.sum(sing_val > drop_tol)
             if r_prime < 5:
                 r_prime = 5
-            lr.S = np.zeros((r_prime, r_prime))
-            np.fill_diagonal(lr.S, sing_val[:r_prime])
+            lr_left.S = np.zeros((r_prime, r_prime))
+            np.fill_diagonal(lr_left.S, sing_val[:r_prime])
             U = U[:, :r_prime]
             Q = QT.T[:, :r_prime]
-            lr.U = lr.U @ U
-            lr.V = lr.V @ Q
-            grid.r = r_prime
-
-            grid_temp, lr_temp, F_b_temp = grid_left, lr_left, F_b_left
-
+            lr_left.U = lr_left.U @ U
+            lr_left.V = lr_left.V @ Q
+            grid_left.r = r_prime
 
 
             # Update right side
 
-            grid, lr, F_b = grid_right, lr_right, F_b_right
+            left_right = "right"
 
             # Compute SVD and drop singular values
-            X, sing_val, QT = np.linalg.svd(F_b)
+            X, sing_val, QT = np.linalg.svd(F_b_right)
             r_b = np.sum(sing_val > tol_sing_val)
-            Sigma = np.zeros((F_b.shape[0], r_b))
+            Sigma = np.zeros((F_b_right.shape[0], r_b))
             np.fill_diagonal(Sigma, sing_val[:r_b])
             Q = QT.T[:,:r_b]
 
             # Concatenate
-            X_h = np.random.rand(grid.Nx, r_b)
-            lr.U = np.concatenate((lr.U, X_h), axis=1)
-            lr.V = np.concatenate((lr.V, Q), axis=1)
-            S_extended = np.zeros((grid.r + r_b, grid.r + r_b))
-            S_extended[:grid.r, :grid.r] = lr.S
-            lr.S = S_extended
+            X_h = np.random.rand(grid_right.Nx, r_b)
+            lr_right.U = np.concatenate((lr_right.U, X_h), axis=1)
+            lr_right.V = np.concatenate((lr_right.V, Q), axis=1)
+            S_extended = np.zeros((grid_right.r + r_b, grid_right.r + r_b))
+            S_extended[:grid_right.r, :grid_right.r] = lr_right.S
+            lr_right.S = S_extended
 
             # QR-decomp
-            lr.U, R_U = np.linalg.qr(lr.U, mode="reduced")
-            lr.U /= np.sqrt(grid.dx)
-            R_U *= np.sqrt(grid.dx)
-            lr.V, R_V = np.linalg.qr(lr.V, mode="reduced")
-            lr.V /= np.sqrt(grid.dmu)
-            R_V *= np.sqrt(grid.dmu)
-            lr.S = R_U @ lr.S @ R_V.T
+            lr_right.U, R_U = np.linalg.qr(lr_right.U, mode="reduced")
+            lr_right.U /= np.sqrt(grid_right.dx)
+            R_U *= np.sqrt(grid_right.dx)
+            lr_right.V, R_V = np.linalg.qr(lr_right.V, mode="reduced")
+            lr_right.V /= np.sqrt(grid_right.dmu)
+            R_V *= np.sqrt(grid_right.dmu)
+            lr_right.S = R_U @ lr_right.S @ R_V.T
 
-            grid.r += r_b
+            grid_right.r += r_b
 
             if option=="lie":
 
                 # K step
-                C1, C2 = computeC(lr, grid)
-                K = lr.U @ lr.S
-                K += dt * RK4(K, lambda K: Kstep(K, C1, C2, grid, lr, t), dt)
-                lr.U, lr.S = np.linalg.qr(K, mode="reduced")
-                lr.U /= np.sqrt(grid.dx)
-                lr.S *= np.sqrt(grid.dx)
+                C1, C2 = computeC(lr_right, grid_right)
+                K = lr_right.U @ lr_right.S
+                K += dt * RK4(K, lambda K: Kstep(K, C1, C2, grid_right, lr_right, t, left_right, F_b_left, F_b_right), dt)
+                lr_right.U, lr_right.S = np.linalg.qr(K, mode="reduced")
+                lr_right.U /= np.sqrt(grid_right.dx)
+                lr_right.S *= np.sqrt(grid_right.dx)
 
                 # S step
-                D1 = computeD(lr, grid, t)
-                lr.S += dt * RK4(lr.S, lambda S: Sstep(S, C1, C2, D1), dt)
+                D1 = computeD(lr_right, grid_right, t, left_right, F_b_left, F_b_right)
+                lr_right.S += dt * RK4(lr_right.S, lambda S: Sstep(S, C1, C2, D1), dt)
 
                 # L step
-                L = lr.V @ lr.S.T
-                B1 = computeB(L, grid)
-                L += dt * RK4(L, lambda L: Lstep(L, D1, B1, grid, lr), dt)
-                lr.V, St = np.linalg.qr(L, mode="reduced")
-                lr.S = St.T
-                lr.V /= np.sqrt(grid.dmu)
-                lr.S *= np.sqrt(grid.dmu)
+                L = lr_right.V @ lr_right.S.T
+                B1 = computeB(L, grid_right)
+                L += dt * RK4(L, lambda L: Lstep(L, D1, B1, grid_right, lr_right), dt)
+                lr_right.V, St = np.linalg.qr(L, mode="reduced")
+                lr_right.S = St.T
+                lr_right.V /= np.sqrt(grid_right.dmu)
+                lr_right.S *= np.sqrt(grid_right.dmu)
 
             ### Drop basis for adaptive rank strategy:
-            U, sing_val, QT = np.linalg.svd(lr.S)
+            U, sing_val, QT = np.linalg.svd(lr_right.S)
             r_prime = np.sum(sing_val > drop_tol)
             if r_prime < 5:
                 r_prime = 5
-            lr.S = np.zeros((r_prime, r_prime))
-            np.fill_diagonal(lr.S, sing_val[:r_prime])
+            lr_right.S = np.zeros((r_prime, r_prime))
+            np.fill_diagonal(lr_right.S, sing_val[:r_prime])
             U = U[:, :r_prime]
             Q = QT.T[:, :r_prime]
-            lr.U = lr.U @ U
-            lr.V = lr.V @ Q
-            grid.r = r_prime
-
-
-
-            grid_right, lr_right, F_b_right = grid, lr, F_b
-            grid_left, lr_left, F_b_left = grid_temp, lr_temp, F_b_temp
-
+            lr_right.U = lr_right.U @ U
+            lr_right.V = lr_right.V @ Q
+            grid_right.r = r_prime
 
 
             # Update time
@@ -361,14 +368,14 @@ def integrate(lr0_left: LR, lr0_right: LR, grid_left, grid_right, t_f: float, dt
 
 ### Just one plot for certain rank and certain time
 
-Nx = 16
-Nmu = 16
+Nx = 256
+Nmu = 256
 dt = 1e-4
 r = 5
-t_f = 0.001
+t_f = 2.0
 fs = 30
 method = "lie"
-savepath = "C:/Users/brunn/OneDrive/Dokumente/00_Uni/Masterarbeit/PHD_project_master_thesis/Try_domain_decomp/"
+savepath = "/home/stefan/DLR-rt/"
 
 fig, axes = plt.subplots(1, 1, figsize=(10, 8))
 
@@ -378,7 +385,7 @@ lr0_left = setInitialCondition(grid_left)
 lr0_right = setInitialCondition(grid_right)
 extent = [grid_left.X[0], grid_right.X[-1], grid_left.MU[0], grid_left.MU[-1]]
 
-lr_left, lr_right, time = integrate(lr0_left, lr0_right, grid_left, grid_right, t_f, dt, option=method, tol_sing_val=1e-4, drop_tol=1e-4)
+lr_left, lr_right, time = integrate(lr0_left, lr0_right, grid_left, grid_right, t_f, dt, option=method, tol_sing_val=1e-5, drop_tol=1e-5)
 f_left = lr_left.U @ lr_left.S @ lr_left.V.T
 f_right = lr_right.U @ lr_right.S @ lr_right.V.T
 # Concatenate left and right domain

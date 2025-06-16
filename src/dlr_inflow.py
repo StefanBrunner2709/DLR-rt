@@ -93,9 +93,9 @@ def computeK_bdry(lr, grid, t):
         K_extrapol_right[i] = K[grid.Nx-1,i] + (K[grid.Nx-1,i]-K[grid.Nx-2,i])/grid.dx * (1-grid.X[grid.Nx-1])
 
     V_indicator_left = np.copy(lr.V)     # generate V*indicator, Note: Only works for Nx even
-    V_indicator_left[int(grid.Nx/2):,:] = 0
+    V_indicator_left[int(grid.Nmu/2):,:] = 0
     V_indicator_right = np.copy(lr.V)
-    V_indicator_right[:int(grid.Nx/2),:] = 0
+    V_indicator_right[:int(grid.Nmu/2),:] = 0
 
     int_V_left = (V_indicator_left.T @ lr.V) * grid.dmu        # compute integrals over V
     int_V_right = (V_indicator_right.T @ lr.V) * grid.dmu 
