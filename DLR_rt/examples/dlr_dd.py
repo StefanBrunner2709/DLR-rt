@@ -2,53 +2,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 
-class LR:
-    def __init__(self, U, S, V):
-        self.U = U
-        self.S = S
-        self.V = V
+from DLR_rt.src.grid import Grid_1x1d
+from DLR_rt.src.integrators import RK4
+from DLR_rt.src.initial_condition import setInitialCondition_1x1d_lr
+from DLR_rt.src.lr import LR
 
-class Grid_left:
-    def __init__(self, Nx, Nmu, r):
-        self.Nx = int(Nx/2)
-        self.Nmu = Nmu
-        self.r = r
-        self.X = np.linspace(0.0, 1.0, Nx + 1, endpoint=False)[1:int(Nx/2)+1]
-        self.MU = np.linspace(-1.0, 1.0, Nmu, endpoint=True)
-        self.dx = self.X[1] - self.X[0]
-        self.dmu = self.MU[1] - self.MU[0]
-
-class Grid_right:
-    def __init__(self, Nx, Nmu, r):
-        self.Nx = int(Nx/2)
-        self.Nmu = Nmu
-        self.r = r
-        self.X = np.linspace(0.0, 1.0, Nx + 1, endpoint=False)[int(Nx/2)+1:]
-        self.MU = np.linspace(-1.0, 1.0, Nmu, endpoint=True)
-        self.dx = self.X[1] - self.X[0]
-        self.dmu = self.MU[1] - self.MU[0]
-
-def setInitialCondition(grid):
-    S = np.zeros((grid.r, grid.r))
-    U = np.random.rand(grid.Nx, grid.r)
-    V = np.random.rand(grid.Nmu, grid.r)
-
-    U_ortho, R_U = np.linalg.qr(U, mode="reduced")
-    V_ortho, R_V = np.linalg.qr(V, mode="reduced")
-    S_ortho = R_U @ S @R_V.T
-
-    lr = LR(U_ortho, S_ortho, V_ortho)
-    return lr
-
-def RK4(f, rhs, dt):
-    b_coeff = np.array([1.0 / 6.0, 1.0 / 3.0, 1.0 / 3.0, 1.0 / 6.0])
-    
-    k_coeff0 = rhs(f)
-    k_coeff1 = rhs(f + dt * 0.5 * k_coeff0)
-    k_coeff2 = rhs(f + dt * 0.5 * k_coeff1)
-    k_coeff3 = rhs(f + dt * k_coeff2)
-
-    return b_coeff[0] * k_coeff0 + b_coeff[1] * k_coeff1 + b_coeff[2] * k_coeff2 + b_coeff[3] * k_coeff3
 
 def computeF_b(f_left, f_right, grid_left, grid_right, t):
     
@@ -193,10 +151,7 @@ def integrate(lr0_left: LR, lr0_right: LR, grid_left, grid_right, t_f: float, dt
     t = 0
     time = []
     time.append(t)
-    #rank = []
     #adapt_rank = []
-    #f = lr.U @ lr.S @ lr.V.T
-    #rank.append(np.linalg.matrix_rank(f, tol))
     #adapt_rank.append(grid.r)
 
     with tqdm(total=t_f/dt, desc="Running Simulation") as pbar:
@@ -210,15 +165,8 @@ def integrate(lr0_left: LR, lr0_right: LR, grid_left, grid_right, t_f: float, dt
             
             ### Add basis for adaptive rank strategy:
 
-            #print(np.shape(lr_left.U), np.shape(lr_left.S), np.shape(lr_left.V.T))
-            #print(np.shape(lr_right.U), np.shape(lr_right.S), np.shape(lr_right.V.T))
-
             # Compute F_b
             F_b_left, F_b_right = computeF_b(lr_left.U @ lr_left.S @ lr_left.V.T, lr_right.U @ lr_right.S @ lr_right.V.T, grid_left, grid_right, t)
-
-            #print("F_b_left:", F_b_left)
-            #print("F_b_right:", F_b_right)
-
 
             # Update left side
 
@@ -358,8 +306,6 @@ def integrate(lr0_left: LR, lr0_right: LR, grid_left, grid_right, t_f: float, dt
             t += dt
             time.append(t)
 
-            #f = lr.U @ lr.S @ lr.V.T
-            #rank.append(np.linalg.matrix_rank(f, tol))
             #adapt_rank.append(grid.r)
 
     return lr_left, lr_right, time
@@ -368,21 +314,21 @@ def integrate(lr0_left: LR, lr0_right: LR, grid_left, grid_right, t_f: float, dt
 
 ### Just one plot for certain rank and certain time
 
-Nx = 256
-Nmu = 256
+Nx = 64
+Nmu = 64
 dt = 1e-4
 r = 5
 t_f = 2.0
 fs = 30
 method = "lie"
-savepath = "/home/stefan/DLR-rt/"
+savepath = "plots/"
 
 fig, axes = plt.subplots(1, 1, figsize=(10, 8))
 
-grid_left = Grid_left(Nx, Nmu, r)
-grid_right = Grid_right(Nx, Nmu, r)
-lr0_left = setInitialCondition(grid_left)
-lr0_right = setInitialCondition(grid_right)
+grid = Grid_1x1d(Nx, Nmu, r)
+grid_left, grid_right = grid.split()
+lr0_left = setInitialCondition_1x1d_lr(grid_left)
+lr0_right = setInitialCondition_1x1d_lr(grid_right)
 extent = [grid_left.X[0], grid_right.X[-1], grid_left.MU[0], grid_left.MU[-1]]
 
 lr_left, lr_right, time = integrate(lr0_left, lr0_right, grid_left, grid_right, t_f, dt, option=method, tol_sing_val=1e-5, drop_tol=1e-5)
@@ -391,17 +337,15 @@ f_right = lr_right.U @ lr_right.S @ lr_right.V.T
 # Concatenate left and right domain
 f = np.concatenate((f_left, f_right), axis=0)
 
-#im = axes.imshow(f.T, extent=extent, origin='lower', aspect=0.5)
 im = axes.imshow(f.T, extent=extent, origin='lower', aspect=0.5, vmin=0.0, vmax=1.0)
 axes.set_xlabel("$x$", fontsize=fs)
-axes.set_ylabel("$\mu$", fontsize=fs, labelpad=-5)
+axes.set_ylabel(r"$\mu$", fontsize=fs, labelpad=-5)
 axes.set_xticks([0, 0.5, 1])
 axes.set_yticks([-1, 0, 1])
 axes.tick_params(axis='both', labelsize=fs, pad=20)
 axes.set_title("$t=$" + str(t_f), fontsize=fs)
 
 cbar_fixed = fig.colorbar(im, ax=axes)
-#cbar_fixed.set_ticks([np.ceil(np.min(f)*10000)/10000, np.floor(np.max(f)*10000)/10000])
 cbar_fixed.set_ticks([0, 0.5, 1])
 cbar_fixed.ax.tick_params(labelsize=fs)
 

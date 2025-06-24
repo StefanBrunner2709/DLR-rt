@@ -1,45 +1,15 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from tqdm import tqdm
 
-### Generate grid
+from DLR_rt.src.grid import Grid_1x1d
+from DLR_rt.src.integrators import RK4
+from DLR_rt.src.initial_condition import setInitialCondition_1x1d_full
 
-class Grid:
-    def __init__(self, Nx: int, Nmu: int):
-        self.Nx = Nx
-        self.Nmu = Nmu
-        self.X = np.linspace(0.0, 1.0, Nx, endpoint=False)
-        self.MU = np.linspace(-1.0, 1.0, Nmu, endpoint=True)
-        self.dx = self.X[1] - self.X[0]
-        self.dmu = self.MU[1] - self.MU[0]
-
-### Set initial condition
-
-def setInitialCondition(grid: Grid, option: str, sigma: float) -> np.ndarray:
-    f0 = np.zeros((grid.Nx, grid.Nmu))
-    if option == "no_mu":
-        xx = 1/(np.sqrt(2 * np.pi * sigma**2)) * np.exp(-(((grid.X-0.5)**2)/(2*sigma))**2)
-        f0[:] = xx
-    elif option == "with_mu":
-        xx = 1/(2 * np.pi * sigma**2) * np.exp(-((grid.X-0.5)**2)/(2*sigma**2))
-        vv = np.exp(-(np.abs(grid.MU)**2)/(16*sigma**2))
-        f0 = np.outer(xx, vv)
-    return f0
-
-### Implementation of RK4
-
-def RK4(f, rhs, dt):
-    b_coeff = np.array([1.0 / 6.0, 1.0 / 3.0, 1.0 / 3.0, 1.0 / 6.0])
-    
-    k_coeff0 = rhs(f)
-    k_coeff1 = rhs(f + dt * 0.5 * k_coeff0)
-    k_coeff2 = rhs(f + dt * 0.5 * k_coeff1)
-    k_coeff3 = rhs(f + dt * k_coeff2)
-
-    return b_coeff[0] * k_coeff0 + b_coeff[1] * k_coeff1 + b_coeff[2] * k_coeff2 + b_coeff[3] * k_coeff3
 
 ### Implementation of solver
 
-def integrate(f0: np.ndarray, grid: Grid, t_f: float, dt: float, epsilon: float, option: str, tol: float = 1e-2, tol2: float = 1e-4):
+def integrate(f0: np.ndarray, grid: Grid_1x1d, t_f: float, dt: float, epsilon: float, option: str, tol: float = 1e-2, tol2: float = 1e-4):
     f = np.copy(f0)
     t = 0
     time = [0]
@@ -47,36 +17,38 @@ def integrate(f0: np.ndarray, grid: Grid, t_f: float, dt: float, epsilon: float,
     rank2 = []
     rank.append(np.linalg.matrix_rank(f, tol))
     rank2.append(np.linalg.matrix_rank(f, tol2))
-    while t < t_f:
-        if (t + dt > t_f):
-            dt = t_f - t
 
-        if option == "upwind":  # For upwind use Euler
-            f = f + dt * rhs(f, grid, epsilon, option)
-            t += dt
-        
-        elif option == "cen_diff":  # For cen_diff use RK4
-            f += dt * RK4(f, lambda f: rhs(f, grid, epsilon, option), dt)
-            t += dt
+    with tqdm(total=t_f/dt, desc="Running Simulation") as pbar:
 
-        time.append(t)
-        rank.append(np.linalg.matrix_rank(f, tol))
-        rank2.append(np.linalg.matrix_rank(f, tol2))
+        while t < t_f:
 
-        ### Clock for progress
-        if np.round(t*1000) % 100 == 0:
-            print(f"Timestep: {t}")
+            pbar.update(1)
 
-        ''' ### Write values to file
-        if np.round(t*1000) % 50 == 0:
-            time_string = str(np.round(t*1000))
-            np.save("C:/Users/brunn/OneDrive/Dokumente/00_Uni/Masterarbeit/PHD_project_master_thesis/Plots_250418/Plots_classical/solution_matrices/" + option + "_" + time_string + ".npy", f)
-        '''
+            if (t + dt > t_f):
+                dt = t_f - t
+
+            if option == "upwind":  # For upwind use Euler
+                f = f + dt * rhs(f, grid, epsilon, option)
+                t += dt
+            
+            elif option == "cen_diff":  # For cen_diff use RK4
+                f += dt * RK4(f, lambda f: rhs(f, grid, epsilon, option), dt)
+                t += dt
+
+            time.append(t)
+            rank.append(np.linalg.matrix_rank(f, tol))
+            rank2.append(np.linalg.matrix_rank(f, tol2))
+
+            ''' ### Write values to file
+            if np.round(t*1000) % 50 == 0:
+                time_string = str(np.round(t*1000))
+                np.save("C:/Users/brunn/OneDrive/Dokumente/00_Uni/Masterarbeit/PHD_project_master_thesis/Plots_250418/Plots_classical/solution_matrices/" + option + "_" + time_string + ".npy", f)
+            '''
     return f, time, rank, rank2
 
 ### Implementation of cen_diff and upwind
 
-def rhs(f: np.ndarray, grid: Grid, epsilon: float, option: str):
+def rhs(f: np.ndarray, grid: Grid_1x1d, epsilon: float, option: str):
     # integrate over mu to get rho
     rho = np.zeros((grid.Nx, grid.Nmu))
     rho[:] = (1/np.sqrt(2)) * np.trapezoid(f, grid.MU, axis=1)
@@ -103,40 +75,37 @@ def rhs(f: np.ndarray, grid: Grid, epsilon: float, option: str):
     return(res)      
 
 
-### Plotting after correction
+### Plotting
 
 fs = 16
 n = 256
 t_final = 3.0
 t_string = "t03"
 sigma = 1.0
-savepath = "C:/Users/brunn/OneDrive/Dokumente/00_Uni/Masterarbeit/PHD_project_master_thesis/Plots_latex_250430/"
+savepath = "plots/"
 
 
-''' ### Inital condition plot
-grid = Grid(n, n)
+### Inital condition plot
+grid = Grid_1x1d(n, n, _option_bc = "periodic")
 extent = [grid.X[0], grid.X[-1], grid.MU[0], grid.MU[-1]]
-f0 = setInitialCondition(grid, "with_mu", sigma)
+f0 = setInitialCondition_1x1d_full(grid, sigma)
 plt.imshow(f0.T, extent=extent, origin='lower', aspect=0.5, vmin=0.13, vmax=0.16)
 cbar = plt.colorbar()
 cbar.set_ticks([0.13, 0.145, 0.16])
 cbar.ax.tick_params(labelsize=fs)
 plt.xlabel("$x$", fontsize=fs)
-plt.ylabel("$\mu$", fontsize=fs)
+plt.ylabel(r"$\mu$", fontsize=fs)
 plt.xticks([0, 0.5, 1], fontsize=fs)
 plt.yticks([-1, 0, 1], fontsize=fs)
 plt.tick_params(axis='x', pad=10)  # Moves x-axis labels farther
 plt.tick_params(axis='y', pad=10)  # Moves y-axis labels farther
-plt.title("$f(t=0,x,\mu)$", fontsize=fs)
+plt.title(r"$f(t=0,x,\mu)$", fontsize=fs)
 plt.tight_layout()
 plt.savefig(savepath + "init_cond_sigma" + str(sigma) + ".pdf")
 
 
 ### Distribution function f for different times using centered differences
 
-grid = Grid(n, n)
-extent = [grid.X[0], grid.X[-1], grid.MU[0], grid.MU[-1]]
-f0 = setInitialCondition(grid, "with_mu", sigma)
 f1_all = integrate(f0, grid, t_final, 1e-3, 1, "cen_diff")
 f1 = f1_all[0]
 
@@ -146,7 +115,7 @@ cbar_fixed = plt.colorbar()
 cbar_fixed.set_ticks([0.13, 0.145, 0.16])
 cbar_fixed.ax.tick_params(labelsize=fs)
 plt.xlabel("$x$", fontsize=fs)
-plt.ylabel("$\mu$", fontsize=fs)
+plt.ylabel(r"$\mu$", fontsize=fs)
 plt.xticks([0, 0.5, 1], fontsize=fs)
 plt.yticks([-1, 0, 1], fontsize=fs)
 plt.tick_params(axis='x', pad=10)
@@ -161,7 +130,7 @@ cbar_f1 = plt.colorbar()
 cbar_f1.set_ticks([np.ceil(np.min(f1)*10000)/10000, np.floor(np.max(f1)*10000)/10000])
 cbar_f1.ax.tick_params(labelsize=fs)
 plt.xlabel("$x$", fontsize=fs)
-plt.ylabel("$\mu$", fontsize=fs)
+plt.ylabel(r"$\mu$", fontsize=fs)
 plt.xticks([0, 0.5, 1], fontsize=fs)
 plt.yticks([-1, 0, 1], fontsize=fs)
 plt.tick_params(axis='x', pad=10)
@@ -182,7 +151,7 @@ cbar_fixed = plt.colorbar()
 cbar_fixed.set_ticks([0.13, 0.145, 0.16])
 cbar_fixed.ax.tick_params(labelsize=fs)
 plt.xlabel("$x$", fontsize=fs)
-plt.ylabel("$\mu$", fontsize=fs)
+plt.ylabel(r"$\mu$", fontsize=fs)
 plt.xticks([0, 0.5, 1], fontsize=fs)
 plt.yticks([-1, 0, 1], fontsize=fs)
 plt.tick_params(axis='x', pad=10)
@@ -197,7 +166,7 @@ cbar_f1 = plt.colorbar()
 cbar_f1.set_ticks([np.ceil(np.min(f2)*10000)/10000, np.floor(np.max(f2)*1000)/1000])
 cbar_f1.ax.tick_params(labelsize=fs)
 plt.xlabel("$x$", fontsize=fs)
-plt.ylabel("$\mu$", fontsize=fs)
+plt.ylabel(r"$\mu$", fontsize=fs)
 plt.xticks([0, 0.5, 1], fontsize=fs)
 plt.yticks([-1, 0, 1], fontsize=fs)
 plt.tick_params(axis='x', pad=10)
@@ -206,14 +175,8 @@ plt.title("Explicit Euler, upwind", fontsize=fs)
 plt.tight_layout()
 plt.savefig(savepath + "distr_funct_" + t_string + "_upwind_sigma" + str(sigma) + ".pdf")
 
-'''
-### Rank plot for multiple times
 
-grid = Grid(n, n)
-extent = [grid.X[0], grid.X[-1], grid.MU[0], grid.MU[-1]]
-f0 = setInitialCondition(grid, "with_mu", sigma)
-f1_all = integrate(f0, grid, t_final, 1e-3, 1, "cen_diff")
-f1 = f1_all[0]
+### Rank plot for multiple times
 
 fig, ax = plt.subplots()
 ax.plot(f1_all[1], f1_all[2])
@@ -224,7 +187,7 @@ ax.set_yticks([2, 4, 6, 8, 10, 12, 14])
 ax.margins(x=0)
 plt.tight_layout()
 plt.savefig(savepath + "rank_over_time_cendiff_sigma" + str(sigma) + "_tol1e-2.pdf")
-'''
+
 fig, ax = plt.subplots()
 ax.plot(f1_all[1], f1_all[3])
 ax.set_xlabel("$t$", fontsize=fs)
@@ -248,4 +211,3 @@ ax.set_ylabel("rank $r(t)$", fontsize=fs)
 ax.tick_params(axis='both', labelsize=fs)
 plt.tight_layout()
 plt.savefig(savepath + "rank_over_time_upwind_sigma" + str(sigma) + "_tol1e-4.pdf")
-'''

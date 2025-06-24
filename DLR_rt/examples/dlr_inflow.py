@@ -1,45 +1,12 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from tqdm import tqdm
-import matplotlib.gridspec as gridspec
 
-class LR:
-    def __init__(self, U, S, V):
-        self.U = U
-        self.S = S
-        self.V = V
+from DLR_rt.src.grid import Grid_1x1d
+from DLR_rt.src.integrators import RK4
+from DLR_rt.src.initial_condition import setInitialCondition_1x1d_lr
+from DLR_rt.src.lr import LR
 
-class Grid:
-    def __init__(self, Nx, Nmu, r):
-        self.Nx = Nx
-        self.Nmu = Nmu
-        self.r = r
-        self.X = np.linspace(0.0, 1.0, Nx+1, endpoint=False)[1:]     # We don't want starting point because of our boundary conditions now
-        self.MU = np.linspace(-1.0, 1.0, Nmu, endpoint=True)       # For mu we don't have boundary conditions
-        self.dx = self.X[1] - self.X[0]
-        self.dmu = self.MU[1] - self.MU[0]
-
-def setInitialCondition(grid):
-    S = np.zeros((grid.r, grid.r))
-    U = np.random.rand(grid.Nx, grid.r)
-    V = np.random.rand(grid.Nmu, grid.r)
-
-    U_ortho, R_U = np.linalg.qr(U, mode="reduced")
-    V_ortho, R_V = np.linalg.qr(V, mode="reduced")
-    S_ortho = R_U @ S @R_V.T
-
-    lr = LR(U_ortho, S_ortho, V_ortho)
-    return lr
-
-def RK4(f, rhs, dt):
-    b_coeff = np.array([1.0 / 6.0, 1.0 / 3.0, 1.0 / 3.0, 1.0 / 6.0])
-    
-    k_coeff0 = rhs(f)
-    k_coeff1 = rhs(f + dt * 0.5 * k_coeff0)
-    k_coeff2 = rhs(f + dt * 0.5 * k_coeff1)
-    k_coeff3 = rhs(f + dt * k_coeff2)
-
-    return b_coeff[0] * k_coeff0 + b_coeff[1] * k_coeff1 + b_coeff[2] * k_coeff2 + b_coeff[3] * k_coeff3
 
 def computeF_b(f, grid, t):
     
@@ -160,15 +127,13 @@ def Lstep(L, D1, B1, grid, lr):
     rhs = - np.diag(grid.MU) @ lr.V @ D1.T + 0.5 * B1 - L
     return rhs
 
-def integrate(lr0: LR, grid: Grid, t_f: float, dt: float, option: str = "lie", tol: float = 1e-2, tol_sing_val: float = 1e-6, drop_tol: float = 1e-6):
+def integrate(lr0: LR, grid: Grid_1x1d, t_f: float, dt: float, option: str = "lie", tol: float = 1e-2, tol_sing_val: float = 1e-6, drop_tol: float = 1e-6):
     lr = lr0
     t = 0
     time = []
     time.append(t)
-    #rank = []
     adapt_rank = []
     f = lr.U @ lr.S @ lr.V.T
-    #rank.append(np.linalg.matrix_rank(f, tol))
     adapt_rank.append(grid.r)
     vid_frame = 0
 
@@ -285,16 +250,15 @@ def integrate(lr0: LR, grid: Grid, t_f: float, dt: float, option: str = "lie", t
             time.append(t)
 
             f = lr.U @ lr.S @ lr.V.T
-            #rank.append(np.linalg.matrix_rank(f, tol))
             adapt_rank.append(grid.r)
 
 
 
-            ### Do the plotting for video
+            r''' ### Do the plotting for video
             
             if np.round(t/dt) % 50 == 0:
                 fs = 22
-                savepath = "/home/stefan/DLR-rt/plots/"
+                savepath = "plots/"
                 extent = [grid.X[0], grid.X[-1], grid.MU[0], grid.MU[-1]]
                 f = lr.U @ lr.S @ lr.V.T
 
@@ -303,11 +267,11 @@ def integrate(lr0: LR, grid: Grid, t_f: float, dt: float, option: str = "lie", t
                 #im = ax1.imshow(f.T, extent=extent, origin='lower', aspect=0.5)
                 im = ax1.imshow(f.T, extent=extent, origin='lower', aspect=0.5, vmin=0.0, vmax=1.0)
                 ax1.set_xlabel("$x$", fontsize=fs)
-                ax1.set_ylabel("$\mu$", fontsize=fs, labelpad=-5)
+                ax1.set_ylabel(r"$\mu$", fontsize=fs, labelpad=-5)
                 ax1.set_xticks([0, 0.5, 1])
                 ax1.set_yticks([-1, 0, 1])
                 ax1.tick_params(axis='both', labelsize=fs, pad=20)
-                ax1.set_title("$f(t,x,\mu)$", fontsize=fs)
+                ax1.set_title(r"$f(t,x,\mu)$", fontsize=fs)
 
                 cbar_fixed = fig.colorbar(im, ax=ax1, shrink=1)
                 #cbar_fixed.set_ticks([np.ceil(np.min(f)*10000)/10000, np.floor(np.max(f)*10000)/10000])
@@ -322,11 +286,13 @@ def integrate(lr0: LR, grid: Grid, t_f: float, dt: float, option: str = "lie", t
                 ax2.set_xticks([0,1,2])
                 ax2.margins(x=0)
                 ax2.set_xlim(0, 2)
+                ax2.set_ylim(4.8, 10.2)
 
                 vid_frame += 1
 
                 plt.tight_layout()
                 plt.savefig(savepath + f"frame_{vid_frame:04d}.png")
+            '''
             
 
 
@@ -343,26 +309,26 @@ r = 5
 t_f = 2.0
 fs = 22
 method = "lie"
-savepath = "/home/stefan/DLR-rt/plots/"
+savepath = "plots/"
 
-grid = Grid(Nx, Nmu, r)
-lr0 = setInitialCondition(grid)
+grid = Grid_1x1d(Nx, Nmu, r)
+lr0 = setInitialCondition_1x1d_lr(grid)
 f0 = lr0.U @ lr0.S @ lr0.V.T
 extent = [grid.X[0], grid.X[-1], grid.MU[0], grid.MU[-1]]
 
 lr, time, rank = integrate(lr0, grid, t_f, dt, option=method, tol_sing_val=1e-5, drop_tol=1e-5)
 f = lr.U @ lr.S @ lr.V.T
-'''
+
 fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 6))
 
 #im = ax1.imshow(f.T, extent=extent, origin='lower', aspect=0.5)
 im = ax1.imshow(f.T, extent=extent, origin='lower', aspect=0.5, vmin=0.0, vmax=1.0)
 ax1.set_xlabel("$x$", fontsize=fs)
-ax1.set_ylabel("$\mu$", fontsize=fs, labelpad=-5)
+ax1.set_ylabel(r"$\mu$", fontsize=fs, labelpad=-5)
 ax1.set_xticks([0, 0.5, 1])
 ax1.set_yticks([-1, 0, 1])
 ax1.tick_params(axis='both', labelsize=fs, pad=20)
-ax1.set_title("$f(t,x,\mu)$", fontsize=fs)
+ax1.set_title(r"$f(t,x,\mu)$", fontsize=fs)
 
 cbar_fixed = fig.colorbar(im, ax=ax1, shrink=1)
 #cbar_fixed.set_ticks([np.ceil(np.min(f)*10000)/10000, np.floor(np.max(f)*10000)/10000])
@@ -379,5 +345,4 @@ ax2.margins(x=0)
 ax2.set_xlim(0, 2)
 
 plt.tight_layout()
-plt.savefig(savepath + "test.pdf")
-'''
+plt.savefig(savepath + "distr_funct_adapt_rank_t" + str(t_f) + ".pdf")

@@ -1,0 +1,24 @@
+[project]
+name = "DLR_rt"
+version = "0.0.1"
+authors = [
+  {name="Lukas Einkemmer", email="lukas.einkemmer@uibk.ac.at"},
+  {name="Stefan Brunner", email="stefan.brunner@student.uibk.ac.at"}
+]
+description = "Dynamical low-rank solver for radiative transfer equation"
+readme = "README.md"
+license = {file = "LICENSE.txt"}
+dependencies = [
+  "numpy",
+  "matplotlib",
+  "tqdm",
+]
+requires-python = ">=3.10"
+classifiers = []
+
+[project.urls]
+GitHub = "https://github.com/StefanBrunner2709/DLR-rt/"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
