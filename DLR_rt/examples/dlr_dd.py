@@ -5,47 +5,8 @@ from tqdm import tqdm
 from DLR_rt.src.grid import Grid_1x1d
 from DLR_rt.src.integrators import RK4
 from DLR_rt.src.initial_condition import setInitialCondition_1x1d_lr
-from DLR_rt.src.lr import LR, computeK_bdry
+from DLR_rt.src.lr import LR, computeF_b, computeK_bdry
 
-
-def computeF_b(f_left, f_right, grid_left, grid_right, t):
-    
-    F_b_left = np.zeros((2, len(grid_left.MU)))
-    F_b_right = np.zeros((2, len(grid_right.MU)))
-    
-    #Values from extrapolation from f left domain:
-    for i in range(len(grid_left.MU)):
-        if grid_left.MU[i] > 0:
-            F_b_left[1, i] = f_left[grid_left.Nx-1,i] + (f_left[grid_left.Nx-1,i]-f_left[grid_left.Nx-2,i])/grid_left.dx * (1-grid_left.X[grid_left.Nx-1])
-            #F_b_left[1, i] = f_right[0,i]
-        elif grid_left.MU[i] < 0:
-            F_b_left[0, i] = f_left[0,i] - (f_left[1,i]-f_left[0,i])/grid_left.dx * grid_left.X[0]
-        
-    #Values from extrapolation from f right domain:
-    for i in range(len(grid_right.MU)):
-        if grid_right.MU[i] > 0:
-            F_b_right[1, i] = f_right[grid_right.Nx-1,i] + (f_right[grid_right.Nx-1,i]-f_right[grid_right.Nx-2,i])/grid_right.dx * (1-grid_right.X[grid_right.Nx-1])
-        elif grid_right.MU[i] < 0:
-            F_b_right[0, i] = f_right[0,i] - (f_right[1,i]-f_right[0,i])/grid_right.dx * grid_right.X[0]
-            #F_b_right[0, i] = f_left[grid_left.Nx-1,i]
-            
-    #Values from boundary condition left domain:
-    for i in range(len(grid_left.MU)):
-        if grid_left.MU[i] > 0:
-            F_b_left[0, i] = np.tanh(t)
-        elif grid_left.MU[i] < 0:
-            F_b_left[1, i] = f_right[0, i]
-            #F_b_left[1, i] = F_b_right[0, i]
-    
-    #Values from boundary condition right domain:
-    for i in range(len(grid_right.MU)):
-        if grid_right.MU[i] > 0:
-            F_b_right[0, i] = f_left[grid_left.Nx-1, i]
-            #F_b_right[0, i] = F_b_left[1, i]
-        elif grid_right.MU[i] < 0:
-            F_b_right[1, i] = np.tanh(t)
-
-    return F_b_left, F_b_right
 
 def computedxK(lr, K_bdry_left, K_bdry_right, grid):
 
@@ -119,7 +80,8 @@ def integrate(lr0_left: LR, lr0_right: LR, grid_left, grid_right, t_f: float, dt
             ### Add basis for adaptive rank strategy:
 
             # Compute F_b
-            F_b_left, F_b_right = computeF_b(lr_left.U @ lr_left.S @ lr_left.V.T, lr_right.U @ lr_right.S @ lr_right.V.T, grid_left, grid_right, t)
+            F_b_left = computeF_b(t, lr_left.U @ lr_left.S @ lr_left.V.T, grid_left, f_right = lr_right.U @ lr_right.S @ lr_right.V.T)
+            F_b_right = computeF_b(t, lr_right.U @ lr_right.S @ lr_right.V.T, grid_right, f_left = lr_left.U @ lr_left.S @ lr_left.V.T)
 
             # Update left side
 

@@ -5,32 +5,8 @@ from tqdm import tqdm
 from DLR_rt.src.grid import Grid_1x1d
 from DLR_rt.src.integrators import RK4
 from DLR_rt.src.initial_condition import setInitialCondition_1x1d_lr
-from DLR_rt.src.lr import LR, computeK_bdry
+from DLR_rt.src.lr import LR, computeF_b, computeK_bdry
 
-
-def computeF_b(f, grid, t):
-    
-    F_b = np.zeros((2, len(grid.MU)))
-    """
-    # values from inflow:
-    if grid.MU[191] > 0:     # leftmost entries are for negative mu, rightmost por positive mu
-        F_b[0, 191] = np.tanh(t)
-    elif grid.MU[191] < 0:
-        F_b[1, 191] = np.tanh(t)
-    """
-    for i in range(len(grid.MU)):
-        if grid.MU[i] > 0:
-            F_b[0, i] = np.tanh(t)
-        elif grid.MU[i] < 0:
-            F_b[1, i] = np.tanh(t)
-    
-    #Values from extrapolation from f:          # not completely sure about indices
-    for i in range(int(grid.Nx/2)):
-        F_b[0, i] = f[0,i] - (f[1,i]-f[0,i])/grid.dx * grid.X[0]
-    for i in range(int(grid.Nx/2), grid.Nx):
-        F_b[1, i] = f[grid.Nx-1,i] + (f[grid.Nx-1,i]-f[grid.Nx-2,i])/grid.dx * (1-grid.X[grid.Nx-1])
-    
-    return F_b
 
 def computedxK(lr, K_bdry_left, K_bdry_right, grid):
 
@@ -105,7 +81,7 @@ def integrate(lr0: LR, grid: Grid_1x1d, t_f: float, dt: float, option: str = "li
             ### Add basis for adaptive rank strategy:
 
             # Compute F_b
-            F_b = computeF_b(lr.U @ lr.S @ lr.V.T, grid, t)
+            F_b = computeF_b(t, lr.U @ lr.S @ lr.V.T, grid)
 
             # Compute SVD and drop singular values
             X, sing_val, QT = np.linalg.svd(F_b)
