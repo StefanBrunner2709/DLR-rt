@@ -17,6 +17,7 @@ def computeF_b(f_left, f_right, grid_left, grid_right, t):
     for i in range(len(grid_left.MU)):
         if grid_left.MU[i] > 0:
             F_b_left[1, i] = f_left[grid_left.Nx-1,i] + (f_left[grid_left.Nx-1,i]-f_left[grid_left.Nx-2,i])/grid_left.dx * (1-grid_left.X[grid_left.Nx-1])
+            #F_b_left[1, i] = f_right[0,i]
         elif grid_left.MU[i] < 0:
             F_b_left[0, i] = f_left[0,i] - (f_left[1,i]-f_left[0,i])/grid_left.dx * grid_left.X[0]
         
@@ -26,47 +27,37 @@ def computeF_b(f_left, f_right, grid_left, grid_right, t):
             F_b_right[1, i] = f_right[grid_right.Nx-1,i] + (f_right[grid_right.Nx-1,i]-f_right[grid_right.Nx-2,i])/grid_right.dx * (1-grid_right.X[grid_right.Nx-1])
         elif grid_right.MU[i] < 0:
             F_b_right[0, i] = f_right[0,i] - (f_right[1,i]-f_right[0,i])/grid_right.dx * grid_right.X[0]
+            #F_b_right[0, i] = f_left[grid_left.Nx-1,i]
             
     #Values from boundary condition left domain:
     for i in range(len(grid_left.MU)):
         if grid_left.MU[i] > 0:
             F_b_left[0, i] = np.tanh(t)
         elif grid_left.MU[i] < 0:
-            #F_b_left[1, i] = f_right[0, i]      # is this ok for inflow boundary from right domain or do I need to extrapolate?
-            F_b_left[1, i] = F_b_right[0, i]
+            F_b_left[1, i] = f_right[0, i]
+            #F_b_left[1, i] = F_b_right[0, i]
     
     #Values from boundary condition right domain:
     for i in range(len(grid_right.MU)):
         if grid_right.MU[i] > 0:
-            #F_b_right[0, i] = f_left[grid_left.Nx-1, i]      # is this ok for inflow boundary from left domain or do I need to extrapolate?
-            F_b_right[0, i] = F_b_left[1, i]
+            F_b_right[0, i] = f_left[grid_left.Nx-1, i]
+            #F_b_right[0, i] = F_b_left[1, i]
         elif grid_right.MU[i] < 0:
             F_b_right[1, i] = np.tanh(t)
 
     return F_b_left, F_b_right
 
-def computeK_bdry(lr, grid, t, left_right, F_b_left, F_b_right):
+def computeK_bdry(lr, grid, F_b):
 
     e_vec_left = np.zeros([len(grid.MU)])
     e_vec_right = np.zeros([len(grid.MU)])
 
-    if left_right == "left":
-
-        #Values from boundary condition:
-        for i in range(len(grid.MU)):       # compute e-vector
-            if grid.MU[i] > 0:
-                e_vec_left[i] = np.tanh(t)
-            elif grid.MU[i] < 0:
-                e_vec_right[i] = F_b_left[1, i]
-
-    if left_right == "right":
-
-        #Values from boundary condition:
-        for i in range(len(grid.MU)):       # compute e-vector
-            if grid.MU[i] > 0:
-                e_vec_left[i] = F_b_right[0, i]
-            elif grid.MU[i] < 0:
-                e_vec_right[i] = np.tanh(t)
+    #Values from boundary condition:
+    for i in range(len(grid.MU)):       # compute e-vector
+        if grid.MU[i] > 0:
+            e_vec_left[i] = F_b[0, i]
+        elif grid.MU[i] < 0:
+            e_vec_right[i] = F_b[1, i]
     
     int_exp_left = (e_vec_left @ lr.V) * grid.dmu   # compute integral from inflow, contains information from inflow from every K_j
     int_exp_right = (e_vec_right @ lr.V) * grid.dmu
@@ -123,16 +114,16 @@ def computeB(L, grid):
 
     return B1
 
-def computeD(lr, grid, t, left_right, F_b_left, F_b_right):
+def computeD(lr, grid, F_b):
 
-    K_bdry_left, K_bdry_right = computeK_bdry(lr, grid, t, left_right, F_b_left, F_b_right)
+    K_bdry_left, K_bdry_right = computeK_bdry(lr, grid, F_b)
     dxK = computedxK(lr, K_bdry_left, K_bdry_right, grid)
     D1 = lr.U.T @ dxK * grid.dx
 
     return D1
 
-def Kstep(K, C1, C2, grid, lr, t, left_right, F_b_left, F_b_right):
-    K_bdry_left, K_bdry_right = computeK_bdry(lr, grid, t, left_right, F_b_left, F_b_right)
+def Kstep(K, C1, C2, grid, lr, F_b):
+    K_bdry_left, K_bdry_right = computeK_bdry(lr, grid, F_b)
     dxK = computedxK(lr, K_bdry_left, K_bdry_right, grid)    
     rhs = - dxK @ C1 + 0.5 * K @ C2.T @ C2 - K
     return rhs
@@ -170,8 +161,6 @@ def integrate(lr0_left: LR, lr0_right: LR, grid_left, grid_right, t_f: float, dt
 
             # Update left side
 
-            left_right = "left"
-
             # Compute SVD and drop singular values
             X, sing_val, QT = np.linalg.svd(F_b_left)
             r_b = np.sum(sing_val > tol_sing_val)
@@ -203,13 +192,13 @@ def integrate(lr0_left: LR, lr0_right: LR, grid_left, grid_right, t_f: float, dt
                 # K step
                 C1, C2 = computeC(lr_left, grid_left)
                 K = lr_left.U @ lr_left.S
-                K += dt * RK4(K, lambda K: Kstep(K, C1, C2, grid_left, lr_left, t, left_right, F_b_left, F_b_right), dt)
+                K += dt * RK4(K, lambda K: Kstep(K, C1, C2, grid_left, lr_left, F_b_left), dt)
                 lr_left.U, lr_left.S = np.linalg.qr(K, mode="reduced")
                 lr_left.U /= np.sqrt(grid_left.dx)
                 lr_left.S *= np.sqrt(grid_left.dx)
 
                 # S step
-                D1 = computeD(lr_left, grid_left, t, left_right, F_b_left, F_b_right)
+                D1 = computeD(lr_left, grid_left, F_b_left)
                 lr_left.S += dt * RK4(lr_left.S, lambda S: Sstep(S, C1, C2, D1), dt)
 
                 # L step
@@ -236,8 +225,6 @@ def integrate(lr0_left: LR, lr0_right: LR, grid_left, grid_right, t_f: float, dt
 
 
             # Update right side
-
-            left_right = "right"
 
             # Compute SVD and drop singular values
             X, sing_val, QT = np.linalg.svd(F_b_right)
@@ -270,13 +257,13 @@ def integrate(lr0_left: LR, lr0_right: LR, grid_left, grid_right, t_f: float, dt
                 # K step
                 C1, C2 = computeC(lr_right, grid_right)
                 K = lr_right.U @ lr_right.S
-                K += dt * RK4(K, lambda K: Kstep(K, C1, C2, grid_right, lr_right, t, left_right, F_b_left, F_b_right), dt)
+                K += dt * RK4(K, lambda K: Kstep(K, C1, C2, grid_right, lr_right, F_b_right), dt)
                 lr_right.U, lr_right.S = np.linalg.qr(K, mode="reduced")
                 lr_right.U /= np.sqrt(grid_right.dx)
                 lr_right.S *= np.sqrt(grid_right.dx)
 
                 # S step
-                D1 = computeD(lr_right, grid_right, t, left_right, F_b_left, F_b_right)
+                D1 = computeD(lr_right, grid_right, F_b_right)
                 lr_right.S += dt * RK4(lr_right.S, lambda S: Sstep(S, C1, C2, D1), dt)
 
                 # L step
