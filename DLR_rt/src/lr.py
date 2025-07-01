@@ -16,7 +16,29 @@ class LR:
         self.S = S
         self.V = V
 
-def computeF_b(t, f, grid, f_left = None, f_right= None):
+def computeF_b(t: float, f, grid, f_left = None, f_right= None):
+    """
+    Generate discretization of inflow/outflow boundary.
+    
+    Generate the discretization of the full boundary, depending on position of the current subdomain.
+    If only one domain is present, we don't need to declare f_left or f_right.
+    If the subdomain is the leftmost domain, declare f_right (Values for domain on the right).
+    If the subdomain is the rightmost domain, declare f_left (Values for domain on the left).
+    If the subdomain is between two other subdomains, declare both.
+
+    Parameters
+    ----------
+    t : float
+        Current time.
+    f
+        Values of subdomain, given as matrix.
+    grid
+        Grid class of subdomain.
+    f_left
+        Values of subdomain on left side, given as matrix.
+    f_right
+        Values of subdomain on right side, given as matrix.
+    """
     
     F_b = np.zeros((2, len(grid.MU)))
 
@@ -56,6 +78,11 @@ def computeF_b(t, f, grid, f_left = None, f_right= None):
     return F_b
     
 def computeK_bdry(lr, grid, F_b):
+    """
+    Compute boundary values for K.
+
+    Transforms the boundary information given by F_b (discretization of inflow/outflow function) into a boundary information in K.
+    """
 
     e_vec_left = np.zeros([len(grid.MU)])
     e_vec_right = np.zeros([len(grid.MU)])
