@@ -5,7 +5,7 @@ from tqdm import tqdm
 from DLR_rt.src.grid import Grid_1x1d
 from DLR_rt.src.integrators import RK4
 from DLR_rt.src.initial_condition import setInitialCondition_1x1d_lr
-from DLR_rt.src.lr import LR
+from DLR_rt.src.lr import LR, computeK_bdry
 
 
 def computeF_b(f, grid, t):
@@ -31,50 +31,6 @@ def computeF_b(f, grid, t):
         F_b[1, i] = f[grid.Nx-1,i] + (f[grid.Nx-1,i]-f[grid.Nx-2,i])/grid.dx * (1-grid.X[grid.Nx-1])
     
     return F_b
-
-def computeK_bdry(lr, grid, t):
-
-    e_vec_left = np.zeros([len(grid.MU)])
-    e_vec_right = np.zeros([len(grid.MU)])
-    """
-    if grid.MU[191] > 0:
-        e_vec_left[191] = np.tanh(t)
-    elif grid.MU[191] < 0:
-        e_vec_right[191] = np.tanh(t)
-    """
-    for i in range(len(grid.MU)):       # compute e-vector
-        if grid.MU[i] > 0:
-            # e_vec_left[i] = np.exp(-(grid.MU[i])**2/2)
-            e_vec_left[i] = np.tanh(t)
-        elif grid.MU[i] < 0:
-            # e_vec_right[i] = np.exp(-(grid.MU[i])**2/2)
-            e_vec_right[i] = np.tanh(t)
-    
-    int_exp_left = (e_vec_left @ lr.V) * grid.dmu   # compute integral from inflow, contains information from inflow from every K_j
-    int_exp_right = (e_vec_right @ lr.V) * grid.dmu
-
-    K = lr.U @ lr.S
-    K_extrapol_left = np.zeros([grid.r])
-    K_extrapol_right = np.zeros([grid.r])
-    for i in range(grid.r):     # calculate extrapolated values
-        K_extrapol_left[i] = K[0,i] - (K[1,i]-K[0,i])/grid.dx * grid.X[0]
-        K_extrapol_right[i] = K[grid.Nx-1,i] + (K[grid.Nx-1,i]-K[grid.Nx-2,i])/grid.dx * (1-grid.X[grid.Nx-1])
-
-    V_indicator_left = np.copy(lr.V)     # generate V*indicator, Note: Only works for Nx even
-    V_indicator_left[int(grid.Nmu/2):,:] = 0
-    V_indicator_right = np.copy(lr.V)
-    V_indicator_right[:int(grid.Nmu/2),:] = 0
-
-    int_V_left = (V_indicator_left.T @ lr.V) * grid.dmu        # compute integrals over V
-    int_V_right = (V_indicator_right.T @ lr.V) * grid.dmu 
-
-    sum_vector_left = K_extrapol_left @ int_V_left              # compute vector of size r with all the sums inside
-    sum_vector_right = K_extrapol_right @ int_V_right
-
-    K_bdry_left = int_exp_left + sum_vector_left            # add all together to get boundary info (vector with info for 1<=j<=r)
-    K_bdry_right = int_exp_right + sum_vector_right    
-
-    return K_bdry_left, K_bdry_right
 
 def computedxK(lr, K_bdry_left, K_bdry_right, grid):
 
@@ -105,16 +61,16 @@ def computeB(L, grid):
 
     return B1
 
-def computeD(lr, grid, t):
+def computeD(lr, grid, F_b):
 
-    K_bdry_left, K_bdry_right = computeK_bdry(lr, grid, t)
+    K_bdry_left, K_bdry_right = computeK_bdry(lr, grid, F_b)
     dxK = computedxK(lr, K_bdry_left, K_bdry_right, grid)
     D1 = lr.U.T @ dxK * grid.dx
 
     return D1
 
-def Kstep(K, C1, C2, grid, lr, t):
-    K_bdry_left, K_bdry_right = computeK_bdry(lr, grid, t)
+def Kstep(K, C1, C2, grid, lr, F_b):
+    K_bdry_left, K_bdry_right = computeK_bdry(lr, grid, F_b)
     dxK = computedxK(lr, K_bdry_left, K_bdry_right, grid)    
     rhs = - dxK @ C1 + 0.5 * K @ C2.T @ C2 - K
     return rhs
@@ -182,13 +138,13 @@ def integrate(lr0: LR, grid: Grid_1x1d, t_f: float, dt: float, option: str = "li
                 # K step
                 C1, C2 = computeC(lr, grid)
                 K = lr.U @ lr.S
-                K += dt * RK4(K, lambda K: Kstep(K, C1, C2, grid, lr, t), dt)
+                K += dt * RK4(K, lambda K: Kstep(K, C1, C2, grid, lr, F_b), dt)
                 lr.U, lr.S = np.linalg.qr(K, mode="reduced")
                 lr.U /= np.sqrt(grid.dx)
                 lr.S *= np.sqrt(grid.dx)
 
                 # S step
-                D1 = computeD(lr, grid, t)
+                D1 = computeD(lr, grid, F_b)
                 lr.S += dt * RK4(lr.S, lambda S: Sstep(S, C1, C2, D1), dt)
 
                 # L step
@@ -204,13 +160,13 @@ def integrate(lr0: LR, grid: Grid_1x1d, t_f: float, dt: float, option: str = "li
                 # 1/2 K step
                 C1, C2 = computeC(lr, grid)
                 K = lr.U @ lr.S
-                K += 0.5 * dt * RK4(K, lambda K: Kstep(K, C1, C2, grid, lr, t), 0.5 * dt)
+                K += 0.5 * dt * RK4(K, lambda K: Kstep(K, C1, C2, grid, lr, F_b), 0.5 * dt)
                 lr.U, lr.S = np.linalg.qr(K, mode="reduced")
                 lr.U /= np.sqrt(grid.dx)
                 lr.S *= np.sqrt(grid.dx)
 
                 # 1/2 S step
-                D1 = computeD(lr, grid, t)
+                D1 = computeD(lr, grid, F_b)
                 lr.S += 0.5 * dt * RK4(lr.S, lambda S: Sstep(S, C1, C2, D1), 0.5 * dt)
 
                 # L step
@@ -228,7 +184,7 @@ def integrate(lr0: LR, grid: Grid_1x1d, t_f: float, dt: float, option: str = "li
 
                 # 1/2 K step
                 K = lr.U @ lr.S
-                K += 0.5 * dt * RK4(K, lambda K: Kstep(K, C1, C2, grid, lr, t), 0.5 * dt)      # ToDo: Do i need t + 0.5*dt for K-step?
+                K += 0.5 * dt * RK4(K, lambda K: Kstep(K, C1, C2, grid, lr, F_b), 0.5 * dt)      # ToDo: Do i need t + 0.5*dt for K-step?
                 lr.U, lr.S = np.linalg.qr(K, mode="reduced")
                 lr.U /= np.sqrt(grid.dx)
                 lr.S *= np.sqrt(grid.dx)
