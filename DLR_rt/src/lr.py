@@ -224,3 +224,57 @@ def Lstep(L, D1, B1, grid, lr = None):
         rhs = - np.diag(grid.MU) @ L @ D1.T + 0.5 * B1 - L
     
     return rhs
+
+def add_basis_functions(lr, grid, F_b, tol_sing_val):
+    """
+    Add basis functions.
+
+    Add basis functions according to the inflow condition of current subdomain and a tolarance for singular values.
+    """
+    # Compute SVD and drop singular values
+    X, sing_val, QT = np.linalg.svd(F_b)
+    r_b = np.sum(sing_val > tol_sing_val)
+    Sigma = np.zeros((F_b.shape[0], r_b))
+    np.fill_diagonal(Sigma, sing_val[:r_b])
+    Q = QT.T[:,:r_b]
+
+    # Concatenate
+    X_h = np.random.rand(grid.Nx, r_b)
+    lr.U = np.concatenate((lr.U, X_h), axis=1)
+    lr.V = np.concatenate((lr.V, Q), axis=1)
+    S_extended = np.zeros((grid.r + r_b, grid.r + r_b))
+    S_extended[:grid.r, :grid.r] = lr.S
+    lr.S = S_extended
+
+    # QR-decomp
+    lr.U, R_U = np.linalg.qr(lr.U, mode="reduced")
+    lr.U /= np.sqrt(grid.dx)
+    R_U *= np.sqrt(grid.dx)
+    lr.V, R_V = np.linalg.qr(lr.V, mode="reduced")
+    lr.V /= np.sqrt(grid.dmu)
+    R_V *= np.sqrt(grid.dmu)
+    lr.S = R_U @ lr.S @ R_V.T
+
+    grid.r += r_b
+
+    return lr, grid
+
+def drop_basis_functions(lr, grid, drop_tol):
+    """
+    Drop basis functions.
+
+    Drop basis functions according to some drop tolerance, such that the rank does not grow drastically.
+    """
+    U, sing_val, QT = np.linalg.svd(lr.S)
+    r_prime = np.sum(sing_val > drop_tol)
+    if r_prime < 5:
+        r_prime = 5
+    lr.S = np.zeros((r_prime, r_prime))
+    np.fill_diagonal(lr.S, sing_val[:r_prime])
+    U = U[:, :r_prime]
+    Q = QT.T[:, :r_prime]
+    lr.U = lr.U @ U
+    lr.V = lr.V @ Q
+    grid.r = r_prime
+
+    return lr, grid

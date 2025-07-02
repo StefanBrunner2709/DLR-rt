@@ -5,7 +5,7 @@ from tqdm import tqdm
 from DLR_rt.src.grid import Grid_1x1d
 from DLR_rt.src.integrators import RK4
 from DLR_rt.src.initial_condition import setInitialCondition_1x1d_lr
-from DLR_rt.src.lr import LR, computeC, computeB, computeD, Kstep, Sstep, Lstep, computeF_b
+from DLR_rt.src.lr import LR, computeC, computeB, computeD, Kstep, Sstep, Lstep, computeF_b, add_basis_functions, drop_basis_functions
 
 
 def integrate(lr0_left: LR, lr0_right: LR, grid_left, grid_right, t_f: float, dt: float, option: str = "lie", tol: float = 1e-2, tol_sing_val: float = 1e-6, drop_tol: float = 1e-6):
@@ -25,41 +25,17 @@ def integrate(lr0_left: LR, lr0_right: LR, grid_left, grid_right, t_f: float, dt
 
             if (t + dt > t_f):
                 dt = t_f - t
-            
-            ### Add basis for adaptive rank strategy:
 
-            # Compute F_b
+            ### Compute F_b
             F_b_left = computeF_b(t, lr_left.U @ lr_left.S @ lr_left.V.T, grid_left, f_right = lr_right.U @ lr_right.S @ lr_right.V.T)
             F_b_right = computeF_b(t, lr_right.U @ lr_right.S @ lr_right.V.T, grid_right, f_left = lr_left.U @ lr_left.S @ lr_left.V.T)
 
-            # Update left side
+            ### Update left side
 
-            # Compute SVD and drop singular values
-            X, sing_val, QT = np.linalg.svd(F_b_left)
-            r_b = np.sum(sing_val > tol_sing_val)
-            Sigma = np.zeros((F_b_left.shape[0], r_b))
-            np.fill_diagonal(Sigma, sing_val[:r_b])
-            Q = QT.T[:,:r_b]
+            ### Add basis for adaptive rank strategy:
+            lr_left, grid_left = add_basis_functions(lr_left, grid_left, F_b_left, tol_sing_val)
 
-            # Concatenate
-            X_h = np.random.rand(grid_left.Nx, r_b)
-            lr_left.U = np.concatenate((lr_left.U, X_h), axis=1)
-            lr_left.V = np.concatenate((lr_left.V, Q), axis=1)
-            S_extended = np.zeros((grid_left.r + r_b, grid_left.r + r_b))
-            S_extended[:grid_left.r, :grid_left.r] = lr_left.S
-            lr_left.S = S_extended
-
-            # QR-decomp
-            lr_left.U, R_U = np.linalg.qr(lr_left.U, mode="reduced")
-            lr_left.U /= np.sqrt(grid_left.dx)
-            R_U *= np.sqrt(grid_left.dx)
-            lr_left.V, R_V = np.linalg.qr(lr_left.V, mode="reduced")
-            lr_left.V /= np.sqrt(grid_left.dmu)
-            R_V *= np.sqrt(grid_left.dmu)
-            lr_left.S = R_U @ lr_left.S @ R_V.T
-
-            grid_left.r += r_b
-
+            ### Run PSI
             if option=="lie":
 
                 # K step
@@ -84,46 +60,12 @@ def integrate(lr0_left: LR, lr0_right: LR, grid_left, grid_right, t_f: float, dt
                 lr_left.S *= np.sqrt(grid_left.dmu)
 
             ### Drop basis for adaptive rank strategy:
-            U, sing_val, QT = np.linalg.svd(lr_left.S)
-            r_prime = np.sum(sing_val > drop_tol)
-            if r_prime < 5:
-                r_prime = 5
-            lr_left.S = np.zeros((r_prime, r_prime))
-            np.fill_diagonal(lr_left.S, sing_val[:r_prime])
-            U = U[:, :r_prime]
-            Q = QT.T[:, :r_prime]
-            lr_left.U = lr_left.U @ U
-            lr_left.V = lr_left.V @ Q
-            grid_left.r = r_prime
+            lr_left, grid_left = drop_basis_functions(lr_left, grid_left, drop_tol)
 
+            ### Update right side
 
-            # Update right side
-
-            # Compute SVD and drop singular values
-            X, sing_val, QT = np.linalg.svd(F_b_right)
-            r_b = np.sum(sing_val > tol_sing_val)
-            Sigma = np.zeros((F_b_right.shape[0], r_b))
-            np.fill_diagonal(Sigma, sing_val[:r_b])
-            Q = QT.T[:,:r_b]
-
-            # Concatenate
-            X_h = np.random.rand(grid_right.Nx, r_b)
-            lr_right.U = np.concatenate((lr_right.U, X_h), axis=1)
-            lr_right.V = np.concatenate((lr_right.V, Q), axis=1)
-            S_extended = np.zeros((grid_right.r + r_b, grid_right.r + r_b))
-            S_extended[:grid_right.r, :grid_right.r] = lr_right.S
-            lr_right.S = S_extended
-
-            # QR-decomp
-            lr_right.U, R_U = np.linalg.qr(lr_right.U, mode="reduced")
-            lr_right.U /= np.sqrt(grid_right.dx)
-            R_U *= np.sqrt(grid_right.dx)
-            lr_right.V, R_V = np.linalg.qr(lr_right.V, mode="reduced")
-            lr_right.V /= np.sqrt(grid_right.dmu)
-            R_V *= np.sqrt(grid_right.dmu)
-            lr_right.S = R_U @ lr_right.S @ R_V.T
-
-            grid_right.r += r_b
+            ### Add basis for adaptive rank strategy:
+            lr_right, grid_right = add_basis_functions(lr_right, grid_right, F_b_right, tol_sing_val)
 
             if option=="lie":
 
@@ -149,17 +91,7 @@ def integrate(lr0_left: LR, lr0_right: LR, grid_left, grid_right, t_f: float, dt
                 lr_right.S *= np.sqrt(grid_right.dmu)
 
             ### Drop basis for adaptive rank strategy:
-            U, sing_val, QT = np.linalg.svd(lr_right.S)
-            r_prime = np.sum(sing_val > drop_tol)
-            if r_prime < 5:
-                r_prime = 5
-            lr_right.S = np.zeros((r_prime, r_prime))
-            np.fill_diagonal(lr_right.S, sing_val[:r_prime])
-            U = U[:, :r_prime]
-            Q = QT.T[:, :r_prime]
-            lr_right.U = lr_right.U @ U
-            lr_right.V = lr_right.V @ Q
-            grid_right.r = r_prime
+            lr_right, grid_right = drop_basis_functions(lr_right, grid_right, drop_tol)
 
 
             # Update time

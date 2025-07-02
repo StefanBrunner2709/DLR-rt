@@ -5,7 +5,7 @@ from tqdm import tqdm
 from DLR_rt.src.grid import Grid_1x1d
 from DLR_rt.src.integrators import RK4
 from DLR_rt.src.initial_condition import setInitialCondition_1x1d_lr
-from DLR_rt.src.lr import LR, computeC, computeB, computeD, Kstep, Sstep, Lstep, computeF_b
+from DLR_rt.src.lr import LR, computeC, computeB, computeD, Kstep, Sstep, Lstep, computeF_b, add_basis_functions, drop_basis_functions
 
 
 def integrate(lr0: LR, grid: Grid_1x1d, t_f: float, dt: float, option: str = "lie", tol: float = 1e-2, tol_sing_val: float = 1e-6, drop_tol: float = 1e-6):
@@ -26,38 +26,14 @@ def integrate(lr0: LR, grid: Grid_1x1d, t_f: float, dt: float, option: str = "li
 
             if (t + dt > t_f):
                 dt = t_f - t
+
+            ### Compute F_b
+            F_b = computeF_b(t, lr.U @ lr.S @ lr.V.T, grid)
             
             ### Add basis for adaptive rank strategy:
+            lr, grid = add_basis_functions(lr, grid, F_b, tol_sing_val)
 
-            # Compute F_b
-            F_b = computeF_b(t, lr.U @ lr.S @ lr.V.T, grid)
-
-            # Compute SVD and drop singular values
-            X, sing_val, QT = np.linalg.svd(F_b)
-            r_b = np.sum(sing_val > tol_sing_val)
-            Sigma = np.zeros((F_b.shape[0], r_b))
-            np.fill_diagonal(Sigma, sing_val[:r_b])
-            Q = QT.T[:,:r_b]
-
-            # Concatenate
-            X_h = np.random.rand(grid.Nx, r_b)
-            lr.U = np.concatenate((lr.U, X_h), axis=1)
-            lr.V = np.concatenate((lr.V, Q), axis=1)
-            S_extended = np.zeros((grid.r + r_b, grid.r + r_b))
-            S_extended[:grid.r, :grid.r] = lr.S
-            lr.S = S_extended
-
-            # QR-decomp
-            lr.U, R_U = np.linalg.qr(lr.U, mode="reduced")
-            lr.U /= np.sqrt(grid.dx)
-            R_U *= np.sqrt(grid.dx)
-            lr.V, R_V = np.linalg.qr(lr.V, mode="reduced")
-            lr.V /= np.sqrt(grid.dmu)
-            R_V *= np.sqrt(grid.dmu)
-            lr.S = R_U @ lr.S @ R_V.T
-
-            grid.r += r_b
-
+            ### Run PSI
             if option=="lie":
 
                 # K step
@@ -120,17 +96,7 @@ def integrate(lr0: LR, grid: Grid_1x1d, t_f: float, dt: float, option: str = "li
                 lr.S *= np.sqrt(grid.dx)
 
             ### Drop basis for adaptive rank strategy:
-            U, sing_val, QT = np.linalg.svd(lr.S)
-            r_prime = np.sum(sing_val > drop_tol)
-            if r_prime < 5:
-                r_prime = 5
-            lr.S = np.zeros((r_prime, r_prime))
-            np.fill_diagonal(lr.S, sing_val[:r_prime])
-            U = U[:, :r_prime]
-            Q = QT.T[:, :r_prime]
-            lr.U = lr.U @ U
-            lr.V = lr.V @ Q
-            grid.r = r_prime
+            lr, grid = drop_basis_functions(lr, grid, drop_tol)
 
             t += dt
             time.append(t)
@@ -188,8 +154,8 @@ def integrate(lr0: LR, grid: Grid_1x1d, t_f: float, dt: float, option: str = "li
 
 ### Just one plot for certain rank and certain time
 
-Nx = 256
-Nmu = 256
+Nx = 64
+Nmu = 64
 dt = 1e-4
 r = 5
 t_f = 2.0
