@@ -119,3 +119,22 @@ def computeK_bdry(lr, grid, F_b):
     K_bdry_right = int_exp_right + sum_vector_right    
 
     return K_bdry_left, K_bdry_right
+
+def computedxK(lr, K_bdry_left, K_bdry_right, grid):
+    """
+    Compute the derivative of K.
+
+    Compute the first derivative of K in x using a centered difference stencil.
+    """
+    K = lr.U @ lr.S
+
+    Dx = np.zeros((grid.Nx, grid.Nx), dtype=int)
+    np.fill_diagonal(Dx[1:], -1)
+    np.fill_diagonal(Dx[:, 1:], 1)
+
+    dxK = Dx @ K / (2*grid.dx)
+
+    dxK[0,:] -= K_bdry_left / (2*grid.dx)
+    dxK[-1,:] += K_bdry_right / (2*grid.dx)
+
+    return dxK

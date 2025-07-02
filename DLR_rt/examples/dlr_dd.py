@@ -5,23 +5,8 @@ from tqdm import tqdm
 from DLR_rt.src.grid import Grid_1x1d
 from DLR_rt.src.integrators import RK4
 from DLR_rt.src.initial_condition import setInitialCondition_1x1d_lr
-from DLR_rt.src.lr import LR, computeF_b, computeK_bdry
+from DLR_rt.src.lr import LR, computeF_b, computeK_bdry, computedxK
 
-
-def computedxK(lr, K_bdry_left, K_bdry_right, grid):
-
-    K = lr.U @ lr.S
-
-    Dx = np.zeros((grid.Nx, grid.Nx), dtype=int)
-    np.fill_diagonal(Dx[1:], -1)
-    np.fill_diagonal(Dx[:, 1:], 1)
-
-    dxK = Dx @ K / (2*grid.dx)
-
-    dxK[0,:] -= K_bdry_left / (2*grid.dx)
-    dxK[-1,:] += K_bdry_right / (2*grid.dx)
-
-    return dxK
 
 def computeC(lr, grid):
 
