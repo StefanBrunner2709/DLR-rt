@@ -177,3 +177,50 @@ def computeD(lr, grid, F_b = None):
         D1 = lr.U.T @ dxU * grid.dx
 
     return D1
+
+def Kstep(K, C1, C2, grid, lr = None, F_b = None):
+    """
+    K step of 1-d radiative transfer equation.
+
+    For K step for periodic simulations, leave the standard values lr = None and F_b = None.
+    For K step for inflow simulations, set lr and F_b.
+    """
+    if lr is not None and F_b is not None:
+        K_bdry_left, K_bdry_right = computeK_bdry(lr, grid, F_b)
+        dxK = computedxK(lr, K_bdry_left, K_bdry_right, grid)    
+        rhs = - dxK @ C1 + 0.5 * K @ C2.T @ C2 - K
+
+    else:
+        dxK = 0.5 * (np.roll(K, -1, axis=0) - np.roll(K, 1, axis=0)) / grid.dx    
+        rhs = - dxK @ C1 + 0.5 * K @ C2.T @ C2 - K
+    
+    return rhs
+
+def Sstep(S, C1, C2, D1, inflow = False):           # ToDo: Find a better way to split this function for periodic and inflow
+    """
+    S step of 1-d radiative transfer equation.
+
+    For S step for periodic simulations, leave the standard values inflow = False.
+    For S step for inflow simulations, set inflow = True.
+    """
+    if inflow == False:
+        rhs = D1 @ S @ C1 - 0.5 * S @ C2.T @ C2 + S
+
+    elif inflow == True:
+        rhs = D1 @ C1 - 0.5 * S @ C2.T @ C2 + S
+
+    return rhs
+
+def Lstep(L, D1, B1, grid, lr = None):
+    """
+    L step of 1-d radiative transfer equation.
+
+    For L step for periodic simulations, leave the standard values lr = None.
+    For L step for inflow simulations, set lr.
+    """
+    if lr is not None:
+        rhs = - np.diag(grid.MU) @ lr.V @ D1.T + 0.5 * B1 - L
+    else:
+        rhs = - np.diag(grid.MU) @ L @ D1.T + 0.5 * B1 - L
+    
+    return rhs

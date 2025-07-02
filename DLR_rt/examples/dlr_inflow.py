@@ -5,23 +5,8 @@ from tqdm import tqdm
 from DLR_rt.src.grid import Grid_1x1d
 from DLR_rt.src.integrators import RK4
 from DLR_rt.src.initial_condition import setInitialCondition_1x1d_lr
-from DLR_rt.src.lr import LR, computeC, computeB, computeD
-from DLR_rt.src.lr import computeF_b, computeK_bdry, computedxK
+from DLR_rt.src.lr import LR, computeC, computeB, computeD, Kstep, Sstep, Lstep, computeF_b
 
-
-def Kstep(K, C1, C2, grid, lr, F_b):
-    K_bdry_left, K_bdry_right = computeK_bdry(lr, grid, F_b)
-    dxK = computedxK(lr, K_bdry_left, K_bdry_right, grid)    
-    rhs = - dxK @ C1 + 0.5 * K @ C2.T @ C2 - K
-    return rhs
-
-def Sstep(S, C1, C2, D1):
-    rhs = D1 @ C1 - 0.5 * S @ C2.T @ C2 + S
-    return rhs
-
-def Lstep(L, D1, B1, grid, lr):
-    rhs = - np.diag(grid.MU) @ lr.V @ D1.T + 0.5 * B1 - L
-    return rhs
 
 def integrate(lr0: LR, grid: Grid_1x1d, t_f: float, dt: float, option: str = "lie", tol: float = 1e-2, tol_sing_val: float = 1e-6, drop_tol: float = 1e-6):
     lr = lr0
@@ -85,7 +70,7 @@ def integrate(lr0: LR, grid: Grid_1x1d, t_f: float, dt: float, option: str = "li
 
                 # S step
                 D1 = computeD(lr, grid, F_b)
-                lr.S += dt * RK4(lr.S, lambda S: Sstep(S, C1, C2, D1), dt)
+                lr.S += dt * RK4(lr.S, lambda S: Sstep(S, C1, C2, D1, inflow = True), dt)
 
                 # L step
                 L = lr.V @ lr.S.T
@@ -107,7 +92,7 @@ def integrate(lr0: LR, grid: Grid_1x1d, t_f: float, dt: float, option: str = "li
 
                 # 1/2 S step
                 D1 = computeD(lr, grid, F_b)
-                lr.S += 0.5 * dt * RK4(lr.S, lambda S: Sstep(S, C1, C2, D1), 0.5 * dt)
+                lr.S += 0.5 * dt * RK4(lr.S, lambda S: Sstep(S, C1, C2, D1, inflow = True), 0.5 * dt)
 
                 # L step
                 L = lr.V @ lr.S.T
@@ -120,7 +105,7 @@ def integrate(lr0: LR, grid: Grid_1x1d, t_f: float, dt: float, option: str = "li
 
                 # 1/2 S step
                 C1, C2 = computeC(lr, grid)     # need to recalculate C1 and C2 because we changed V in L step     
-                lr.S += 0.5 * dt * RK4(lr.S, lambda S: Sstep(S, C1, C2, D1), 0.5 * dt)
+                lr.S += 0.5 * dt * RK4(lr.S, lambda S: Sstep(S, C1, C2, D1, inflow = True), 0.5 * dt)
 
                 # 1/2 K step
                 K = lr.U @ lr.S

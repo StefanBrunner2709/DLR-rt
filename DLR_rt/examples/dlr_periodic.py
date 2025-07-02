@@ -5,28 +5,9 @@ from tqdm import tqdm
 from DLR_rt.src.grid import Grid_1x1d
 from DLR_rt.src.integrators import RK4
 from DLR_rt.src.initial_condition import setInitialCondition_1x1d_lr
-from DLR_rt.src.lr import LR, computeC, computeB, computeD
+from DLR_rt.src.lr import LR, computeC, computeB, computeD, Kstep, Sstep, Lstep
+from DLR_rt.src.util import compute_mass
 
-
-
-def Kstep(K, C1, C2, grid):
-    dxK = 0.5 * (np.roll(K, -1, axis=0) - np.roll(K, 1, axis=0)) / grid.dx    
-    rhs = - dxK @ C1 + 0.5 * K @ C2.T @ C2 - K
-    return rhs
-
-def Sstep(S, C1, C2, D1):
-    rhs = D1 @ S @ C1 - 0.5 * S @ C2.T @ C2 + S
-    return rhs
-
-def Lstep(L, D1, B1, grid):
-    rhs = - np.diag(grid.MU) @ L @ D1.T + 0.5 * B1 - L
-    return rhs
-
-def compute_mass(lr, grid):
-    K = lr.U @ lr.S
-    rho = K @ np.trapezoid(lr.V, dx=grid.dmu, axis=0).T
-    M = np.trapezoid(rho, dx=grid.dx, axis=0)
-    return M
 
 def integrate(lr0: LR, grid: Grid_1x1d, t_f: float, dt: float, option: str = "lie"):
     lr = lr0
