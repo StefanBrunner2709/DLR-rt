@@ -3,9 +3,9 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 
 from DLR_rt.src.grid import Grid_1x1d
-from DLR_rt.src.integrators import RK4
+from DLR_rt.src.integrators import RK4, PSI_lie
 from DLR_rt.src.initial_condition import setInitialCondition_1x1d_lr
-from DLR_rt.src.lr import LR, computeC, computeB, computeD, Kstep, Sstep, Lstep, computeF_b, add_basis_functions, drop_basis_functions
+from DLR_rt.src.lr import LR, computeF_b, add_basis_functions, drop_basis_functions
 
 
 def integrate(lr0_left: LR, lr0_right: LR, grid_left, grid_right, t_f: float, dt: float, option: str = "lie", tol: float = 1e-2, tol_sing_val: float = 1e-6, drop_tol: float = 1e-6):
@@ -37,27 +37,7 @@ def integrate(lr0_left: LR, lr0_right: LR, grid_left, grid_right, t_f: float, dt
 
             ### Run PSI
             if option=="lie":
-
-                # K step
-                C1, C2 = computeC(lr_left, grid_left)
-                K = lr_left.U @ lr_left.S
-                K += dt * RK4(K, lambda K: Kstep(K, C1, C2, grid_left, lr_left, F_b_left), dt)
-                lr_left.U, lr_left.S = np.linalg.qr(K, mode="reduced")
-                lr_left.U /= np.sqrt(grid_left.dx)
-                lr_left.S *= np.sqrt(grid_left.dx)
-
-                # S step
-                D1 = computeD(lr_left, grid_left, F_b_left)
-                lr_left.S += dt * RK4(lr_left.S, lambda S: Sstep(S, C1, C2, D1, inflow = True), dt)
-
-                # L step
-                L = lr_left.V @ lr_left.S.T
-                B1 = computeB(L, grid_left)
-                L += dt * RK4(L, lambda L: Lstep(L, D1, B1, grid_left, lr_left), dt)
-                lr_left.V, St = np.linalg.qr(L, mode="reduced")
-                lr_left.S = St.T
-                lr_left.V /= np.sqrt(grid_left.dmu)
-                lr_left.S *= np.sqrt(grid_left.dmu)
+                lr_left, grid_left = PSI_lie(lr_left, grid_left, dt, F_b_left)
 
             ### Drop basis for adaptive rank strategy:
             lr_left, grid_left = drop_basis_functions(lr_left, grid_left, drop_tol)
@@ -67,28 +47,9 @@ def integrate(lr0_left: LR, lr0_right: LR, grid_left, grid_right, t_f: float, dt
             ### Add basis for adaptive rank strategy:
             lr_right, grid_right = add_basis_functions(lr_right, grid_right, F_b_right, tol_sing_val)
 
+            ### Run PSI
             if option=="lie":
-
-                # K step
-                C1, C2 = computeC(lr_right, grid_right)
-                K = lr_right.U @ lr_right.S
-                K += dt * RK4(K, lambda K: Kstep(K, C1, C2, grid_right, lr_right, F_b_right), dt)
-                lr_right.U, lr_right.S = np.linalg.qr(K, mode="reduced")
-                lr_right.U /= np.sqrt(grid_right.dx)
-                lr_right.S *= np.sqrt(grid_right.dx)
-
-                # S step
-                D1 = computeD(lr_right, grid_right, F_b_right)
-                lr_right.S += dt * RK4(lr_right.S, lambda S: Sstep(S, C1, C2, D1, inflow = True), dt)
-
-                # L step
-                L = lr_right.V @ lr_right.S.T
-                B1 = computeB(L, grid_right)
-                L += dt * RK4(L, lambda L: Lstep(L, D1, B1, grid_right, lr_right), dt)
-                lr_right.V, St = np.linalg.qr(L, mode="reduced")
-                lr_right.S = St.T
-                lr_right.V /= np.sqrt(grid_right.dmu)
-                lr_right.S *= np.sqrt(grid_right.dmu)
+                lr_right, grid_right = PSI_lie(lr_right, grid_right, dt, F_b_right)
 
             ### Drop basis for adaptive rank strategy:
             lr_right, grid_right = drop_basis_functions(lr_right, grid_right, drop_tol)

@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 
 from DLR_rt.src.grid import Grid_1x1d
-from DLR_rt.src.integrators import RK4
+from DLR_rt.src.integrators import RK4, PSI_lie
 from DLR_rt.src.initial_condition import setInitialCondition_1x1d_lr
 from DLR_rt.src.lr import LR, computeC, computeB, computeD, Kstep, Sstep, Lstep
 from DLR_rt.src.util import compute_mass
@@ -31,26 +31,7 @@ def integrate(lr0: LR, grid: Grid_1x1d, t_f: float, dt: float, option: str = "li
             time.append(t)
 
             if option=="lie":
-                # K step
-                C1, C2 = computeC(lr, grid)
-                K = lr.U @ lr.S
-                K += dt * RK4(K, lambda K: Kstep(K, C1, C2, grid), dt)
-                lr.U, lr.S = np.linalg.qr(K, mode="reduced")
-                lr.U /= np.sqrt(grid.dx)
-                lr.S *= np.sqrt(grid.dx)
-
-                # S step
-                D1 = computeD(lr, grid)
-                lr.S += dt * RK4(lr.S, lambda S: Sstep(S, C1, C2, D1), dt)
-
-                # L step
-                L = lr.V @ lr.S.T
-                B1 = computeB(L, grid)
-                L += dt * RK4(L, lambda L: Lstep(L, D1, B1, grid), dt)
-                lr.V, St = np.linalg.qr(L, mode="reduced")
-                lr.S = St.T
-                lr.V /= np.sqrt(grid.dmu)
-                lr.S *= np.sqrt(grid.dmu)
+                lr, grid = PSI_lie(lr, grid, dt)
             
             if option=="strang":
                 # 1/2 K step
@@ -129,7 +110,7 @@ cbar_fixed.ax.tick_params(labelsize=fs)
 plt.tight_layout()
 plt.savefig(savepath + "distr_funct_t" + t_string + "_" + method + "_1e-3_r16.pdf")
 
-
+"""
 ### 4 plots, same time, different ranks
 
 r_array = [4, 8, 16, 32]
@@ -317,7 +298,7 @@ ax.margins(x=0)
 plt.tight_layout()
 
 plt.savefig(savepath + "mass_over_time_" + method + "_1e-3_r" + str(r) + "_sigma" + str(sigma) + ".pdf")
-
+"""
 
 ''' ### Values for colorbar sigma 8e-2
 

@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 
 from DLR_rt.src.grid import Grid_1x1d
-from DLR_rt.src.integrators import RK4
+from DLR_rt.src.integrators import RK4, PSI_lie
 from DLR_rt.src.initial_condition import setInitialCondition_1x1d_lr
 from DLR_rt.src.lr import LR, computeC, computeB, computeD, Kstep, Sstep, Lstep, computeF_b, add_basis_functions, drop_basis_functions
 
@@ -35,27 +35,7 @@ def integrate(lr0: LR, grid: Grid_1x1d, t_f: float, dt: float, option: str = "li
 
             ### Run PSI
             if option=="lie":
-
-                # K step
-                C1, C2 = computeC(lr, grid)
-                K = lr.U @ lr.S
-                K += dt * RK4(K, lambda K: Kstep(K, C1, C2, grid, lr, F_b), dt)
-                lr.U, lr.S = np.linalg.qr(K, mode="reduced")
-                lr.U /= np.sqrt(grid.dx)
-                lr.S *= np.sqrt(grid.dx)
-
-                # S step
-                D1 = computeD(lr, grid, F_b)
-                lr.S += dt * RK4(lr.S, lambda S: Sstep(S, C1, C2, D1, inflow = True), dt)
-
-                # L step
-                L = lr.V @ lr.S.T
-                B1 = computeB(L, grid)
-                L += dt * RK4(L, lambda L: Lstep(L, D1, B1, grid, lr), dt)
-                lr.V, St = np.linalg.qr(L, mode="reduced")
-                lr.S = St.T
-                lr.V /= np.sqrt(grid.dmu)
-                lr.S *= np.sqrt(grid.dmu)
+                lr, grid = PSI_lie(lr, grid, dt, F_b)
 
             if option=="strang":
                 # 1/2 K step
