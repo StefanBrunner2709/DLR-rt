@@ -5,30 +5,9 @@ from tqdm import tqdm
 from DLR_rt.src.grid import Grid_1x1d
 from DLR_rt.src.integrators import RK4
 from DLR_rt.src.initial_condition import setInitialCondition_1x1d_lr
-from DLR_rt.src.lr import LR, computeF_b, computeK_bdry, computedxK
+from DLR_rt.src.lr import LR, computeC, computeB, computeD
+from DLR_rt.src.lr import computeF_b, computeK_bdry, computedxK
 
-
-def computeC(lr, grid):
-
-    C1 = (lr.V.T @ np.diag(grid.MU) @ lr.V) * grid.dmu
-
-    C2 = (lr.V.T @ np.ones((grid.Nmu,grid.Nmu))).T * grid.dmu
-
-    return C1, C2
-
-def computeB(L, grid):
-
-    B1 = (L.T @ np.ones((grid.Nmu,grid.Nmu))).T * grid.dmu
-
-    return B1
-
-def computeD(lr, grid, F_b):
-
-    K_bdry_left, K_bdry_right = computeK_bdry(lr, grid, F_b)
-    dxK = computedxK(lr, K_bdry_left, K_bdry_right, grid)
-    D1 = lr.U.T @ dxK * grid.dx
-
-    return D1
 
 def Kstep(K, C1, C2, grid, lr, F_b):
     K_bdry_left, K_bdry_right = computeK_bdry(lr, grid, F_b)

@@ -138,3 +138,42 @@ def computedxK(lr, K_bdry_left, K_bdry_right, grid):
     dxK[-1,:] += K_bdry_right / (2*grid.dx)
 
     return dxK
+
+def computeC(lr, grid):
+    """
+    Compute C coefficient.
+    """
+    C1 = (lr.V.T @ np.diag(grid.MU) @ lr.V) * grid.dmu
+
+    C2 = (lr.V.T @ np.ones((grid.Nmu,grid.Nmu))).T * grid.dmu
+
+    ### Alternative option, faster but harder to understand
+    # muV = grid.MU[:, None] * lr.V
+    # C1 = lr.V.T @ muV * grid.dmu
+    # C2 = lr.V * grid.dmu
+
+    return C1, C2
+
+def computeB(L, grid):
+
+    B1 = (L.T @ np.ones((grid.Nmu,grid.Nmu))).T * grid.dmu
+
+    return B1
+
+def computeD(lr, grid, F_b = None):
+    """
+    Compute D coeffiecient.
+
+    To compute D coefficient for periodic simulations, leave the standard value F_b = None.
+    To compute D coefficient for inflow simulations, set F_b.
+    """
+    if F_b is not None:
+        K_bdry_left, K_bdry_right = computeK_bdry(lr, grid, F_b)
+        dxK = computedxK(lr, K_bdry_left, K_bdry_right, grid)
+        D1 = lr.U.T @ dxK * grid.dx
+
+    else:
+        dxU = 0.5 * (np.roll(lr.U, -1, axis=0) - np.roll(lr.U, 1, axis=0)) / grid.dx
+        D1 = lr.U.T @ dxU * grid.dx
+
+    return D1
