@@ -3,9 +3,9 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 
 from DLR_rt.src.grid import Grid_1x1d
-from DLR_rt.src.integrators import RK4, PSI_lie
+from DLR_rt.src.integrators import PSI_lie, PSI_strang
 from DLR_rt.src.initial_condition import setInitialCondition_1x1d_lr
-from DLR_rt.src.lr import LR, computeC, computeB, computeD, Kstep, Sstep, Lstep
+from DLR_rt.src.lr import LR
 from DLR_rt.src.util import compute_mass
 
 
@@ -34,37 +34,7 @@ def integrate(lr0: LR, grid: Grid_1x1d, t_f: float, dt: float, option: str = "li
                 lr, grid = PSI_lie(lr, grid, dt)
             
             if option=="strang":
-                # 1/2 K step
-                C1, C2 = computeC(lr, grid)
-                K = lr.U @ lr.S
-                K += 0.5 * dt * RK4(K, lambda K: Kstep(K, C1, C2, grid), 0.5 * dt)
-                lr.U, lr.S = np.linalg.qr(K, mode="reduced")
-                lr.U /= np.sqrt(grid.dx)
-                lr.S *= np.sqrt(grid.dx)
-
-                # 1/2 S step
-                D1 = computeD(lr, grid)
-                lr.S += 0.5 * dt * RK4(lr.S, lambda S: Sstep(S, C1, C2, D1), 0.5 * dt)
-
-                # L step
-                L = lr.V @ lr.S.T
-                B1 = computeB(L, grid)
-                L += dt * RK4(L, lambda L: Lstep(L, D1, B1, grid), dt)
-                lr.V, St = np.linalg.qr(L, mode="reduced")
-                lr.S = St.T
-                lr.V /= np.sqrt(grid.dmu)
-                lr.S *= np.sqrt(grid.dmu)
-
-                # 1/2 S step
-                C1, C2 = computeC(lr, grid)     # need to recalculate C1 and C2 because we changed V in L step     
-                lr.S += 0.5 * dt * RK4(lr.S, lambda S: Sstep(S, C1, C2, D1), 0.5 * dt)
-
-                # 1/2 K step
-                K = lr.U @ lr.S
-                K += 0.5 * dt * RK4(K, lambda K: Kstep(K, C1, C2, grid), 0.5 * dt)
-                lr.U, lr.S = np.linalg.qr(K, mode="reduced")
-                lr.U /= np.sqrt(grid.dx)
-                lr.S *= np.sqrt(grid.dx)
+                lr, grid = PSI_strang(lr, grid, dt, t)
 
             mass_array.append((compute_mass(lr, grid) - mass_initial)/mass_initial)       # again only for mass plots
 
@@ -73,8 +43,8 @@ def integrate(lr0: LR, grid: Grid_1x1d, t_f: float, dt: float, option: str = "li
 
 ### Plotting
 
-Nx = 256
-Nmu = 256
+Nx = 64
+Nmu = 64
 dt = 1e-3
 r = 16
 t_f = 1.0

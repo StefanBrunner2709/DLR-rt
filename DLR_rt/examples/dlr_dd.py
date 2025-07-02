@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 
 from DLR_rt.src.grid import Grid_1x1d
-from DLR_rt.src.integrators import RK4, PSI_lie
+from DLR_rt.src.integrators import PSI_lie
 from DLR_rt.src.initial_condition import setInitialCondition_1x1d_lr
 from DLR_rt.src.lr import LR, computeF_b, add_basis_functions, drop_basis_functions
 
