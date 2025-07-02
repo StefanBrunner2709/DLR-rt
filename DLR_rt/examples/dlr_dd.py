@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 
 from DLR_rt.src.grid import Grid_1x1d
-from DLR_rt.src.integrators import PSI_lie
+from DLR_rt.src.integrators import PSI_lie, PSI_strang
 from DLR_rt.src.initial_condition import setInitialCondition_1x1d_lr
 from DLR_rt.src.lr import LR, computeF_b, add_basis_functions, drop_basis_functions
 
@@ -38,6 +38,9 @@ def integrate(lr0_left: LR, lr0_right: LR, grid_left, grid_right, t_f: float, dt
             ### Run PSI
             if option=="lie":
                 lr_left, grid_left = PSI_lie(lr_left, grid_left, dt, F_b_left)
+            
+            if option=="strang":
+                lr_left, grid_left = PSI_strang(lr_left, grid_left, dt, t, F_b_left)
 
             ### Drop basis for adaptive rank strategy:
             lr_left, grid_left = drop_basis_functions(lr_left, grid_left, drop_tol)
@@ -50,6 +53,9 @@ def integrate(lr0_left: LR, lr0_right: LR, grid_left, grid_right, t_f: float, dt
             ### Run PSI
             if option=="lie":
                 lr_right, grid_right = PSI_lie(lr_right, grid_right, dt, F_b_right)
+
+            if option=="strang":
+                lr_right, grid_right = PSI_strang(lr_right, grid_right, dt, t, F_b_right)
 
             ### Drop basis for adaptive rank strategy:
             lr_right, grid_right = drop_basis_functions(lr_right, grid_right, drop_tol)
