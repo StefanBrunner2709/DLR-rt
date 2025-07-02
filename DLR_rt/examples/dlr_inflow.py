@@ -8,7 +8,7 @@ from DLR_rt.src.initial_condition import setInitialCondition_1x1d_lr
 from DLR_rt.src.lr import LR, computeF_b, add_basis_functions, drop_basis_functions
 
 
-def integrate(lr0: LR, grid: Grid_1x1d, t_f: float, dt: float, option: str = "lie", tol: float = 1e-2, tol_sing_val: float = 1e-6, drop_tol: float = 1e-6):
+def integrate(lr0: LR, grid: Grid_1x1d, t_f: float, dt: float, option: str = "lie", tol_sing_val: float = 1e-6, drop_tol: float = 1e-6):
     lr = lr0
     t = 0
     time = []
