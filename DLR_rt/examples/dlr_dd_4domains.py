@@ -128,7 +128,7 @@ lr0_3 = setInitialCondition_1x1d_lr(grid_3)
 lr0_4 = setInitialCondition_1x1d_lr(grid_4)
 extent = [grid_left.X[0], grid_right.X[-1], grid_left.MU[0], grid_left.MU[-1]]
 
-lr_1, lr_2, lr_3, lr_4, time = integrate(lr0_1, lr0_2, lr0_3, lr0_4, grid_1, grid_2, grid_3, grid_4, t_f, dt, option=method, tol_sing_val=1e-12, drop_tol=1e-7)
+lr_1, lr_2, lr_3, lr_4, time = integrate(lr0_1, lr0_2, lr0_3, lr0_4, grid_1, grid_2, grid_3, grid_4, t_f, dt, option=method, tol_sing_val=1e-5, drop_tol=1e-5)
 f_1 = lr_1.U @ lr_1.S @ lr_1.V.T
 f_2 = lr_2.U @ lr_2.S @ lr_2.V.T
 f_3 = lr_3.U @ lr_3.S @ lr_3.V.T

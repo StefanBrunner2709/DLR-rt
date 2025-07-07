@@ -188,15 +188,15 @@ def Kstep(K, C1, C2, grid, lr = None, F_b = None, inflow = False):
     if inflow == True:
         K_bdry_left, K_bdry_right = computeK_bdry(lr, grid, F_b)
         dxK = computedxK(lr, K_bdry_left, K_bdry_right, grid)    
-        rhs = - dxK @ C1 + 0.5 * K @ C2.T @ C2 - K
+        rhs = - (1/grid.epsilon) * dxK @ C1 + 0.5 * (1/grid.epsilon)**2 * K @ C2.T @ C2 - (1/grid.epsilon)**2 * K
 
     else:
         dxK = 0.5 * (np.roll(K, -1, axis=0) - np.roll(K, 1, axis=0)) / grid.dx    
-        rhs = - dxK @ C1 + 0.5 * K @ C2.T @ C2 - K
+        rhs = - (1/grid.epsilon) * dxK @ C1 + 0.5 * (1/grid.epsilon)**2 * K @ C2.T @ C2 - (1/grid.epsilon)**2 * K
     
     return rhs
 
-def Sstep(S, C1, C2, D1, inflow = False):
+def Sstep(S, C1, C2, D1, grid, inflow = False):
     """
     S step of 1-d radiative transfer equation.
 
@@ -204,10 +204,10 @@ def Sstep(S, C1, C2, D1, inflow = False):
     For S step for inflow simulations, set inflow = True.
     """
     if inflow == False:
-        rhs = D1 @ S @ C1 - 0.5 * S @ C2.T @ C2 + S
+        rhs = (1/grid.epsilon) * D1 @ S @ C1 - 0.5 * (1/grid.epsilon)**2 * S @ C2.T @ C2 + (1/grid.epsilon)**2 * S
 
     elif inflow == True:
-        rhs = D1 @ C1 - 0.5 * S @ C2.T @ C2 + S
+        rhs = (1/grid.epsilon) * D1 @ C1 - 0.5 * (1/grid.epsilon)**2 * S @ C2.T @ C2 + (1/grid.epsilon)**2 * S
 
     return rhs
 
@@ -219,9 +219,9 @@ def Lstep(L, D1, B1, grid, lr = None, inflow = False):
     For L step for inflow simulations, set inflow = True.
     """
     if inflow == True:
-        rhs = - np.diag(grid.MU) @ lr.V @ D1.T + 0.5 * B1 - L
+        rhs = - (1/grid.epsilon) * np.diag(grid.MU) @ lr.V @ D1.T + 0.5 * (1/grid.epsilon)**2 * B1 - (1/grid.epsilon)**2 * L
     else:
-        rhs = - np.diag(grid.MU) @ L @ D1.T + 0.5 * B1 - L
+        rhs = - (1/grid.epsilon) * np.diag(grid.MU) @ L @ D1.T + 0.5 * (1/grid.epsilon)**2 * B1 - (1/grid.epsilon)**2 * L
     
     return rhs
 

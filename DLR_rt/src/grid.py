@@ -24,8 +24,10 @@ class Grid_1x1d:
         Can be chosen either "inflow" or "periodic".
     _X
         Optional X grid, given as np.array. Standard value is interval [0,1].
+    _epsilon
+        Epsilon for radiative transfer equation on this domain.
     """
-    def __init__(self, _Nx: int, _Nmu: int, _r: int = 5, _option_bc: str = "inflow", _X = None):
+    def __init__(self, _Nx: int, _Nmu: int, _r: int = 5, _option_bc: str = "inflow", _X = None, _epsilon : float = 1.0):
         self.Nx = _Nx
         self.Nmu = _Nmu
         self.r = _r
@@ -43,19 +45,32 @@ class Grid_1x1d:
         
         self.dx = self.X[1] - self.X[0]
         self.dmu = self.MU[1] - self.MU[0]
+        self.epsilon = _epsilon
 
-    def split(self):
+    def split(self, _epsilon_left = None, _epsilon_right = None):
         """
         Split domain into 2 subdomains.
 
         Split the domain into 2 subdomains by dividing the domain in half in the middle of the X grid.
+
+        Parameters
+        ----------
+        _epsilon_left
+            Epsilon for radiative transfer equation on left subdomain. If None, value from whole domain is taken.
+        _epsilon_right
+            Epsilon for radiative transfer equation on right subdomain. If None, value from whole domain is taken.
         """
+        if _epsilon_left is None:
+            _epsilon_left = self.epsilon
+        if _epsilon_right is None:
+            _epsilon_right = self.epsilon
+
         # Split grid
         X_left = self.X[:int(self.Nx/2)]
         X_right = self.X[int(self.Nx/2):]
 
         # Create new Grid instances for left and right
-        left_grid = Grid_1x1d(int(self.Nx/2), self.Nmu, self.r, _X=X_left)
-        right_grid = Grid_1x1d(int(self.Nx/2), self.Nmu, self.r, _X=X_right)
+        left_grid = Grid_1x1d(int(self.Nx/2), self.Nmu, self.r, _X=X_left, _epsilon = _epsilon_left)
+        right_grid = Grid_1x1d(int(self.Nx/2), self.Nmu, self.r, _X=X_right, _epsilon = _epsilon_right)
 
         return left_grid, right_grid

@@ -105,7 +105,7 @@ dt = 1e-4
 r = 5
 t_f = 2.0
 fs = 22
-method = "strang"
+method = "lie"
 savepath = "plots/"
 
 grid = Grid_1x1d(Nx, Nmu, r)
@@ -113,7 +113,7 @@ lr0 = setInitialCondition_1x1d_lr(grid)
 f0 = lr0.U @ lr0.S @ lr0.V.T
 extent = [grid.X[0], grid.X[-1], grid.MU[0], grid.MU[-1]]
 
-lr, time, rank = integrate(lr0, grid, t_f, dt, option=method, tol_sing_val=1e-5, drop_tol=1e-5)
+lr, time, rank = integrate(lr0, grid, t_f, dt, option=method, tol_sing_val=1e-7, drop_tol=1e-7)
 f = lr.U @ lr.S @ lr.V.T
 
 fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 6))

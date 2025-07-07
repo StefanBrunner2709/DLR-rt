@@ -55,7 +55,7 @@ def PSI_lie(lr, grid, dt, F_b = None):
 
     # S step
     D1 = computeD(lr, grid, F_b)
-    lr.S += dt * RK4(lr.S, lambda S: Sstep(S, C1, C2, D1, inflow), dt)
+    lr.S += dt * RK4(lr.S, lambda S: Sstep(S, C1, C2, D1, grid, inflow), dt)
 
     # L step
     L = lr.V @ lr.S.T
@@ -103,7 +103,7 @@ def PSI_strang(lr, grid, dt, t, F_b = None):
 
     # 1/2 S step
     D1 = computeD(lr, grid, F_b)
-    lr.S += 0.5 * dt * RK4(lr.S, lambda S: Sstep(S, C1, C2, D1, inflow), 0.5 * dt)
+    lr.S += 0.5 * dt * RK4(lr.S, lambda S: Sstep(S, C1, C2, D1, grid, inflow), 0.5 * dt)
 
     # L step
     L = lr.V @ lr.S.T
@@ -121,7 +121,7 @@ def PSI_strang(lr, grid, dt, t, F_b = None):
 
     # 1/2 S step
     C1, C2 = computeC(lr, grid)     # need to recalculate C1 and C2 because we changed V in L step     
-    lr.S += 0.5 * dt * RK4(lr.S, lambda S: Sstep(S, C1, C2, D1, inflow), 0.5 * dt)
+    lr.S += 0.5 * dt * RK4(lr.S, lambda S: Sstep(S, C1, C2, D1, grid, inflow), 0.5 * dt)
 
     # 1/2 K step
     K = lr.U @ lr.S
