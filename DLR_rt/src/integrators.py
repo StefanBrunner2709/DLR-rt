@@ -22,12 +22,13 @@ def RK4(f, rhs, dt):
 
     return b_coeff[0] * k_coeff0 + b_coeff[1] * k_coeff1 + b_coeff[2] * k_coeff2 + b_coeff[3] * k_coeff3
 
-def PSI_lie(lr, grid, dt, F_b = None):
+def PSI_lie(lr, grid, dt, F_b = None, dimensions = "1x1d"):
     """
     Projector splitting integrator with lie splitting.
 
     To run periodic simulations, leave the standard value F_b = None.
     To run inflow simulations, set F_b.
+    For higher dimensional simulations set i.e. dimensions = "2x1d"
 
     Parameters
     ----------
@@ -39,6 +40,8 @@ def PSI_lie(lr, grid, dt, F_b = None):
         Time step size.
     F_b
         Boundary condition matrix for inflow conditions.
+    dimensions
+        Number of dimensions, given as a string.
     """
     if F_b is not None:
         inflow = True
@@ -46,25 +49,29 @@ def PSI_lie(lr, grid, dt, F_b = None):
         inflow = False
 
     # K step
-    C1, C2 = computeC(lr, grid)
+    C1, C2 = computeC(lr, grid, dimensions)
     K = lr.U @ lr.S
-    K += dt * RK4(K, lambda K: Kstep(K, C1, C2, grid, lr, F_b, inflow), dt)
+    K += dt * RK4(K, lambda K: Kstep(K, C1, C2, grid, lr, F_b, inflow, dimensions), dt)
     lr.U, lr.S = np.linalg.qr(K, mode="reduced")
     lr.U /= np.sqrt(grid.dx)
     lr.S *= np.sqrt(grid.dx)
 
     # S step
-    D1 = computeD(lr, grid, F_b)
-    lr.S += dt * RK4(lr.S, lambda S: Sstep(S, C1, C2, D1, grid, inflow), dt)
+    D1 = computeD(lr, grid, F_b, dimensions)
+    lr.S += dt * RK4(lr.S, lambda S: Sstep(S, C1, C2, D1, grid, inflow, dimensions), dt)
 
     # L step
     L = lr.V @ lr.S.T
-    B1 = computeB(L, grid)
-    L += dt * RK4(L, lambda L: Lstep(L, D1, B1, grid, lr, inflow), dt)
+    B1 = computeB(L, grid, dimensions)
+    L += dt * RK4(L, lambda L: Lstep(L, D1, B1, grid, lr, inflow, dimensions), dt)
     lr.V, St = np.linalg.qr(L, mode="reduced")
     lr.S = St.T
-    lr.V /= np.sqrt(grid.dmu)
-    lr.S *= np.sqrt(grid.dmu)
+    if dimensions == "1x1d":
+        lr.V /= np.sqrt(grid.dmu)
+        lr.S *= np.sqrt(grid.dmu)
+    elif dimensions == "2x1d":
+        lr.V /= np.sqrt(grid.dphi)
+        lr.S *= np.sqrt(grid.dphi)
 
     return lr, grid
 

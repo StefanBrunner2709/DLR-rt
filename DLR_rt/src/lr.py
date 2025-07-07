@@ -4,6 +4,8 @@ Contains classes and functions to set up low rank structure.
 
 import numpy as np
 
+from DLR_rt.src.util import computeD_cendiff_2x1d
+
 
 class LR:
     """
@@ -139,89 +141,146 @@ def computedxK(lr, K_bdry_left, K_bdry_right, grid):
 
     return dxK
 
-def computeC(lr, grid):
+def computeC(lr, grid, dimensions = "1x1d"):
     """
     Compute C coefficient.
+
+    For higher dimensional simulations set i.e. dimensions = "2x1d"
     """
-    C1 = (lr.V.T @ np.diag(grid.MU) @ lr.V) * grid.dmu
+    if dimensions == "1x1d":
 
-    C2 = (lr.V.T @ np.ones((grid.Nmu,grid.Nmu))).T * grid.dmu
+        C1 = (lr.V.T @ np.diag(grid.MU) @ lr.V) * grid.dmu
 
-    ### Alternative option, faster but harder to understand
-    # muV = grid.MU[:, None] * lr.V
-    # C1 = lr.V.T @ muV * grid.dmu
-    # C2 = lr.V * grid.dmu
+        C2 = (lr.V.T @ np.ones((grid.Nmu,grid.Nmu))).T * grid.dmu
+
+        ### Alternative option, faster but harder to understand
+        # muV = grid.MU[:, None] * lr.V
+        # C1 = lr.V.T @ muV * grid.dmu
+        # C2 = lr.V * grid.dmu
+
+    elif dimensions == "2x1d":
+
+        C1_1 = (lr.V.T @ np.diag(np.cos(grid.PHI)) @ lr.V) * grid.dphi
+        C1_2 = (lr.V.T @ np.diag(np.sin(grid.PHI)) @ lr.V) * grid.dphi
+        C1 = [C1_1, C1_2]
+
+        C2 = (lr.V.T @ np.ones((grid.Nphi,grid.Nphi))).T * grid.dphi
 
     return C1, C2
 
-def computeB(L, grid):
+def computeB(L, grid, dimensions = "1x1d"):
+    """
+    Compute B coeffiecient.
 
-    B1 = (L.T @ np.ones((grid.Nmu,grid.Nmu))).T * grid.dmu
+    For higher dimensional simulations set i.e. dimensions = "2x1d"
+    """
+    if dimensions == "1x1d":
+
+        B1 = (L.T @ np.ones((grid.Nmu,grid.Nmu))).T * grid.dmu
+
+    elif dimensions == "2x1d":
+
+        B1 = (L.T @ np.ones((grid.Nphi,grid.Nphi))).T * grid.dphi
 
     return B1
 
-def computeD(lr, grid, F_b = None):
+def computeD(lr, grid, F_b = None, dimensions = "1x1d"):
     """
     Compute D coeffiecient.
 
     To compute D coefficient for periodic simulations, leave the standard value F_b = None.
     To compute D coefficient for inflow simulations, set F_b.
+    For higher dimensional simulations set i.e. dimensions = "2x1d"
     """
-    if F_b is not None:
-        K_bdry_left, K_bdry_right = computeK_bdry(lr, grid, F_b)
-        dxK = computedxK(lr, K_bdry_left, K_bdry_right, grid)
-        D1 = lr.U.T @ dxK * grid.dx
+    if dimensions == "1x1d":
 
-    else:
-        dxU = 0.5 * (np.roll(lr.U, -1, axis=0) - np.roll(lr.U, 1, axis=0)) / grid.dx
-        D1 = lr.U.T @ dxU * grid.dx
+        if F_b is not None:
+            K_bdry_left, K_bdry_right = computeK_bdry(lr, grid, F_b)
+            dxK = computedxK(lr, K_bdry_left, K_bdry_right, grid)
+            D1 = lr.U.T @ dxK * grid.dx
 
+        else:
+            dxU = 0.5 * (np.roll(lr.U, -1, axis=0) - np.roll(lr.U, 1, axis=0)) / grid.dx
+            D1 = lr.U.T @ dxU * grid.dx
+
+    elif dimensions == "2x1d":
+        
+        DX, DY = computeD_cendiff_2x1d(grid)
+        D1X = lr.U.T @ DX @ lr.U * grid.dx
+        D1Y = lr.U.T @ DY @ lr.U * grid.dx
+        D1 = [D1X, D1Y]
+        
     return D1
 
-def Kstep(K, C1, C2, grid, lr = None, F_b = None, inflow = False):
+def Kstep(K, C1, C2, grid, lr = None, F_b = None, inflow = False, dimensions = "1x1d"):
     """
     K step of 1-d radiative transfer equation.
 
     For K step for periodic simulations, leave the standard values inflow = False.
     For K step for inflow simulations, set inflow = True.
+    For higher dimensional simulations set i.e. dimensions = "2x1d"
     """
-    if inflow == True:
-        K_bdry_left, K_bdry_right = computeK_bdry(lr, grid, F_b)
-        dxK = computedxK(lr, K_bdry_left, K_bdry_right, grid)    
-        rhs = - (1/grid.epsilon) * dxK @ C1 + 0.5 * (1/grid.epsilon)**2 * K @ C2.T @ C2 - (1/grid.epsilon)**2 * K
+    if dimensions == "1x1d":
 
-    else:
-        dxK = 0.5 * (np.roll(K, -1, axis=0) - np.roll(K, 1, axis=0)) / grid.dx    
-        rhs = - (1/grid.epsilon) * dxK @ C1 + 0.5 * (1/grid.epsilon)**2 * K @ C2.T @ C2 - (1/grid.epsilon)**2 * K
+        if inflow == True:
+            K_bdry_left, K_bdry_right = computeK_bdry(lr, grid, F_b)
+            dxK = computedxK(lr, K_bdry_left, K_bdry_right, grid)    
+            rhs = - (1/grid.epsilon) * dxK @ C1 + 0.5 * (1/grid.epsilon)**2 * K @ C2.T @ C2 - (1/grid.epsilon)**2 * K
+
+        else:
+            dxK = 0.5 * (np.roll(K, -1, axis=0) - np.roll(K, 1, axis=0)) / grid.dx    
+            rhs = - (1/grid.epsilon) * dxK @ C1 + 0.5 * (1/grid.epsilon)**2 * K @ C2.T @ C2 - (1/grid.epsilon)**2 * K
+
+    elif dimensions == "2x1d":
+
+        DX, DY = computeD_cendiff_2x1d(grid)
+        #rhs = - DX @ K @ C1[0] - DY @ K @ C1[1] + 0.5 / (np.pi) * K @ C2.T @ C2 - K
+        rhs = - DX @ K @ C1[0] - DY @ K @ C1[1]   # without collisions
     
     return rhs
 
-def Sstep(S, C1, C2, D1, grid, inflow = False):
+def Sstep(S, C1, C2, D1, grid, inflow = False, dimensions = "1x1d"):
     """
     S step of 1-d radiative transfer equation.
 
     For S step for periodic simulations, leave the standard values inflow = False.
     For S step for inflow simulations, set inflow = True.
+    For higher dimensional simulations set i.e. dimensions = "2x1d"
     """
-    if inflow == False:
-        rhs = (1/grid.epsilon) * D1 @ S @ C1 - 0.5 * (1/grid.epsilon)**2 * S @ C2.T @ C2 + (1/grid.epsilon)**2 * S
+    if dimensions == "1x1d":
 
-    elif inflow == True:
-        rhs = (1/grid.epsilon) * D1 @ C1 - 0.5 * (1/grid.epsilon)**2 * S @ C2.T @ C2 + (1/grid.epsilon)**2 * S
+        if inflow == False:
+            rhs = (1/grid.epsilon) * D1 @ S @ C1 - 0.5 * (1/grid.epsilon)**2 * S @ C2.T @ C2 + (1/grid.epsilon)**2 * S
+
+        elif inflow == True:
+            rhs = (1/grid.epsilon) * D1 @ C1 - 0.5 * (1/grid.epsilon)**2 * S @ C2.T @ C2 + (1/grid.epsilon)**2 * S
+
+    elif dimensions == "2x1d":
+
+        #rhs = D1[0] @ S @ C1[0] + D1[1] @ S @ C1[1] - 0.5 / (np.pi) * S @ C2.T @ C2 + S
+        rhs = D1[0] @ S @ C1[0] + D1[1] @ S @ C1[1]   # without collisions
 
     return rhs
 
-def Lstep(L, D1, B1, grid, lr = None, inflow = False):
+def Lstep(L, D1, B1, grid, lr = None, inflow = False, dimensions = "1x1d"):
     """
     L step of 1-d radiative transfer equation.
 
     For L step for periodic simulations, leave the standard values inflow = False.
     For L step for inflow simulations, set inflow = True.
+    For higher dimensional simulations set i.e. dimensions = "2x1d"
     """
-    if inflow == True:
-        rhs = - (1/grid.epsilon) * np.diag(grid.MU) @ lr.V @ D1.T + 0.5 * (1/grid.epsilon)**2 * B1 - (1/grid.epsilon)**2 * L
-    else:
-        rhs = - (1/grid.epsilon) * np.diag(grid.MU) @ L @ D1.T + 0.5 * (1/grid.epsilon)**2 * B1 - (1/grid.epsilon)**2 * L
+    if dimensions == "1x1d":
+
+        if inflow == True:
+            rhs = - (1/grid.epsilon) * np.diag(grid.MU) @ lr.V @ D1.T + 0.5 * (1/grid.epsilon)**2 * B1 - (1/grid.epsilon)**2 * L
+        else:
+            rhs = - (1/grid.epsilon) * np.diag(grid.MU) @ L @ D1.T + 0.5 * (1/grid.epsilon)**2 * B1 - (1/grid.epsilon)**2 * L
+
+    elif dimensions == "2x1d":
+
+        #rhs = - np.diag(np.cos(grid.PHI)) @ L @ D1[0].T - np.diag(np.sin(grid.PHI)) @ L @ D1[1].T + 0.5 / (np.pi) * B1 - L
+        rhs = - np.diag(np.cos(grid.PHI)) @ L @ D1[0].T - np.diag(np.sin(grid.PHI)) @ L @ D1[1].T     # without collisions
     
     return rhs
 

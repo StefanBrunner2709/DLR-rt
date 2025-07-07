@@ -74,3 +74,38 @@ class Grid_1x1d:
         right_grid = Grid_1x1d(int(self.Nx/2), self.Nmu, self.r, _X=X_right, _epsilon = _epsilon_right)
 
         return left_grid, right_grid
+    
+
+class Grid_2x1d:
+    """
+    Generate 2x1 dimensional grid.
+
+    Helps to generate an equidistant grid. For calculations with periodic bc.
+    Angle domain is set from [0, 2*pi]. Spacial domain is [0,1]x[0,1].
+
+    Parameters
+    ----------
+    _Nx : int
+        Number of gridpoints in x.
+    _Ny : int
+        Number of gridpoints in y.
+    _Nphi : int
+        Number of gridpoints in phi.
+    _r : int
+        Initial rank of the simulation.
+    """
+    def __init__(self, _Nx: int, _Ny: int, _Nphi: int, _r: int = 5):
+        self.Nx = _Nx
+        self.Ny = _Ny
+        self.Nphi = _Nphi
+        self.r = _r
+
+        self.X = np.linspace(0.0, 1.0, self.Nx, endpoint=False)          # Point 0 is on the grid, point 1 is not on the grid
+        self.Y = np.linspace(0.0, 1.0, self.Ny, endpoint=False)          # Point 0 is on the grid, point 1 is not on the grid
+        self.PHI = np.linspace(0.0, 2*np.pi, self.Nphi, endpoint=False)        # 2*pi is the same angle as 0
+        
+        self.dx = self.X[1] - self.X[0]
+        self.dy = self.Y[1] - self.Y[0]
+        self.dphi = self.PHI[1] - self.PHI[0]
+
+    # ToDo: Add function to split domains
