@@ -72,7 +72,7 @@ cbar_fixed.set_ticks([np.min(rho0_matrix), np.max(rho0_matrix)])
 cbar_fixed.ax.tick_params(labelsize=fs)
 
 plt.tight_layout()
-plt.savefig(savepath + "2x1d_rho_initial")
+plt.savefig(savepath + "2x1d_rho_initial.pdf")
 
 fig, axes = plt.subplots(1, 1, figsize=(10, 8))
 
@@ -88,4 +88,4 @@ cbar_fixed.set_ticks([np.min(rho_matrix), np.max(rho_matrix)])
 cbar_fixed.ax.tick_params(labelsize=fs)
 
 plt.tight_layout()
-plt.savefig(savepath + "2x1d_rho_final")
+plt.savefig(savepath + "2x1d_rho_final_phipiquarter.pdf")

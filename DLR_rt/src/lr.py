@@ -207,7 +207,7 @@ def computeD(lr, grid, F_b = None, dimensions = "1x1d"):
         
         DX, DY = computeD_cendiff_2x1d(grid)
         D1X = lr.U.T @ DX @ lr.U * grid.dx
-        D1Y = lr.U.T @ DY @ lr.U * grid.dx
+        D1Y = lr.U.T @ DY @ lr.U * grid.dy
         D1 = [D1X, D1Y]
         
     return D1
