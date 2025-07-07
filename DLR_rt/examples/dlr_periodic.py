@@ -27,14 +27,14 @@ def integrate(lr0: LR, grid: Grid_1x1d, t_f: float, dt: float, option: str = "li
             if (t + dt > t_f):
                 dt = t_f - t
 
-            t += dt
-            time.append(t)
-
             if option=="lie":
                 lr, grid = PSI_lie(lr, grid, dt)
             
             if option=="strang":
                 lr, grid = PSI_strang(lr, grid, dt, t)
+
+            t += dt
+            time.append(t)
 
             mass_array.append((compute_mass(lr, grid) - mass_initial)/mass_initial)       # again only for mass plots
 
