@@ -234,8 +234,9 @@ def Kstep(K, C1, C2, grid, lr = None, F_b = None, inflow = False, dimensions = "
     elif dimensions == "2x1d":
 
         DX, DY = computeD_cendiff_2x1d(grid)
-        #rhs = - DX @ K @ C1[0] - DY @ K @ C1[1] + 0.5 / (np.pi) * K @ C2.T @ C2 - K
-        rhs = - DX @ K @ C1[0] - DY @ K @ C1[1]   # without collisions
+        rhs = - DX @ K @ C1[0] - DY @ K @ C1[1] + 0.5 / (np.pi) * K @ C2.T @ C2 - K
+        #rhs = - DX @ K @ C1[0] - DY @ K @ C1[1]   # without collisions
+        #rhs = 0.5 / (np.pi) * K @ C2.T @ C2 - K     # only collisions
     
     return rhs
 
@@ -257,8 +258,9 @@ def Sstep(S, C1, C2, D1, grid, inflow = False, dimensions = "1x1d"):
 
     elif dimensions == "2x1d":
 
-        #rhs = D1[0] @ S @ C1[0] + D1[1] @ S @ C1[1] - 0.5 / (np.pi) * S @ C2.T @ C2 + S
-        rhs = D1[0] @ S @ C1[0] + D1[1] @ S @ C1[1]   # without collisions
+        rhs = D1[0] @ S @ C1[0] + D1[1] @ S @ C1[1] - 0.5 / (np.pi) * S @ C2.T @ C2 + S
+        #rhs = D1[0] @ S @ C1[0] + D1[1] @ S @ C1[1]   # without collisions
+        #rhs = - 0.5 / (np.pi) * S @ C2.T @ C2 + S     # only collisions
 
     return rhs
 
@@ -279,8 +281,9 @@ def Lstep(L, D1, B1, grid, lr = None, inflow = False, dimensions = "1x1d"):
 
     elif dimensions == "2x1d":
 
-        #rhs = - np.diag(np.cos(grid.PHI)) @ L @ D1[0].T - np.diag(np.sin(grid.PHI)) @ L @ D1[1].T + 0.5 / (np.pi) * B1 - L
-        rhs = - np.diag(np.cos(grid.PHI)) @ L @ D1[0].T - np.diag(np.sin(grid.PHI)) @ L @ D1[1].T     # without collisions
+        rhs = - np.diag(np.cos(grid.PHI)) @ L @ D1[0].T - np.diag(np.sin(grid.PHI)) @ L @ D1[1].T + 0.5 / (np.pi) * B1 - L
+        #rhs = - np.diag(np.cos(grid.PHI)) @ L @ D1[0].T - np.diag(np.sin(grid.PHI)) @ L @ D1[1].T     # without collisions
+        #rhs = 0.5 / (np.pi) * B1 - L      # only collisions
     
     return rhs
 
