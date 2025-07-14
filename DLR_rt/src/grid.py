@@ -24,10 +24,10 @@ class Grid_1x1d:
         Can be chosen either "inflow" or "periodic".
     _X
         Optional X grid, given as np.array. Standard value is interval [0,1].
-    _epsilon
-        Epsilon for radiative transfer equation on this domain.
+    _coeff
+        1/epsilon for radiative transfer equation on this domain.
     """
-    def __init__(self, _Nx: int, _Nmu: int, _r: int = 5, _option_bc: str = "inflow", _X = None, _epsilon : float = 1.0):
+    def __init__(self, _Nx: int, _Nmu: int, _r: int = 5, _option_bc: str = "inflow", _X = None, _coeff : float = 1.0):
         self.Nx = _Nx
         self.Nmu = _Nmu
         self.r = _r
@@ -45,9 +45,9 @@ class Grid_1x1d:
         
         self.dx = self.X[1] - self.X[0]
         self.dmu = self.MU[1] - self.MU[0]
-        self.epsilon = _epsilon
+        self.coeff = _coeff
 
-    def split(self, _epsilon_left = None, _epsilon_right = None):
+    def split(self, _coeff_left = None, _coeff_right = None):
         """
         Split domain into 2 subdomains.
 
@@ -55,23 +55,23 @@ class Grid_1x1d:
 
         Parameters
         ----------
-        _epsilon_left
-            Epsilon for radiative transfer equation on left subdomain. If None, value from whole domain is taken.
-        _epsilon_right
-            Epsilon for radiative transfer equation on right subdomain. If None, value from whole domain is taken.
+        _coeff_left
+            1/epsilon for radiative transfer equation on left subdomain. If None, value from whole domain is taken.
+        _coeff_right
+            1/epsilon for radiative transfer equation on right subdomain. If None, value from whole domain is taken.
         """
-        if _epsilon_left is None:
-            _epsilon_left = self.epsilon
-        if _epsilon_right is None:
-            _epsilon_right = self.epsilon
+        if _coeff_left is None:
+            _coeff_left = self.coeff
+        if _coeff_right is None:
+            _coeff_right = self.coeff
 
         # Split grid
         X_left = self.X[:int(self.Nx/2)]
         X_right = self.X[int(self.Nx/2):]
 
         # Create new Grid instances for left and right
-        left_grid = Grid_1x1d(int(self.Nx/2), self.Nmu, self.r, _X=X_left, _epsilon = _epsilon_left)
-        right_grid = Grid_1x1d(int(self.Nx/2), self.Nmu, self.r, _X=X_right, _epsilon = _epsilon_right)
+        left_grid = Grid_1x1d(int(self.Nx/2), self.Nmu, self.r, _X=X_left, _coeff = _coeff_left)
+        right_grid = Grid_1x1d(int(self.Nx/2), self.Nmu, self.r, _X=X_right, _coeff = _coeff_right)
 
         return left_grid, right_grid
     
@@ -93,12 +93,15 @@ class Grid_2x1d:
         Number of gridpoints in phi.
     _r : int
         Initial rank of the simulation.
+    _coeff
+        1/epsilon for radiative transfer equation on this domain.
     """
-    def __init__(self, _Nx: int, _Ny: int, _Nphi: int, _r: int = 5):
+    def __init__(self, _Nx: int, _Ny: int, _Nphi: int, _r: int = 5, _coeff : float = 1.0):
         self.Nx = _Nx
         self.Ny = _Ny
         self.Nphi = _Nphi
         self.r = _r
+        self.coeff = _coeff
 
         self.X = np.linspace(0.0, 1.0, self.Nx, endpoint=False)          # Point 0 is on the grid, point 1 is not on the grid
         self.Y = np.linspace(0.0, 1.0, self.Ny, endpoint=False)          # Point 0 is on the grid, point 1 is not on the grid

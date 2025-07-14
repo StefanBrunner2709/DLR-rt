@@ -225,18 +225,16 @@ def Kstep(K, C1, C2, grid, lr = None, F_b = None, inflow = False, dimensions = "
         if inflow == True:
             K_bdry_left, K_bdry_right = computeK_bdry(lr, grid, F_b)
             dxK = computedxK(lr, K_bdry_left, K_bdry_right, grid)    
-            rhs = - (1/grid.epsilon) * dxK @ C1 + 0.5 * (1/grid.epsilon)**2 * K @ C2.T @ C2 - (1/grid.epsilon)**2 * K
+            rhs = - (grid.coeff) * dxK @ C1 + 0.5 * (grid.coeff)**2 * K @ C2.T @ C2 - (grid.coeff)**2 * K
 
         else:
             dxK = 0.5 * (np.roll(K, -1, axis=0) - np.roll(K, 1, axis=0)) / grid.dx    
-            rhs = - (1/grid.epsilon) * dxK @ C1 + 0.5 * (1/grid.epsilon)**2 * K @ C2.T @ C2 - (1/grid.epsilon)**2 * K
+            rhs = - (grid.coeff) * dxK @ C1 + 0.5 * (grid.coeff)**2 * K @ C2.T @ C2 - (grid.coeff)**2 * K
 
     elif dimensions == "2x1d":
 
         DX, DY = computeD_cendiff_2x1d(grid)
-        rhs = - DX @ K @ C1[0] - DY @ K @ C1[1] + 0.5 / (np.pi) * K @ C2.T @ C2 - K
-        #rhs = - DX @ K @ C1[0] - DY @ K @ C1[1]   # without collisions
-        #rhs = 0.5 / (np.pi) * K @ C2.T @ C2 - K     # only collisions
+        rhs = - (grid.coeff) * DX @ K @ C1[0] - (grid.coeff) * DY @ K @ C1[1] + 0.5 / (np.pi) * (grid.coeff)**2 * K @ C2.T @ C2 - (grid.coeff)**2 * K
     
     return rhs
 
@@ -251,16 +249,14 @@ def Sstep(S, C1, C2, D1, grid, inflow = False, dimensions = "1x1d"):
     if dimensions == "1x1d":
 
         if inflow == False:
-            rhs = (1/grid.epsilon) * D1 @ S @ C1 - 0.5 * (1/grid.epsilon)**2 * S @ C2.T @ C2 + (1/grid.epsilon)**2 * S
+            rhs = (grid.coeff) * D1 @ S @ C1 - 0.5 * (grid.coeff)**2 * S @ C2.T @ C2 + (grid.coeff)**2 * S
 
         elif inflow == True:
-            rhs = (1/grid.epsilon) * D1 @ C1 - 0.5 * (1/grid.epsilon)**2 * S @ C2.T @ C2 + (1/grid.epsilon)**2 * S
+            rhs = (grid.coeff) * D1 @ C1 - 0.5 * (grid.coeff)**2 * S @ C2.T @ C2 + (grid.coeff)**2 * S
 
     elif dimensions == "2x1d":
 
-        rhs = D1[0] @ S @ C1[0] + D1[1] @ S @ C1[1] - 0.5 / (np.pi) * S @ C2.T @ C2 + S
-        #rhs = D1[0] @ S @ C1[0] + D1[1] @ S @ C1[1]   # without collisions
-        #rhs = - 0.5 / (np.pi) * S @ C2.T @ C2 + S     # only collisions
+        rhs = (grid.coeff) * D1[0] @ S @ C1[0] + (grid.coeff) * D1[1] @ S @ C1[1] - 0.5 / (np.pi) * (grid.coeff)**2 * S @ C2.T @ C2 + (grid.coeff)**2 * S
 
     return rhs
 
@@ -275,15 +271,13 @@ def Lstep(L, D1, B1, grid, lr = None, inflow = False, dimensions = "1x1d"):
     if dimensions == "1x1d":
 
         if inflow == True:
-            rhs = - (1/grid.epsilon) * np.diag(grid.MU) @ lr.V @ D1.T + 0.5 * (1/grid.epsilon)**2 * B1 - (1/grid.epsilon)**2 * L
+            rhs = - (grid.coeff) * np.diag(grid.MU) @ lr.V @ D1.T + 0.5 * (grid.coeff)**2 * B1 - (grid.coeff)**2 * L
         else:
-            rhs = - (1/grid.epsilon) * np.diag(grid.MU) @ L @ D1.T + 0.5 * (1/grid.epsilon)**2 * B1 - (1/grid.epsilon)**2 * L
+            rhs = - (grid.coeff) * np.diag(grid.MU) @ L @ D1.T + 0.5 * (grid.coeff)**2 * B1 - (grid.coeff)**2 * L
 
     elif dimensions == "2x1d":
 
-        rhs = - np.diag(np.cos(grid.PHI)) @ L @ D1[0].T - np.diag(np.sin(grid.PHI)) @ L @ D1[1].T + 0.5 / (np.pi) * B1 - L
-        #rhs = - np.diag(np.cos(grid.PHI)) @ L @ D1[0].T - np.diag(np.sin(grid.PHI)) @ L @ D1[1].T     # without collisions
-        #rhs = 0.5 / (np.pi) * B1 - L      # only collisions
+        rhs = - (grid.coeff) * np.diag(np.cos(grid.PHI)) @ L @ D1[0].T - (grid.coeff) * np.diag(np.sin(grid.PHI)) @ L @ D1[1].T + 0.5 / (np.pi) * (grid.coeff)**2 * B1 - (grid.coeff)**2 * L
     
     return rhs
 
