@@ -3,7 +3,7 @@ Contains functions to set initial condition.
 """
 
 import numpy as np
-from DLR_rt.src.grid import Grid_1x1d
+from DLR_rt.src.grid import Grid_1x1d, Grid_2x1d
 from DLR_rt.src.lr import LR
 
 
@@ -45,7 +45,7 @@ def setInitialCondition_1x1d_lr(grid: Grid_1x1d, sigma: float = 1.0):
     lr = LR(U_ortho, S_ortho, V_ortho)
     return lr
 
-def setInitialCondition_2x1d_lr(grid: Grid_1x1d):
+def setInitialCondition_2x1d_lr(grid: Grid_2x1d):
     """
     Set initial condition.
 
@@ -55,7 +55,7 @@ def setInitialCondition_2x1d_lr(grid: Grid_1x1d):
     U = np.zeros((grid.Nx * grid.Ny, grid.r))
     V = np.zeros((grid.Nphi, grid.r))
     for i in range(grid.Ny):
-        U[i*grid.Ny:(i+1)*grid.Ny, 0] = 1/(2 * np.pi) * np.exp(-((grid.X-0.5)**2)/0.07) * np.exp(-((grid.Y[i]-0.5)**2)/0.07)
+        U[i*grid.Nx:(i+1)*grid.Nx, 0] = 1/(2 * np.pi) * np.exp(-((grid.X-0.5)**2)/0.07) * np.exp(-((grid.Y[i]-0.5)**2)/0.07)
     V[0, 0] = 1.0
     S[0, 0] = 1.0
 
