@@ -44,7 +44,7 @@ def computeF_b(t: float, f, grid, f_left = None, f_right= None):
     
     F_b = np.zeros((2, len(grid.MU)))
 
-    if f_left is not None and f_right is not None:      # Only one domain
+    if f_left is not None and f_right is not None:
         for i in range(len(grid.MU)):           # Middle domain
             if grid.MU[i] > 0:
                 F_b[0, i] = f_left[-1, i]       # Here we use inflow from domain on the left
@@ -68,7 +68,7 @@ def computeF_b(t: float, f, grid, f_left = None, f_right= None):
             elif grid.MU[i] < 0:
                 F_b[1, i] = f_right[0, i]                   # Here we use inflow from domain on the right
                 F_b[0, i] = f[0,i] - (f[1,i]-f[0,i])/grid.dx * grid.X[0]
-    else:
+    else:                                       # Only one domain
         for i in range(len(grid.MU)):
             if grid.MU[i] > 0:
                 F_b[0, i] = np.tanh(t)
@@ -78,7 +78,7 @@ def computeF_b(t: float, f, grid, f_left = None, f_right= None):
                 F_b[0, i] = f[0,i] - (f[1,i]-f[0,i])/grid.dx * grid.X[0]
 
     return F_b
-    
+
 def computeK_bdry(lr, grid, F_b):
     """
     Compute boundary values for K.
