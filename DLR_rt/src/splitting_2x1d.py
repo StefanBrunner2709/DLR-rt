@@ -268,9 +268,10 @@ def computeK_bdry_2x1d(lr, grid, F_b):
         K_extrapol_right[:,i] = K[indices_outflow_right_1,i] + (K[indices_outflow_right_1,i]-K[indices_outflow_right_2,i])/grid.dx * (1-grid.X[grid.Nx-1])
 
     V_indicator_left = np.copy(lr.V)     # generate V*indicator, Note: Only works for Nx even
-    V_indicator_left[int(grid.Nphi/2):,:] = 0
+    V_indicator_left[:int(grid.Nphi/4),:] = 0
+    V_indicator_left[int(3*grid.Nphi/4):,:] = 0
     V_indicator_right = np.copy(lr.V)
-    V_indicator_right[:int(grid.Nphi/2),:] = 0
+    V_indicator_right[int(grid.Nphi/4):int(3*grid.Nphi/4),:] = 0
 
     int_V_left = (V_indicator_left.T @ lr.V) * grid.dphi        # compute integrals over V
     int_V_right = (V_indicator_right.T @ lr.V) * grid.dphi 
@@ -296,9 +297,9 @@ def computedxK_2x1d(lr, K_bdry_left, K_bdry_right, grid):
 
     # Still need to add boundary information
     indices_1 = list(range(0, grid.Nx*(grid.Ny), grid.Nx))
-    DXK[indices_1] = DXK[indices_1] - K_bdry_left
+    DXK[indices_1,:] = DXK[indices_1,:] - K_bdry_left / (2*grid.dx)
     indices_2 = list(range(grid.Nx-1, grid.Nx*(grid.Ny+1)-1, grid.Nx))
-    DXK[indices_2] = DXK[indices_2] + K_bdry_right
+    DXK[indices_2,:] = DXK[indices_2,:] + K_bdry_right / (2*grid.dx)
 
     return DXK
 
