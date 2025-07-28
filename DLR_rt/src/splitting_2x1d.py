@@ -480,7 +480,7 @@ def RK4(f, rhs, dt):
 
     return b_coeff[0] * k_coeff0 + b_coeff[1] * k_coeff1 + b_coeff[2] * k_coeff2 + b_coeff[3] * k_coeff3
 
-def PSI_lie_splitting(lr, grid, dt, F_b):
+def PSI_lie_splitting(lr, grid, dt, F_b, lr_periodic = None, option = "lie", location = "left"):
     """
     Projector splitting integrator with lie splitting.
 
@@ -500,71 +500,188 @@ def PSI_lie_splitting(lr, grid, dt, F_b):
     
     # Step 1: advection in x
 
-    # K step
-    C1, C2 = computeC(lr, grid)
-    K = lr.U @ lr.S
-    K += dt * RK4(K, lambda K: Kstep1(C1, grid, lr, F_b), dt)
-    lr.U, lr.S = np.linalg.qr(K, mode="reduced")
-    lr.U /= np.sqrt(grid.dx)
-    lr.S *= np.sqrt(grid.dx)
+    if option == "lie":
+        # K step
+        C1, C2 = computeC(lr, grid)
+        K = lr.U @ lr.S
+        K += dt * RK4(K, lambda K: Kstep1(C1, grid, lr, F_b), dt)
+        lr.U, lr.S = np.linalg.qr(K, mode="reduced")
+        lr.U /= np.sqrt(grid.dx)
+        lr.S *= np.sqrt(grid.dx)
 
-    # S step
-    D1 = computeD(lr, grid, F_b)
-    lr.S += dt * RK4(lr.S, lambda S: Sstep1(C1, D1, grid), dt)
+        # S step
+        D1 = computeD(lr, grid, F_b)
+        lr.S += dt * RK4(lr.S, lambda S: Sstep1(C1, D1, grid), dt)
 
-    # L step
-    L = lr.V @ lr.S.T
-    B1 = computeB(L, grid)
-    L += dt * RK4(L, lambda L: Lstep1(lr, D1, grid), dt)
-    lr.V, St = np.linalg.qr(L, mode="reduced")
-    lr.S = St.T
-    lr.V /= np.sqrt(grid.dphi)
-    lr.S *= np.sqrt(grid.dphi)
+        # L step
+        L = lr.V @ lr.S.T
+        B1 = computeB(L, grid)
+        L += dt * RK4(L, lambda L: Lstep1(lr, D1, grid), dt)
+        lr.V, St = np.linalg.qr(L, mode="reduced")
+        lr.S = St.T
+        lr.V /= np.sqrt(grid.dphi)
+        lr.S *= np.sqrt(grid.dphi)
+
+    
+    elif option == "strang":
+        # 1/2 K step
+        C1, C2 = computeC(lr, grid)
+        K = lr.U @ lr.S
+        K += 0.5 * dt * RK4(K, lambda K: Kstep1(C1, grid, lr, F_b), 0.5 * dt)
+        lr.U, lr.S = np.linalg.qr(K, mode="reduced")
+        lr.U /= np.sqrt(grid.dx)
+        lr.S *= np.sqrt(grid.dx)
+
+        # 1/2 S step
+        D1 = computeD(lr, grid, F_b)
+        lr.S += 0.5 * dt * RK4(lr.S, lambda S: Sstep1(C1, D1, grid), 0.5 * dt)
+
+        # L step
+        L = lr.V @ lr.S.T
+        B1 = computeB(L, grid)
+        L += dt * RK4(L, lambda L: Lstep1(lr, D1, grid), dt)
+        lr.V, St = np.linalg.qr(L, mode="reduced")
+        lr.S = St.T
+        lr.V /= np.sqrt(grid.dphi)
+        lr.S *= np.sqrt(grid.dphi)
+
+        # Compute F_b
+        if location == "left":
+            F_b = computeF_b_2x1d(lr.U @ lr.S @ lr.V.T, grid, f_right = lr_periodic.U @ lr_periodic.S @ lr_periodic.V.T, f_periodic = lr_periodic.U @ lr_periodic.S @ lr_periodic.V.T)      # recalculate F_b at time t + 0.5 dt
+        elif location == "right":
+            F_b = computeF_b_2x1d(lr.U @ lr.S @ lr.V.T, grid, f_left = lr_periodic.U @ lr_periodic.S @ lr_periodic.V.T, f_periodic = lr_periodic.U @ lr_periodic.S @ lr_periodic.V.T)      # recalculate F_b at time t + 0.5 dt
+        
+        D1 = computeD(lr, grid, F_b)                                    # recalculate D1 because we recalculated F_b
+
+        # 1/2 S step
+        C1, C2 = computeC(lr, grid)     # need to recalculate C1 and C2 because we changed V in L step     
+        lr.S += 0.5 * dt * RK4(lr.S, lambda S: Sstep1(C1, D1, grid), 0.5 * dt)
+
+        # 1/2 K step
+        K = lr.U @ lr.S
+        K += 0.5 * dt * RK4(K, lambda K: Kstep1(C1, grid, lr, F_b), 0.5 * dt)
+        lr.U, lr.S = np.linalg.qr(K, mode="reduced")
+        lr.U /= np.sqrt(grid.dx)
+        lr.S *= np.sqrt(grid.dx)
 
 
-    # # Step 2: advection in y
+    # Step 2: advection in y
 
-    # # K step
-    # C1, C2 = computeC(lr, grid)
-    # K = lr.U @ lr.S
-    # K += dt * RK4(K, lambda K: Kstep2(K, C1, grid), dt)
-    # lr.U, lr.S = np.linalg.qr(K, mode="reduced")
-    # lr.U /= np.sqrt(grid.dx)
-    # lr.S *= np.sqrt(grid.dx)
+    if option == "lie":
+        # K step
+        C1, C2 = computeC(lr, grid)
+        K = lr.U @ lr.S
+        K += dt * RK4(K, lambda K: Kstep2(K, C1, grid), dt)
+        lr.U, lr.S = np.linalg.qr(K, mode="reduced")
+        lr.U /= np.sqrt(grid.dx)
+        lr.S *= np.sqrt(grid.dx)
 
-    # # S step
-    # D1 = computeD(lr, grid, F_b)
-    # lr.S += dt * RK4(lr.S, lambda S: Sstep2(S, C1, D1, grid), dt)
+        # S step
+        D1 = computeD(lr, grid, F_b)
+        lr.S += dt * RK4(lr.S, lambda S: Sstep2(S, C1, D1, grid), dt)
 
-    # # L step
-    # L = lr.V @ lr.S.T
-    # L += dt * RK4(L, lambda L: Lstep2(L, D1, grid), dt)
-    # lr.V, St = np.linalg.qr(L, mode="reduced")
-    # lr.S = St.T
-    # lr.V /= np.sqrt(grid.dphi)
-    # lr.S *= np.sqrt(grid.dphi)
+        # L step
+        L = lr.V @ lr.S.T
+        L += dt * RK4(L, lambda L: Lstep2(L, D1, grid), dt)
+        lr.V, St = np.linalg.qr(L, mode="reduced")
+        lr.S = St.T
+        lr.V /= np.sqrt(grid.dphi)
+        lr.S *= np.sqrt(grid.dphi)
+
+    elif option == "strang":
+        # 1/2 K step
+        C1, C2 = computeC(lr, grid)
+        K = lr.U @ lr.S
+        K += 0.5 * dt * RK4(K, lambda K: Kstep2(K, C1, grid), 0.5 * dt)
+        lr.U, lr.S = np.linalg.qr(K, mode="reduced")
+        lr.U /= np.sqrt(grid.dx)
+        lr.S *= np.sqrt(grid.dx)
+
+        # 1/2 S step
+        D1 = computeD(lr, grid, F_b)
+        lr.S += 0.5 * dt * RK4(lr.S, lambda S: Sstep2(S, C1, D1, grid), 0.5 * dt)
+
+        # L step
+        L = lr.V @ lr.S.T
+        L += dt * RK4(L, lambda L: Lstep2(L, D1, grid), dt)
+        lr.V, St = np.linalg.qr(L, mode="reduced")
+        lr.S = St.T
+        lr.V /= np.sqrt(grid.dphi)
+        lr.S *= np.sqrt(grid.dphi)
+
+        # Compute F_b
+        if location == "left":
+            F_b = computeF_b_2x1d(lr.U @ lr.S @ lr.V.T, grid, f_right = lr_periodic.U @ lr_periodic.S @ lr_periodic.V.T, f_periodic = lr_periodic.U @ lr_periodic.S @ lr_periodic.V.T)      # recalculate F_b at time t + 0.5 dt
+        elif location == "right":
+            F_b = computeF_b_2x1d(lr.U @ lr.S @ lr.V.T, grid, f_left = lr_periodic.U @ lr_periodic.S @ lr_periodic.V.T, f_periodic = lr_periodic.U @ lr_periodic.S @ lr_periodic.V.T)      # recalculate F_b at time t + 0.5 dt
+        
+        D1 = computeD(lr, grid, F_b)                                    # maybe we dont even have to recompute here
+
+        # 1/2 S step
+        C1, C2 = computeC(lr, grid)     # need to recalculate C1 and C2 because we changed V in L step     
+        lr.S += 0.5 * dt * RK4(lr.S, lambda S: Sstep2(S, C1, D1, grid), 0.5 * dt)
+
+        # 1/2 K step
+        K = lr.U @ lr.S
+        K += 0.5 * dt * RK4(K, lambda K: Kstep2(K, C1, grid), 0.5 * dt)
+        lr.U, lr.S = np.linalg.qr(K, mode="reduced")
+        lr.U /= np.sqrt(grid.dx)
+        lr.S *= np.sqrt(grid.dx)
 
 
-    # # Step 3: collisions
+    # Step 3: collisions
 
-    # # K step
-    # C1, C2 = computeC(lr, grid)
-    # K = lr.U @ lr.S
-    # K += dt * RK4(K, lambda K: Kstep3(K, C2, grid), dt)
-    # lr.U, lr.S = np.linalg.qr(K, mode="reduced")
-    # lr.U /= np.sqrt(grid.dx)
-    # lr.S *= np.sqrt(grid.dx)
+    if option == "lie":
+        # K step
+        C1, C2 = computeC(lr, grid)
+        K = lr.U @ lr.S
+        K += dt * RK4(K, lambda K: Kstep3(K, C2, grid), dt)
+        lr.U, lr.S = np.linalg.qr(K, mode="reduced")
+        lr.U /= np.sqrt(grid.dx)
+        lr.S *= np.sqrt(grid.dx)
 
-    # # S step
-    # lr.S += dt * RK4(lr.S, lambda S: Sstep3(S, C2, grid), dt)
+        # S step
+        lr.S += dt * RK4(lr.S, lambda S: Sstep3(S, C2, grid), dt)
 
-    # # L step
-    # L = lr.V @ lr.S.T
-    # B1 = computeB(L, grid)
-    # L += dt * RK4(L, lambda L: Lstep3(L, B1, grid), dt)
-    # lr.V, St = np.linalg.qr(L, mode="reduced")
-    # lr.S = St.T
-    # lr.V /= np.sqrt(grid.dphi)
-    # lr.S *= np.sqrt(grid.dphi)
+        # L step
+        L = lr.V @ lr.S.T
+        B1 = computeB(L, grid)
+        L += dt * RK4(L, lambda L: Lstep3(L, B1, grid), dt)
+        lr.V, St = np.linalg.qr(L, mode="reduced")
+        lr.S = St.T
+        lr.V /= np.sqrt(grid.dphi)
+        lr.S *= np.sqrt(grid.dphi)
+
+    elif option == "strang":
+        # 1/2 K step
+        C1, C2 = computeC(lr, grid)
+        K = lr.U @ lr.S
+        K += 0.5 * dt * RK4(K, lambda K: Kstep3(K, C2, grid), 0.5 * dt)
+        lr.U, lr.S = np.linalg.qr(K, mode="reduced")
+        lr.U /= np.sqrt(grid.dx)
+        lr.S *= np.sqrt(grid.dx)
+
+        # 1/2 S step
+        lr.S += 0.5 * dt * RK4(lr.S, lambda S: Sstep3(S, C2, grid), 0.5 * dt)
+
+        # L step
+        L = lr.V @ lr.S.T
+        B1 = computeB(L, grid)
+        L += dt * RK4(L, lambda L: Lstep3(L, B1, grid), dt)
+        lr.V, St = np.linalg.qr(L, mode="reduced")
+        lr.S = St.T
+        lr.V /= np.sqrt(grid.dphi)
+        lr.S *= np.sqrt(grid.dphi)
+
+        # 1/2 S step
+        C1, C2 = computeC(lr, grid)     # need to recalculate C1 and C2 because we changed V in L step     
+        lr.S += 0.5 * dt * RK4(lr.S, lambda S: Sstep3(S, C2, grid), 0.5 * dt)
+
+        # 1/2 K step
+        K = lr.U @ lr.S
+        K += 0.5 * dt * RK4(K, lambda K: Kstep3(K, C2, grid), 0.5 * dt)
+        lr.U, lr.S = np.linalg.qr(K, mode="reduced")
+        lr.U /= np.sqrt(grid.dx)
+        lr.S *= np.sqrt(grid.dx)
 
     return lr, grid
