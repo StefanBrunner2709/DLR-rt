@@ -48,34 +48,34 @@ def computeF_b(t: float, f, grid, f_left = None, f_right= None):
         for i in range(len(grid.MU)):           # Middle domain
             if grid.MU[i] > 0:
                 F_b[0, i] = f_left[-1, i]       # Here we use inflow from domain on the left
-                F_b[1, i] = f[grid.Nx-1,i] + (f[grid.Nx-1,i]-f[grid.Nx-2,i])/grid.dx * (1-grid.X[grid.Nx-1])
+                F_b[1, i] = f[grid.Nx-1,i] + (f[grid.Nx-1,i]-f[grid.Nx-2,i])
             elif grid.MU[i] < 0:
                 F_b[1, i] = f_right[0, i]                   # Here we use inflow from domain on the right
-                F_b[0, i] = f[0,i] - (f[1,i]-f[0,i])/grid.dx * grid.X[0]
+                F_b[0, i] = f[0,i] - (f[1,i]-f[0,i])
     elif f_left is not None:                        # Left sided domain
         for i in range(len(grid.MU)):
             if grid.MU[i] > 0:
                 F_b[0, i] = f_left[-1, i]       # Here we use inflow from domain on the left
-                F_b[1, i] = f[grid.Nx-1,i] + (f[grid.Nx-1,i]-f[grid.Nx-2,i])/grid.dx * (1-grid.X[grid.Nx-1])
+                F_b[1, i] = f[grid.Nx-1,i] + (f[grid.Nx-1,i]-f[grid.Nx-2,i])
             elif grid.MU[i] < 0:
                 F_b[1, i] = np.tanh(t)
-                F_b[0, i] = f[0,i] - (f[1,i]-f[0,i])/grid.dx * grid.X[0]
+                F_b[0, i] = f[0,i] - (f[1,i]-f[0,i])
     elif f_right is not None:                       # Right sided domain
         for i in range(len(grid.MU)):
             if grid.MU[i] > 0:
                 F_b[0, i] = np.tanh(t)
-                F_b[1, i] = f[grid.Nx-1,i] + (f[grid.Nx-1,i]-f[grid.Nx-2,i])/grid.dx * (1-grid.X[grid.Nx-1])
+                F_b[1, i] = f[grid.Nx-1,i] + (f[grid.Nx-1,i]-f[grid.Nx-2,i])
             elif grid.MU[i] < 0:
                 F_b[1, i] = f_right[0, i]                   # Here we use inflow from domain on the right
-                F_b[0, i] = f[0,i] - (f[1,i]-f[0,i])/grid.dx * grid.X[0]
+                F_b[0, i] = f[0,i] - (f[1,i]-f[0,i])
     else:                                       # Only one domain
         for i in range(len(grid.MU)):
             if grid.MU[i] > 0:
                 F_b[0, i] = np.tanh(t)
-                F_b[1, i] = f[grid.Nx-1,i] + (f[grid.Nx-1,i]-f[grid.Nx-2,i])/grid.dx * (1-grid.X[grid.Nx-1])
+                F_b[1, i] = f[grid.Nx-1,i] + (f[grid.Nx-1,i]-f[grid.Nx-2,i])
             elif grid.MU[i] < 0:
                 F_b[1, i] = np.tanh(t)
-                F_b[0, i] = f[0,i] - (f[1,i]-f[0,i])/grid.dx * grid.X[0]
+                F_b[0, i] = f[0,i] - (f[1,i]-f[0,i])
 
     return F_b
 
@@ -103,8 +103,8 @@ def computeK_bdry(lr, grid, F_b):
     K_extrapol_left = np.zeros([grid.r])
     K_extrapol_right = np.zeros([grid.r])
     for i in range(grid.r):     # calculate extrapolated values
-        K_extrapol_left[i] = K[0,i] - (K[1,i]-K[0,i])/grid.dx * grid.X[0]
-        K_extrapol_right[i] = K[grid.Nx-1,i] + (K[grid.Nx-1,i]-K[grid.Nx-2,i])/grid.dx * (1-grid.X[grid.Nx-1])
+        K_extrapol_left[i] = K[0,i] - (K[1,i]-K[0,i])
+        K_extrapol_right[i] = K[grid.Nx-1,i] + (K[grid.Nx-1,i]-K[grid.Nx-2,i])
 
     V_indicator_left = np.copy(lr.V)     # generate V*indicator, Note: Only works for Nx even
     V_indicator_left[int(grid.Nmu/2):,:] = 0
