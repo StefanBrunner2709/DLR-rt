@@ -190,7 +190,7 @@ def computeF_b_2x1d(f, grid, f_left = None, f_right = None, f_periodic = None):
 
                     indices_outflow_1 = list(range(grid.Nx-1, grid.Nx*(grid.Ny+1)-1, grid.Nx))
                     indices_outflow_2 = list(range(grid.Nx-2, grid.Nx*(grid.Ny+1)-2, grid.Nx))
-                    F_b[len(grid.Y):,i] = f[indices_outflow_1, i] + (f[indices_outflow_1, i] - f[indices_outflow_2, i])/grid.dx * (1-grid.X[grid.Nx-1]) # outflow to right side
+                    F_b[len(grid.Y):,i] = f[indices_outflow_1, i] + (f[indices_outflow_1, i] - f[indices_outflow_2, i]) # outflow to right side
 
                 else:
 
@@ -199,7 +199,7 @@ def computeF_b_2x1d(f, grid, f_left = None, f_right = None, f_periodic = None):
 
                     indices_outflow_0 = list(range(0, grid.Nx*(grid.Ny), grid.Nx))
                     indices_outflow_1 = list(range(1, grid.Nx*(grid.Ny)+1, grid.Nx))
-                    F_b[:len(grid.Y),i] = f[indices_outflow_0, i] - (f[indices_outflow_1, i]-f[indices_outflow_0, i])/grid.dx * grid.X[0] # outflow to left side
+                    F_b[:len(grid.Y),i] = f[indices_outflow_0, i] - (f[indices_outflow_1, i]-f[indices_outflow_0, i]) # outflow to left side
 
         elif f_left is not None:   # right sided domain
 
@@ -212,7 +212,7 @@ def computeF_b_2x1d(f, grid, f_left = None, f_right = None, f_periodic = None):
 
                     indices_outflow_1 = list(range(grid.Nx-1, grid.Nx*(grid.Ny+1)-1, grid.Nx))
                     indices_outflow_2 = list(range(grid.Nx-2, grid.Nx*(grid.Ny+1)-2, grid.Nx))
-                    F_b[len(grid.Y):,i] = f[indices_outflow_1, i] + (f[indices_outflow_1, i] - f[indices_outflow_2, i])/grid.dx * (1-grid.X[grid.Nx-1]) # outflow to right side
+                    F_b[len(grid.Y):,i] = f[indices_outflow_1, i] + (f[indices_outflow_1, i] - f[indices_outflow_2, i]) # outflow to right side
 
                 else:
 
@@ -221,7 +221,7 @@ def computeF_b_2x1d(f, grid, f_left = None, f_right = None, f_periodic = None):
 
                     indices_outflow_0 = list(range(0, grid.Nx*(grid.Ny), grid.Nx))
                     indices_outflow_1 = list(range(1, grid.Nx*(grid.Ny)+1, grid.Nx))
-                    F_b[:len(grid.Y),i] = f[indices_outflow_0, i] - (f[indices_outflow_1, i]-f[indices_outflow_0, i])/grid.dx * grid.X[0] # outflow to left side
+                    F_b[:len(grid.Y),i] = f[indices_outflow_0, i] - (f[indices_outflow_1, i]-f[indices_outflow_0, i]) # outflow to left side
 
 
     elif f_left is not None and f_right is not None:    # middle domain
@@ -261,11 +261,11 @@ def computeK_bdry_2x1d(lr, grid, F_b):
 
         indices_outflow_left_0 = list(range(0, grid.Nx*(grid.Ny), grid.Nx))
         indices_outflow_left_1 = list(range(1, grid.Nx*(grid.Ny)+1, grid.Nx))
-        K_extrapol_left[:,i] = K[indices_outflow_left_0,i] - (K[indices_outflow_left_1,i]-K[indices_outflow_left_0,i])/grid.dx * grid.X[0]
+        K_extrapol_left[:,i] = K[indices_outflow_left_0,i] - (K[indices_outflow_left_1,i]-K[indices_outflow_left_0,i])
 
         indices_outflow_right_1 = list(range(grid.Nx-1, grid.Nx*(grid.Ny+1)-1, grid.Nx))
         indices_outflow_right_2 = list(range(grid.Nx-2, grid.Nx*(grid.Ny+1)-2, grid.Nx))
-        K_extrapol_right[:,i] = K[indices_outflow_right_1,i] + (K[indices_outflow_right_1,i]-K[indices_outflow_right_2,i])/grid.dx * (1-grid.X[grid.Nx-1])
+        K_extrapol_right[:,i] = K[indices_outflow_right_1,i] + (K[indices_outflow_right_1,i]-K[indices_outflow_right_2,i])
 
     V_indicator_left = np.copy(lr.V)     # generate V*indicator, Note: Only works for Nx even
     V_indicator_left[:int(grid.Nphi/4),:] = 0
