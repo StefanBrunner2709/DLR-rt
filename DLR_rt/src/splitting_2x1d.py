@@ -359,6 +359,8 @@ def add_basis_functions(lr, grid, F_b, tol_sing_val):
     # Compute SVD and drop singular values
     X, sing_val, QT = np.linalg.svd(F_b)
     r_b = np.sum(sing_val > tol_sing_val)
+    if (grid.r + r_b) > grid.Nphi:      # because rank cannot be bigger than our amount of gridpoints
+        r_b = grid.Nphi - grid.r
     Sigma = np.zeros((F_b.shape[0], r_b))
     np.fill_diagonal(Sigma, sing_val[:r_b])
     Q = QT.T[:,:r_b]
@@ -480,9 +482,9 @@ def RK4(f, rhs, dt):
 
     return b_coeff[0] * k_coeff0 + b_coeff[1] * k_coeff1 + b_coeff[2] * k_coeff2 + b_coeff[3] * k_coeff3
 
-def PSI_lie_splitting(lr, grid, dt, F_b, lr_periodic = None, option = "lie", location = "left"):
+def PSI_splitting(lr, grid, dt, F_b, lr_periodic = None, option = "lie", location = "left"):
     """
-    Projector splitting integrator with lie splitting.
+    Projector splitting integrator with splitting.
 
     For simulations in 2x1d and DD, together with a splitting aproach.
 
