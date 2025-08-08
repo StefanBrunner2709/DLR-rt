@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 
-from DLR_rt.src.splitting_2x1d import LR, Grid_2x1d, setInitialCondition_2x1d_lr, computeF_b_2x1d, add_basis_functions, drop_basis_functions, PSI_splitting
+from DLR_rt.src.splitting_2x1d import LR, Grid_2x1d, setInitialCondition_2x1d_lr, computeF_b_2x1d, computeF_b_2x1d_top_bottom, PSI_splitting
 
 
 def integrate(lr0_left: LR, lr0_right: LR, grid_left: Grid_2x1d, grid_right: Grid_2x1d, t_f: float, dt: float, tol_sing_val: float = 1e-6, drop_tol: float = 1e-6, method = "lie"):
@@ -28,35 +28,21 @@ def integrate(lr0_left: LR, lr0_right: LR, grid_left: Grid_2x1d, grid_right: Gri
             ### Compute F_b
             F_b_left = computeF_b_2x1d(lr_left.U @ lr_left.S @ lr_left.V.T, grid_left, f_right = lr_right.U @ lr_right.S @ lr_right.V.T, f_periodic = lr_right.U @ lr_right.S @ lr_right.V.T)
             F_b_right = computeF_b_2x1d(lr_right.U @ lr_right.S @ lr_right.V.T, grid_right, f_left = lr_left.U @ lr_left.S @ lr_left.V.T, f_periodic = lr_left.U @ lr_left.S @ lr_left.V.T)
+            F_b_top_bottom_left = computeF_b_2x1d_top_bottom(lr_left.U @ lr_left.S @ lr_left.V.T, grid_left)
+            F_b_top_bottom_right = computeF_b_2x1d_top_bottom(lr_right.U @ lr_right.S @ lr_right.V.T, grid_right)
 
             ### Update left side
 
-            ### Add basis for adaptive rank strategy:
-            lr_left_new, grid_left_new = add_basis_functions(lr_left, grid_left, F_b_left, tol_sing_val)
-            rank_left_adapted.append(grid_left.r)
+            ### Save old lr_left
+            lr_left_old = lr_left
 
-            ### Run PSI
-            lr_left_new, grid_left_new = PSI_splitting(lr_left_new, grid_left_new, dt, F_b_left, lr_right, method, "left")
-
-            ### Drop basis for adaptive rank strategy:
-            lr_left_new, grid_left_new = drop_basis_functions(lr_left_new, grid_left_new, drop_tol)
-            rank_left_dropped.append(grid_left.r)
+            ### Run PSI with adaptive rank strategy
+            lr_left, grid_left, rank_left_adapted, rank_left_dropped = PSI_splitting(lr_left, grid_left, dt, F_b_left, F_b_top_bottom_left, lr_right, method, "left", tol_sing_val, drop_tol, rank_left_adapted, rank_left_dropped)
 
             ### Update right side
 
-            ### Add basis for adaptive rank strategy:
-            lr_right, grid_right = add_basis_functions(lr_right, grid_right, F_b_right, tol_sing_val)
-            rank_right_adapted.append(grid_right.r)
-
-            ### Run PSI
-            lr_right, grid_right = PSI_splitting(lr_right, grid_right, dt, F_b_right, lr_left, method, "right")
-
-            ### Drop basis for adaptive rank strategy:
-            lr_right, grid_right = drop_basis_functions(lr_right, grid_right, drop_tol)
-            rank_right_dropped.append(grid_right.r)
-
-            ### Assign lr_left, grid_left
-            lr_left, grid_left = lr_left_new, grid_left_new
+            ### Run PSI with adaptive rank strategy
+            lr_right, grid_right, rank_right_adapted, rank_right_dropped = PSI_splitting(lr_right, grid_right, dt, F_b_right, F_b_top_bottom_right, lr_left_old, method, "right", tol_sing_val, drop_tol, rank_right_adapted, rank_right_dropped)
 
             ### Update time
             t += dt

@@ -38,7 +38,7 @@ class Grid_2x1d:
     _coeff
         1/epsilon for radiative transfer equation on this domain.
     """
-    def __init__(self, _Nx: int, _Ny: int, _Nphi: int, _r: int = 5, _X = None, _coeff : float = 1.0):
+    def __init__(self, _Nx: int, _Ny: int, _Nphi: int, _r: int = 5, _X = None, _Y = None, _coeff : float = 1.0):
         self.Nx = _Nx
         self.Ny = _Ny
         self.Nphi = _Nphi
@@ -51,7 +51,10 @@ class Grid_2x1d:
         else:
             self.X = _X
 
-        self.Y = np.linspace(1/(2*self.Ny), 1 - 1/(2*self.Ny), self.Ny, endpoint=True) # Point 0 and 1 are not on the grid, spacing to first gridpoint: delta_x/2
+        if _X is None:
+            self.Y = np.linspace(1/(2*self.Ny), 1 - 1/(2*self.Ny), self.Ny, endpoint=True) # Point 0 and 1 are not on the grid, spacing to first gridpoint: delta_y/2
+        else:
+            self.Y = _Y
 
         self.PHI = np.linspace(0.0, 2*np.pi, self.Nphi, endpoint=False)        # 2*pi is the same angle as 0
         
@@ -82,10 +85,38 @@ class Grid_2x1d:
         X_right = self.X[int(self.Nx/2):]
 
         # Create new Grid instances for left and right
-        left_grid = Grid_2x1d(int(self.Nx/2), self.Ny, self.Nphi, self.r, _X=X_left, _coeff = _coeff_left)
-        right_grid = Grid_2x1d(int(self.Nx/2), self.Ny, self.Nphi, self.r, _X=X_right, _coeff = _coeff_right)
+        left_grid = Grid_2x1d(int(self.Nx/2), self.Ny, self.Nphi, self.r, _X=X_left, _Y=self.Y, _coeff = _coeff_left)
+        right_grid = Grid_2x1d(int(self.Nx/2), self.Ny, self.Nphi, self.r, _X=X_right, _Y=self.Y, _coeff = _coeff_right)
 
         return left_grid, right_grid
+    
+    def split_y(self, _coeff_bottom = None, _coeff_top = None):
+        """
+        Split domain into 2 subdomains in x dimension.
+
+        Split the domain into 2 subdomains by dividing the domain in half in the middle of the X grid.
+
+        Parameters
+        ----------
+        _coeff_bottom
+            1/epsilon for radiative transfer equation on bottom subdomain. If None, value from whole domain is taken.
+        _coeff_top
+            1/epsilon for radiative transfer equation on top subdomain. If None, value from whole domain is taken.
+        """
+        if _coeff_bottom is None:
+            _coeff_bottom = self.coeff
+        if _coeff_top is None:
+            _coeff_top = self.coeff
+
+        # Split grid
+        Y_bottom = self.Y[:int(self.Ny/2)]
+        Y_top = self.Y[int(self.Ny/2):]
+
+        # Create new Grid instances for left and right
+        bottom_grid = Grid_2x1d(self.Nx, int(self.Ny/2), self.Nphi, self.r, _X=self.X, _Y=Y_bottom, _coeff = _coeff_bottom)
+        top_grid = Grid_2x1d(self.Nx, int(self.Ny/2), self.Nphi, self.r, _X=self.X, _Y=Y_top, _coeff = _coeff_top)
+
+        return bottom_grid, top_grid
     
 
 def setInitialCondition_2x1d_lr(grid: Grid_2x1d):
@@ -100,7 +131,7 @@ def setInitialCondition_2x1d_lr(grid: Grid_2x1d):
     for i in range(grid.Ny):
         U[i*grid.Nx:(i+1)*grid.Nx, 0] = 1/(2 * np.pi) * np.exp(-((grid.X-0.5)**2)/0.07) * np.exp(-((grid.Y[i]-0.5)**2)/0.07)
         # U[i*grid.Nx:(i+1)*grid.Nx, 0] = np.sin(2*np.pi*grid.X)*np.sin(2*np.pi*grid.Y[i])
-    V[0, 0] = 1.0
+    V[4, 0] = 1.0
     S[0, 0] = 1.0
 
     U_ortho, R_U = np.linalg.qr(U, mode="reduced")
@@ -136,8 +167,8 @@ def computeD_cendiff_2x1d(grid):
     Dy = np.zeros((grid.Ny, grid.Ny), dtype=int)
     np.fill_diagonal(Dy[1:], -1)
     np.fill_diagonal(Dy[:, 1:], 1)
-    Dy[0, grid.Ny-1] = -1           # We have periodic boundary conditions in y, because we do not split the domain in y
-    Dy[grid.Ny-1, 0] = 1
+    
+    # We have no periodic boundary condition in x. We need to add information afterwards with inflow/outflow
 
     I = np.eye(grid.Nx, grid.Nx)
 
@@ -176,8 +207,6 @@ def computeF_b_2x1d(f, grid, f_left = None, f_right = None, f_periodic = None):
     """
 
     F_b = np.zeros((2*len(grid.Y), len(grid.PHI)))
-
-    # ToDo: make it work for all Phi. Right now only Phi=0
 
     if f_periodic is not None:  # left or right sided domain
         if f_right is not None:  # left sided domain
@@ -235,6 +264,86 @@ def computeF_b_2x1d(f, grid, f_left = None, f_right = None, f_periodic = None):
 
     return F_b
 
+def computeF_b_2x1d_top_bottom(f, grid, f_bottom = None, f_top = None, f_periodic = None):
+    """
+    Generate discretization of 2x1d full boundary.
+    
+    Generate the discretization of the full boundary, depending on position of the current subdomain.
+    If only one domain is present, we don't need to declare f_bottom, f_top or f_periodic
+    If the subdomain is the lowest domain, declare f_top (Values for domain on the top) and f_periodic (values for highest domain).
+    If the subdomain is the highest domain, declare f_bottom (Values for domain on the bottom)  and f_periodic (values for lowest domain).
+    If the subdomain is between two other subdomains, declare f_bottom and f_top.
+
+    Parameters
+    ----------
+    f
+        Values of subdomain, given as matrix.
+    grid
+        Grid class of subdomain.
+    f_bottom
+        Values of subdomain on bottom, given as matrix.
+    f_top
+        Values of subdomain on top, given as matrix.
+    f_periodic
+        Values of subdomain on other side of periodic boundary, given as matrix.
+    """
+
+    F_b_top_bottom = np.zeros((2*len(grid.X), len(grid.PHI)))
+
+    if f_periodic is not None:  # lowest or highest domain
+        if f_top is not None:  # lowest domain
+
+            for i in range(len(grid.PHI)):
+
+                if grid.PHI[i] < np.pi:
+
+                    F_b_top_bottom[:len(grid.X),i] = f_periodic[grid.Nx*(grid.Ny-1):grid.Nx*grid.Ny, i]                 # This is inflow from bottom
+
+                    F_b_top_bottom[len(grid.X):,i] = f[grid.Nx*(grid.Ny-1):grid.Nx*grid.Ny, i] + (f[grid.Nx*(grid.Ny-1):grid.Nx*grid.Ny, i] - f[grid.Nx*(grid.Ny-2):grid.Nx*(grid.Ny-1), i]) # outflow to top
+                else:
+
+                    F_b_top_bottom[len(grid.X):,i] = f_top[:grid.Nx, i]                     # This is inflow from top
+
+                    F_b_top_bottom[:len(grid.X),i] = f[:grid.Nx, i] - (f[grid.Nx:grid.Nx*2, i]-f[:grid.Nx, i]) # outflow to bottom
+
+        elif f_bottom is not None:   # highest domain
+
+            for i in range(len(grid.PHI)):
+
+                if grid.PHI[i] < np.pi:
+
+                    F_b_top_bottom[:len(grid.X),i] = f_bottom[grid.Nx*(grid.Ny-1):grid.Nx*grid.Ny, i]                 # This is inflow from bottom
+
+                    F_b_top_bottom[len(grid.X):,i] = f[grid.Nx*(grid.Ny-1):grid.Nx*grid.Ny, i] + (f[grid.Nx*(grid.Ny-1):grid.Nx*grid.Ny, i] - f[grid.Nx*(grid.Ny-2):grid.Nx*(grid.Ny-1), i]) # outflow to top
+
+                else:
+
+                    F_b_top_bottom[len(grid.X):,i] = f_periodic[:grid.Nx, i]                     # This is inflow from top
+
+                    F_b_top_bottom[:len(grid.X),i] = f[:grid.Nx, i] - (f[grid.Nx:grid.Nx*2, i]-f[:grid.Nx, i]) # outflow to bottom
+
+
+    elif f_bottom is not None and f_top is not None:    # middle domain
+
+        ToDo=0
+
+    else:       # only one domain
+
+        for i in range(len(grid.PHI)):
+
+                if grid.PHI[i] < np.pi:
+
+                    F_b_top_bottom[:len(grid.X),i] = f[grid.Nx*(grid.Ny-1):grid.Nx*grid.Ny, i]                 # This is inflow from bottom
+
+                    F_b_top_bottom[len(grid.X):,i] = f[grid.Nx*(grid.Ny-1):grid.Nx*grid.Ny, i] + (f[grid.Nx*(grid.Ny-1):grid.Nx*grid.Ny, i] - f[grid.Nx*(grid.Ny-2):grid.Nx*(grid.Ny-1), i]) # outflow to top
+                else:
+
+                    F_b_top_bottom[len(grid.X):,i] = f[:grid.Nx, i]                     # This is inflow from top
+
+                    F_b_top_bottom[:len(grid.X),i] = f[:grid.Nx, i] - (f[grid.Nx:grid.Nx*2, i]-f[:grid.Nx, i]) # outflow to bottom
+
+    return F_b_top_bottom
+
 def computeK_bdry_2x1d(lr, grid, F_b):
     """
     Compute boundary values for K in 2x1d.
@@ -285,7 +394,52 @@ def computeK_bdry_2x1d(lr, grid, F_b):
 
     return K_bdry_left, K_bdry_right
 
-def computedxK_2x1d(lr, K_bdry_left, K_bdry_right, grid):
+def computeK_bdry_2x1d_top_bottom(lr, grid, F_b_top_bottom):
+    """
+    Compute boundary values for K in 2x1d.
+
+    Transforms the boundary information given by F_b into a boundary information in K.
+    """
+    e_mat_bottom = np.zeros((len(grid.X), len(grid.PHI)))
+    e_mat_top = np.zeros((len(grid.X), len(grid.PHI)))
+
+    #Values from boundary condition:
+    for i in range(len(grid.PHI)):       # compute e-vector
+        if grid.PHI[i] < np.pi:
+            e_mat_bottom[:,i] = F_b_top_bottom[:len(grid.X),i]
+        else:
+            e_mat_top[:,i] = F_b_top_bottom[len(grid.X):,i]
+    
+    int_exp_bottom = (e_mat_bottom @ lr.V) * grid.dphi   # compute integral from inflow, contains information from inflow from every K_j
+    int_exp_top = (e_mat_top @ lr.V) * grid.dphi     # now matrix of dimension Nx x r
+
+    K = lr.U @ lr.S
+    K_extrapol_bottom = np.zeros([len(grid.X), grid.r])
+    K_extrapol_top = np.zeros([len(grid.X), grid.r])
+
+    for i in range(grid.r):     # calculate extrapolated values
+
+        K_extrapol_bottom[:,i] = K[:grid.Nx,i] - (K[grid.Nx:grid.Nx*2,i]-K[:grid.Nx,i])
+
+        K_extrapol_top[:,i] = K[grid.Nx*(grid.Ny-1):grid.Nx*grid.Ny,i] + (K[grid.Nx*(grid.Ny-1):grid.Nx*grid.Ny,i]-K[grid.Nx*(grid.Ny-2):grid.Nx*(grid.Ny-1),i])
+
+    V_indicator_bottom = np.copy(lr.V)     # generate V*indicator, Note: Only works for Ny even
+    V_indicator_bottom[:int(grid.Nphi/2),:] = 0
+    V_indicator_top = np.copy(lr.V)
+    V_indicator_top[int(grid.Nphi/2):,:] = 0
+
+    int_V_bottom = (V_indicator_bottom.T @ lr.V) * grid.dphi        # compute integrals over V
+    int_V_top = (V_indicator_top.T @ lr.V) * grid.dphi 
+
+    sum_vector_bottom = K_extrapol_bottom @ int_V_bottom             # compute matrix of size Nx x r with all the sums inside
+    sum_vector_top = K_extrapol_top @ int_V_top
+
+    K_bdry_bottom = int_exp_bottom + sum_vector_bottom           # add all together to get boundary info (matrix with info for 1<=j<=r)
+    K_bdry_top = int_exp_top + sum_vector_top   
+
+    return K_bdry_bottom, K_bdry_top
+
+def computedxK_2x1d(lr, K_bdry_left, K_bdry_right, K_bdry_bottom, K_bdry_top, grid):
     """
     Compute the x derivative of K.
 
@@ -302,7 +456,13 @@ def computedxK_2x1d(lr, K_bdry_left, K_bdry_right, grid):
     indices_2 = list(range(grid.Nx-1, grid.Nx*(grid.Ny+1)-1, grid.Nx))
     DXK[indices_2,:] = DXK[indices_2,:] + K_bdry_right / (2*grid.dx)
 
-    return DXK
+    DYK = DY @ K
+
+    # Still need to add boundary information
+    DYK[:grid.Nx,:] = DYK[:grid.Nx,:] - K_bdry_bottom / (2*grid.dy)
+    DYK[grid.Nx*(grid.Ny-1):grid.Nx*grid.Ny,:] = DYK[grid.Nx*(grid.Ny-1):grid.Nx*grid.Ny,:] + K_bdry_top / (2*grid.dy)
+
+    return DXK, DYK
 
 
 def computeC(lr, grid):
@@ -331,7 +491,7 @@ def computeB(L, grid):
 
     return B1
 
-def computeD(lr, grid, F_b):
+def computeD(lr, grid, F_b, F_b_top_bottom):
     """
     Compute D coeffiecient.
 
@@ -339,18 +499,18 @@ def computeD(lr, grid, F_b):
     """
 
     K_bdry_left, K_bdry_right = computeK_bdry_2x1d(lr, grid, F_b)
-    DXK = computedxK_2x1d(lr, K_bdry_left, K_bdry_right, grid)
+    K_bdry_bottom, K_bdry_top = computeK_bdry_2x1d_top_bottom(lr, grid, F_b_top_bottom)
+    DXK, DYK = computedxK_2x1d(lr, K_bdry_left, K_bdry_right, K_bdry_bottom, K_bdry_top, grid)
     D1X = lr.U.T @ DXK * grid.dx
 
-    DX, DY = computeD_cendiff_2x1d(grid)
-    D1Y = lr.U.T @ DY @ lr.U * grid.dy      # For D1Y we can stay with the more simple approach, because we do not do split the boundary in y
+    D1Y = lr.U.T @ DYK * grid.dy
 
     D1 = [D1X, D1Y]
 
     return D1
 
 
-def add_basis_functions(lr, grid, F_b, tol_sing_val):
+def add_basis_functions(lr, grid, F_b, tol_sing_val, option="x_advection"):
     """
     Add basis functions.
 
@@ -377,8 +537,12 @@ def add_basis_functions(lr, grid, F_b, tol_sing_val):
 
     # QR-decomp
     lr.U, R_U = np.linalg.qr(lr.U, mode="reduced")
-    lr.U /= np.sqrt(grid.dx)
-    R_U *= np.sqrt(grid.dx)
+    if option == "x_advection":
+        lr.U /= np.sqrt(grid.dx)
+        R_U *= np.sqrt(grid.dx)
+    elif option == "y_advection":
+        lr.U /= np.sqrt(grid.dy)
+        R_U *= np.sqrt(grid.dy)
     lr.V, R_V = np.linalg.qr(lr.V, mode="reduced")
     
     lr.V /= np.sqrt(grid.dphi)
@@ -410,18 +574,21 @@ def drop_basis_functions(lr, grid, drop_tol):
     return lr, grid
 
 
-def Kstep1(C1, grid, lr, F_b):
+def Kstep1(C1, grid, lr, F_b, F_b_top_bottom):
 
+    K_bdry_bottom, K_bdry_top = computeK_bdry_2x1d_top_bottom(lr, grid, F_b_top_bottom)
     K_bdry_left, K_bdry_right = computeK_bdry_2x1d(lr, grid, F_b)
-    DXK = computedxK_2x1d(lr, K_bdry_left, K_bdry_right, grid)
+    DXK = computedxK_2x1d(lr, K_bdry_left, K_bdry_right, K_bdry_bottom, K_bdry_top, grid)[0]
     rhs = - (grid.coeff) * DXK @ C1[0]
 
     return rhs
 
-def Kstep2(K, C1, grid):
+def Kstep2(C1, grid, lr, F_b, F_b_top_bottom):
 
-    DX, DY = computeD_cendiff_2x1d(grid)
-    rhs = - (grid.coeff) * DY @ K @ C1[1]
+    K_bdry_left, K_bdry_right = computeK_bdry_2x1d(lr, grid, F_b)
+    K_bdry_bottom, K_bdry_top = computeK_bdry_2x1d_top_bottom(lr, grid, F_b_top_bottom)
+    DYK = computedxK_2x1d(lr, K_bdry_left, K_bdry_right, K_bdry_bottom, K_bdry_top, grid)[1]
+    rhs = - (grid.coeff) * DYK @ C1[1]
 
     return rhs
 
@@ -437,9 +604,9 @@ def Sstep1(C1, D1, grid):
 
     return rhs
 
-def Sstep2(S, C1, D1, grid):
+def Sstep2(C1, D1, grid):
 
-    rhs = (grid.coeff) * D1[1] @ S @ C1[1]
+    rhs = (grid.coeff) * D1[1] @ C1[1]
 
     return rhs
 
@@ -455,9 +622,9 @@ def Lstep1(lr, D1, grid):
 
     return rhs
 
-def Lstep2(L, D1, grid):
+def Lstep2(lr, D1, grid):
 
-    rhs = - (grid.coeff) * np.diag(np.sin(grid.PHI)) @ L @ D1[1].T
+    rhs = - (grid.coeff) * np.diag(np.sin(grid.PHI)) @ lr.V @ D1[1].T
 
     return rhs
 
@@ -483,7 +650,7 @@ def RK4(f, rhs, dt):
 
     return b_coeff[0] * k_coeff0 + b_coeff[1] * k_coeff1 + b_coeff[2] * k_coeff2 + b_coeff[3] * k_coeff3
 
-def PSI_splitting(lr, grid, dt, F_b, lr_periodic = None, option = "lie", location = "left"):
+def PSI_splitting(lr, grid, dt, F_b, F_b_top_bottom, lr_periodic = None, option = "lie", location = "left", tol_sing_val = 1e-6, drop_tol = 1e-6, rank_adapted = None, rank_dropped = None):
     """
     Projector splitting integrator with splitting.
 
@@ -499,21 +666,28 @@ def PSI_splitting(lr, grid, dt, F_b, lr_periodic = None, option = "lie", locatio
         Time step size.
     F_b
         Boundary condition matrix for inflow conditions.
+    F_b_top_bottom
+        Boundary condition matrix for inflow conditions.
     """
+
+    # ToDo: Still need to add domain decomposition in Y to strang splitting.
     
     # Step 1: advection in x
+
+    ### Add basis for adaptive rank strategy:
+    lr, grid = add_basis_functions(lr, grid, F_b, tol_sing_val)
 
     if option == "lie":
         # K step
         C1, C2 = computeC(lr, grid)
         K = lr.U @ lr.S
-        K += dt * RK4(K, lambda K: Kstep1(C1, grid, lr, F_b), dt)
+        K += dt * RK4(K, lambda K: Kstep1(C1, grid, lr, F_b, F_b_top_bottom), dt)
         lr.U, lr.S = np.linalg.qr(K, mode="reduced")
         lr.U /= np.sqrt(grid.dx)
         lr.S *= np.sqrt(grid.dx)
 
         # S step
-        D1 = computeD(lr, grid, F_b)
+        D1 = computeD(lr, grid, F_b, F_b_top_bottom)
         lr.S += dt * RK4(lr.S, lambda S: Sstep1(C1, D1, grid), dt)
 
         # L step
@@ -567,25 +741,32 @@ def PSI_splitting(lr, grid, dt, F_b, lr_periodic = None, option = "lie", locatio
         lr.U /= np.sqrt(grid.dx)
         lr.S *= np.sqrt(grid.dx)
 
+    ### Drop basis for adaptive rank strategy:
+    lr, grid = drop_basis_functions(lr, grid, drop_tol)
 
     # Step 2: advection in y
+
+    ### Add basis for adaptive rank strategy:
+    lr, grid = add_basis_functions(lr, grid, F_b_top_bottom, tol_sing_val, option = "y_advection")
+    if rank_adapted is not None:
+        rank_adapted.append(grid.r)
 
     if option == "lie":
         # K step
         C1, C2 = computeC(lr, grid)
         K = lr.U @ lr.S
-        K += dt * RK4(K, lambda K: Kstep2(K, C1, grid), dt)
+        K += dt * RK4(K, lambda K: Kstep2(C1, grid, lr, F_b, F_b_top_bottom), dt)
         lr.U, lr.S = np.linalg.qr(K, mode="reduced")
         lr.U /= np.sqrt(grid.dx)
         lr.S *= np.sqrt(grid.dx)
 
         # S step
-        D1 = computeD(lr, grid, F_b)
-        lr.S += dt * RK4(lr.S, lambda S: Sstep2(S, C1, D1, grid), dt)
+        D1 = computeD(lr, grid, F_b, F_b_top_bottom)
+        lr.S += dt * RK4(lr.S, lambda S: Sstep2(C1, D1, grid), dt)
 
         # L step
         L = lr.V @ lr.S.T
-        L += dt * RK4(L, lambda L: Lstep2(L, D1, grid), dt)
+        L += dt * RK4(L, lambda L: Lstep2(lr, D1, grid), dt)
         lr.V, St = np.linalg.qr(L, mode="reduced")
         lr.S = St.T
         lr.V /= np.sqrt(grid.dphi)
@@ -631,6 +812,10 @@ def PSI_splitting(lr, grid, dt, F_b, lr_periodic = None, option = "lie", locatio
         lr.U /= np.sqrt(grid.dx)
         lr.S *= np.sqrt(grid.dx)
 
+    ### Drop basis for adaptive rank strategy:
+    lr, grid = drop_basis_functions(lr, grid, drop_tol)
+    if rank_dropped is not None:
+        rank_dropped.append(grid.r)
 
     # Step 3: collisions
 
@@ -687,4 +872,4 @@ def PSI_splitting(lr, grid, dt, F_b, lr_periodic = None, option = "lie", locatio
         lr.U /= np.sqrt(grid.dx)
         lr.S *= np.sqrt(grid.dx)
 
-    return lr, grid
+    return lr, grid, rank_adapted, rank_dropped
