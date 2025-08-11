@@ -2,8 +2,13 @@ import numpy as np
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 
-from DLR_rt.src.splitting_2x1d import LR, Grid_2x1d, setInitialCondition_2x1d_lr, computeF_b_2x1d, computeF_b_2x1d_top_bottom, PSI_splitting
+from DLR_rt.src.integrators import PSI_splitting_lie
+from DLR_rt.src.lr import LR, computeF_b_2x1d_X, computeF_b_2x1d_Y
+from DLR_rt.src.grid import Grid_2x1d
+from DLR_rt.src.initial_condition import setInitialCondition_2x1d_lr
 
+
+# ToDo: Add strang splitting (need to make strang available for domain decomp in Y)
 
 def integrate(lr0_left_bottom: LR, lr0_left_top: LR, lr0_right_bottom: LR, lr0_right_top: LR, grid_left_bottom: Grid_2x1d, grid_left_top: Grid_2x1d, grid_right_bottom: Grid_2x1d, grid_right_top: Grid_2x1d, t_f: float, dt: float, tol_sing_val: float = 1e-6, drop_tol: float = 1e-6, method = "lie"):
     lr_left_bottom = lr0_left_bottom
@@ -37,35 +42,35 @@ def integrate(lr0_left_bottom: LR, lr0_left_top: LR, lr0_right_bottom: LR, lr0_r
             f_right_bottom = lr_right_bottom.U @ lr_right_bottom.S @ lr_right_bottom.V.T
             f_right_top = lr_right_top.U @ lr_right_top.S @ lr_right_top.V.T
 
-            F_b_left_bottom = computeF_b_2x1d(f_left_bottom, grid_left_bottom, f_right = f_right_bottom, f_periodic = f_right_bottom)
-            F_b_left_top = computeF_b_2x1d(f_left_top, grid_left_top, f_right = f_right_top, f_periodic = f_right_top)
-            F_b_right_bottom = computeF_b_2x1d(f_right_bottom, grid_right_bottom, f_left = f_left_bottom, f_periodic = f_left_bottom)
-            F_b_right_top = computeF_b_2x1d(f_right_top, grid_right_top, f_left = f_left_top, f_periodic = f_left_top)
-            F_b_top_bottom_left_bottom = computeF_b_2x1d_top_bottom(f_left_bottom, grid_left_bottom, f_top = f_left_top, f_periodic = f_left_top)
-            F_b_top_bottom_left_top = computeF_b_2x1d_top_bottom(f_left_top, grid_left_top, f_bottom = f_left_bottom, f_periodic = f_left_bottom)
-            F_b_top_bottom_right_bottom = computeF_b_2x1d_top_bottom(f_right_bottom, grid_right_bottom, f_top = f_right_top, f_periodic = f_right_top)
-            F_b_top_bottom_right_top = computeF_b_2x1d_top_bottom(f_right_top, grid_right_top, f_bottom = f_right_bottom, f_periodic = f_right_bottom)
+            F_b_X_left_bottom = computeF_b_2x1d_X(f_left_bottom, grid_left_bottom, f_right = f_right_bottom, f_periodic = f_right_bottom)
+            F_b_X_left_top = computeF_b_2x1d_X(f_left_top, grid_left_top, f_right = f_right_top, f_periodic = f_right_top)
+            F_b_X_right_bottom = computeF_b_2x1d_X(f_right_bottom, grid_right_bottom, f_left = f_left_bottom, f_periodic = f_left_bottom)
+            F_b_X_right_top = computeF_b_2x1d_X(f_right_top, grid_right_top, f_left = f_left_top, f_periodic = f_left_top)
+            F_b_Y_left_bottom = computeF_b_2x1d_Y(f_left_bottom, grid_left_bottom, f_top = f_left_top, f_periodic = f_left_top)
+            F_b_Y_left_top = computeF_b_2x1d_Y(f_left_top, grid_left_top, f_bottom = f_left_bottom, f_periodic = f_left_bottom)
+            F_b_Y_right_bottom = computeF_b_2x1d_Y(f_right_bottom, grid_right_bottom, f_top = f_right_top, f_periodic = f_right_top)
+            F_b_Y_right_top = computeF_b_2x1d_Y(f_right_top, grid_right_top, f_bottom = f_right_bottom, f_periodic = f_right_bottom)
             
 
             ### Update left_bottom side
 
             ### Run PSI with adaptive rank strategy
-            lr_left_bottom, grid_left_bottom, rank_left_bottom_adapted, rank_left_bottom_dropped = PSI_splitting(lr_left_bottom, grid_left_bottom, dt, F_b_left_bottom, F_b_top_bottom_left_bottom, tol_sing_val = tol_sing_val, drop_tol = drop_tol, rank_adapted = rank_left_bottom_adapted, rank_dropped = rank_left_bottom_dropped)
+            lr_left_bottom, grid_left_bottom, rank_left_bottom_adapted, rank_left_bottom_dropped = PSI_splitting_lie(lr_left_bottom, grid_left_bottom, dt, F_b_X_left_bottom, F_b_Y_left_bottom, tol_sing_val = tol_sing_val, drop_tol = drop_tol, rank_adapted = rank_left_bottom_adapted, rank_dropped = rank_left_bottom_dropped)
 
             ### Update left_top side
 
             ### Run PSI with adaptive rank strategy
-            lr_left_top, grid_left_top, rank_left_top_adapted, rank_left_top_dropped = PSI_splitting(lr_left_top, grid_left_top, dt, F_b_left_top, F_b_top_bottom_left_top, tol_sing_val = tol_sing_val, drop_tol = drop_tol, rank_adapted = rank_left_top_adapted, rank_dropped = rank_left_top_dropped)
+            lr_left_top, grid_left_top, rank_left_top_adapted, rank_left_top_dropped = PSI_splitting_lie(lr_left_top, grid_left_top, dt, F_b_X_left_top, F_b_Y_left_top, tol_sing_val = tol_sing_val, drop_tol = drop_tol, rank_adapted = rank_left_top_adapted, rank_dropped = rank_left_top_dropped)
 
             ### Update right_bottom side
 
             ### Run PSI with adaptive rank strategy
-            lr_right_bottom, grid_right_bottom, rank_right_bottom_adapted, rank_right_bottom_dropped = PSI_splitting(lr_right_bottom, grid_right_bottom, dt, F_b_right_bottom, F_b_top_bottom_right_bottom, tol_sing_val = tol_sing_val, drop_tol = drop_tol, rank_adapted = rank_right_bottom_adapted, rank_dropped = rank_right_bottom_dropped)
+            lr_right_bottom, grid_right_bottom, rank_right_bottom_adapted, rank_right_bottom_dropped = PSI_splitting_lie(lr_right_bottom, grid_right_bottom, dt, F_b_X_right_bottom, F_b_Y_right_bottom, tol_sing_val = tol_sing_val, drop_tol = drop_tol, rank_adapted = rank_right_bottom_adapted, rank_dropped = rank_right_bottom_dropped)
 
             ### Update right_top side
 
             ### Run PSI with adaptive rank strategy
-            lr_right_top, grid_right_top, rank_right_top_adapted, rank_right_top_dropped = PSI_splitting(lr_right_top, grid_right_top, dt, F_b_right_top, F_b_top_bottom_right_top, tol_sing_val = tol_sing_val, drop_tol = drop_tol, rank_adapted = rank_right_top_adapted, rank_dropped = rank_right_top_dropped)
+            lr_right_top, grid_right_top, rank_right_top_adapted, rank_right_top_dropped = PSI_splitting_lie(lr_right_top, grid_right_top, dt, F_b_X_right_top, F_b_Y_right_top, tol_sing_val = tol_sing_val, drop_tol = drop_tol, rank_adapted = rank_right_top_adapted, rank_dropped = rank_right_top_dropped)
 
             ### Update time
             t += dt
@@ -90,7 +95,7 @@ method = "lie"
 
 ### Initial configuration
 
-grid = Grid_2x1d(Nx, Ny, Nphi, r)
+grid = Grid_2x1d(Nx, Ny, Nphi, r, _option_dd = "dd")
 grid_left, grid_right = grid.split_x()
 
 grid_left_bottom, grid_left_top = grid_left.split_y()

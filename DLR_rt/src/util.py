@@ -3,6 +3,7 @@ Contains functions like mass computation.
 """
 
 import numpy as np
+from DLR_rt.src.grid import Grid_2x1d
 
 
 def compute_mass(lr, grid):
@@ -11,20 +12,31 @@ def compute_mass(lr, grid):
     M = np.trapezoid(rho, dx=grid.dx, axis=0)
     return M
 
-def computeD_cendiff_2x1d(grid, option = "periodic"):
+def computeD_cendiff_2x1d(grid : Grid_2x1d, option_dd : str = "no_dd"):
     """
     Compute centered difference matrices.
 
-    Compute centered difference matrices for 2x1d. Output is DX and DY.
+    Compute centered difference matrices for 2x1d with or without domain decmoposition.
+    Output is DX and DY.
+
+    Parameters
+    ----------
+    grid
+        Grid class of subdomain
+    option_dd : str
+        Can be chosen either "dd" or "no_dd"
     """
     ### Compute DX
     # Step 1: Set up cen difference matrix
     Dx = np.zeros((grid.Nx, grid.Nx), dtype=int)
     np.fill_diagonal(Dx[1:], -1)
     np.fill_diagonal(Dx[:, 1:], 1)
-    if option == "periodic":
+
+    if option_dd == "no_dd":
         Dx[0, grid.Nx-1] = -1
         Dx[grid.Nx-1, 0] = 1
+
+    # If option = "dd", we need to add information afterwards with inflow/outflow and cannot just impose periodic b.c.
 
     I = np.eye(grid.Ny, grid.Ny)
 
@@ -36,9 +48,12 @@ def computeD_cendiff_2x1d(grid, option = "periodic"):
     Dy = np.zeros((grid.Ny, grid.Ny), dtype=int)
     np.fill_diagonal(Dy[1:], -1)
     np.fill_diagonal(Dy[:, 1:], 1)
-    if option == "periodic":
+
+    if option_dd == "no_dd":
         Dy[0, grid.Ny-1] = -1
         Dy[grid.Ny-1, 0] = 1
+
+    # If option = "dd", we need to add information afterwards with inflow/outflow and cannot just impose periodic b.c.
 
     I = np.eye(grid.Nx, grid.Nx)
 
