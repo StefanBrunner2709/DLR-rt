@@ -3,6 +3,7 @@ Contains functions like mass computation.
 """
 
 import numpy as np
+from scipy import sparse
 from DLR_rt.src.grid import Grid_2x1d
 
 
@@ -63,5 +64,9 @@ def computeD_cendiff_2x1d(grid : Grid_2x1d, option_dd : str = "no_dd"):
     ### Scale matrices
     DX = 0.5 * DX / grid.dx
     DY = 0.5 * DY / grid.dy
+
+    ### Make matrix sparse
+    DX = sparse.csr_matrix(DX)
+    DY = sparse.csr_matrix(DY)
 
     return DX, DY

@@ -6,6 +6,7 @@ from DLR_rt.src.integrators import PSI_splitting_lie
 from DLR_rt.src.lr import LR, computeF_b_2x1d_X, computeF_b_2x1d_Y
 from DLR_rt.src.grid import Grid_2x1d
 from DLR_rt.src.initial_condition import setInitialCondition_2x1d_lr
+from DLR_rt.src.util import computeD_cendiff_2x1d
 
 
 # ToDo: Add strang splitting (need to make strang available for domain decomp in Y)
@@ -26,6 +27,8 @@ def integrate(lr0_left_bottom: LR, lr0_left_top: LR, lr0_right_bottom: LR, lr0_r
     rank_right_bottom_dropped = [grid_right_bottom.r]
     rank_right_top_adapted = [grid_right_top.r]
     rank_right_top_dropped = [grid_right_top.r]
+
+    DX, DY = computeD_cendiff_2x1d(grid_left_bottom, "dd")      # all grids have same size, thus enough to compute once
 
     with tqdm(total=t_f/dt, desc="Running Simulation") as pbar:
 
@@ -55,22 +58,22 @@ def integrate(lr0_left_bottom: LR, lr0_left_top: LR, lr0_right_bottom: LR, lr0_r
             ### Update left_bottom side
 
             ### Run PSI with adaptive rank strategy
-            lr_left_bottom, grid_left_bottom, rank_left_bottom_adapted, rank_left_bottom_dropped = PSI_splitting_lie(lr_left_bottom, grid_left_bottom, dt, F_b_X_left_bottom, F_b_Y_left_bottom, tol_sing_val = tol_sing_val, drop_tol = drop_tol, rank_adapted = rank_left_bottom_adapted, rank_dropped = rank_left_bottom_dropped)
+            lr_left_bottom, grid_left_bottom, rank_left_bottom_adapted, rank_left_bottom_dropped = PSI_splitting_lie(lr_left_bottom, grid_left_bottom, dt, F_b_X_left_bottom, F_b_Y_left_bottom, DX = DX, DY = DY, tol_sing_val = tol_sing_val, drop_tol = drop_tol, rank_adapted = rank_left_bottom_adapted, rank_dropped = rank_left_bottom_dropped)
 
             ### Update left_top side
 
             ### Run PSI with adaptive rank strategy
-            lr_left_top, grid_left_top, rank_left_top_adapted, rank_left_top_dropped = PSI_splitting_lie(lr_left_top, grid_left_top, dt, F_b_X_left_top, F_b_Y_left_top, tol_sing_val = tol_sing_val, drop_tol = drop_tol, rank_adapted = rank_left_top_adapted, rank_dropped = rank_left_top_dropped)
+            lr_left_top, grid_left_top, rank_left_top_adapted, rank_left_top_dropped = PSI_splitting_lie(lr_left_top, grid_left_top, dt, F_b_X_left_top, F_b_Y_left_top, DX = DX, DY = DY, tol_sing_val = tol_sing_val, drop_tol = drop_tol, rank_adapted = rank_left_top_adapted, rank_dropped = rank_left_top_dropped)
 
             ### Update right_bottom side
 
             ### Run PSI with adaptive rank strategy
-            lr_right_bottom, grid_right_bottom, rank_right_bottom_adapted, rank_right_bottom_dropped = PSI_splitting_lie(lr_right_bottom, grid_right_bottom, dt, F_b_X_right_bottom, F_b_Y_right_bottom, tol_sing_val = tol_sing_val, drop_tol = drop_tol, rank_adapted = rank_right_bottom_adapted, rank_dropped = rank_right_bottom_dropped)
+            lr_right_bottom, grid_right_bottom, rank_right_bottom_adapted, rank_right_bottom_dropped = PSI_splitting_lie(lr_right_bottom, grid_right_bottom, dt, F_b_X_right_bottom, F_b_Y_right_bottom, DX = DX, DY = DY, tol_sing_val = tol_sing_val, drop_tol = drop_tol, rank_adapted = rank_right_bottom_adapted, rank_dropped = rank_right_bottom_dropped)
 
             ### Update right_top side
 
             ### Run PSI with adaptive rank strategy
-            lr_right_top, grid_right_top, rank_right_top_adapted, rank_right_top_dropped = PSI_splitting_lie(lr_right_top, grid_right_top, dt, F_b_X_right_top, F_b_Y_right_top, tol_sing_val = tol_sing_val, drop_tol = drop_tol, rank_adapted = rank_right_top_adapted, rank_dropped = rank_right_top_dropped)
+            lr_right_top, grid_right_top, rank_right_top_adapted, rank_right_top_dropped = PSI_splitting_lie(lr_right_top, grid_right_top, dt, F_b_X_right_top, F_b_Y_right_top, DX = DX, DY = DY, tol_sing_val = tol_sing_val, drop_tol = drop_tol, rank_adapted = rank_right_top_adapted, rank_dropped = rank_right_top_dropped)
 
             ### Update time
             t += dt

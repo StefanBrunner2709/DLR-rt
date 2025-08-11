@@ -23,7 +23,7 @@ def RK4(f, rhs, dt):
 
     return b_coeff[0] * k_coeff0 + b_coeff[1] * k_coeff1 + b_coeff[2] * k_coeff2 + b_coeff[3] * k_coeff3
 
-def PSI_lie(lr, grid, dt, F_b = None, dimensions = "1x1d"):
+def PSI_lie(lr, grid, dt, F_b = None, DX = None, DY = None, dimensions = "1x1d"):
     """
     Projector splitting integrator with lie splitting.
 
@@ -52,13 +52,13 @@ def PSI_lie(lr, grid, dt, F_b = None, dimensions = "1x1d"):
     # K step
     C1, C2 = computeC(lr, grid, dimensions = dimensions)
     K = lr.U @ lr.S
-    K += dt * RK4(K, lambda K: Kstep(K, C1, C2, grid, lr, F_b, inflow, dimensions = dimensions), dt)
+    K += dt * RK4(K, lambda K: Kstep(K, C1, C2, grid, lr, F_b, DX = DX, DY = DY, inflow = inflow, dimensions = dimensions), dt)
     lr.U, lr.S = np.linalg.qr(K, mode="reduced")
     lr.U /= np.sqrt(grid.dx)
     lr.S *= np.sqrt(grid.dx)
 
     # S step
-    D1 = computeD(lr, grid, F_b, dimensions = dimensions)
+    D1 = computeD(lr, grid, F_b, DX = DX, DY = DY, dimensions = dimensions)
     lr.S += dt * RK4(lr.S, lambda S: Sstep(S, C1, C2, D1, grid, inflow, dimensions = dimensions), dt)
 
     # L step
@@ -76,7 +76,7 @@ def PSI_lie(lr, grid, dt, F_b = None, dimensions = "1x1d"):
 
     return lr, grid
 
-def PSI_strang(lr, grid, dt, t, F_b = None):
+def PSI_strang(lr, grid, dt, t, F_b = None, DX = None, DY = None):
     """
     Projector splitting integrator with strang splitting.
 
@@ -104,13 +104,13 @@ def PSI_strang(lr, grid, dt, t, F_b = None):
     # 1/2 K step
     C1, C2 = computeC(lr, grid)
     K = lr.U @ lr.S
-    K += 0.5 * dt * RK4(K, lambda K: Kstep(K, C1, C2, grid, lr, F_b, inflow), 0.5 * dt)
+    K += 0.5 * dt * RK4(K, lambda K: Kstep(K, C1, C2, grid, lr, F_b, inflow = inflow), 0.5 * dt)
     lr.U, lr.S = np.linalg.qr(K, mode="reduced")
     lr.U /= np.sqrt(grid.dx)
     lr.S *= np.sqrt(grid.dx)
 
     # 1/2 S step
-    D1 = computeD(lr, grid, F_b)
+    D1 = computeD(lr, grid, F_b, DX = DX, DY = DY)
     lr.S += 0.5 * dt * RK4(lr.S, lambda S: Sstep(S, C1, C2, D1, grid, inflow), 0.5 * dt)
 
     # L step
@@ -125,7 +125,7 @@ def PSI_strang(lr, grid, dt, t, F_b = None):
     if inflow == True:
         # Compute F_b
         F_b = computeF_b(t + 0.5 * dt, lr.U @ lr.S @ lr.V.T, grid)      # recalculate F_b at time t + 0.5 dt
-        D1 = computeD(lr, grid, F_b)                                    # recalculate D1 because we recalculated F_b
+        D1 = computeD(lr, grid, F_b, DX = DX, DY = DY)                                    # recalculate D1 because we recalculated F_b
 
     # 1/2 S step
     C1, C2 = computeC(lr, grid)     # need to recalculate C1 and C2 because we changed V in L step     
@@ -133,14 +133,14 @@ def PSI_strang(lr, grid, dt, t, F_b = None):
 
     # 1/2 K step
     K = lr.U @ lr.S
-    K += 0.5 * dt * RK4(K, lambda K: Kstep(K, C1, C2, grid, lr, F_b, inflow), 0.5 * dt)
+    K += 0.5 * dt * RK4(K, lambda K: Kstep(K, C1, C2, grid, lr, F_b, inflow = inflow), 0.5 * dt)
     lr.U, lr.S = np.linalg.qr(K, mode="reduced")
     lr.U /= np.sqrt(grid.dx)
     lr.S *= np.sqrt(grid.dx)
 
     return lr, grid
 
-def PSI_splitting_lie(lr, grid, dt, F_b, F_b_top_bottom, lr_periodic = None, location = "left", tol_sing_val = 1e-6, drop_tol = 1e-6, rank_adapted = None, rank_dropped = None):
+def PSI_splitting_lie(lr, grid, dt, F_b, F_b_top_bottom, DX = None, DY = None, lr_periodic = None, location = "left", tol_sing_val = 1e-6, drop_tol = 1e-6, rank_adapted = None, rank_dropped = None):
     """
     Projector splitting integrator with equation splitting and lie splitting.
 
@@ -168,13 +168,13 @@ def PSI_splitting_lie(lr, grid, dt, F_b, F_b_top_bottom, lr_periodic = None, loc
     # K step
     C1, C2 = computeC(lr, grid, dimensions = "2x1d")
     K = lr.U @ lr.S
-    K += dt * RK4(K, lambda K: Kstep1(C1, grid, lr, F_b, F_b_top_bottom), dt)
+    K += dt * RK4(K, lambda K: Kstep1(C1, grid, lr, F_b, F_b_top_bottom, DX, DY), dt)
     lr.U, lr.S = np.linalg.qr(K, mode="reduced")
     lr.U /= np.sqrt(grid.dx)
     lr.S *= np.sqrt(grid.dx)
 
     # S step
-    D1 = computeD(lr, grid, F_b, F_b_top_bottom, dimensions = "2x1d", option_dd = "dd")
+    D1 = computeD(lr, grid, F_b, F_b_top_bottom, DX = DX, DY = DY, dimensions = "2x1d", option_dd = "dd")
     lr.S += dt * RK4(lr.S, lambda S: Sstep1(C1, D1, grid), dt)
 
     # L step
@@ -199,13 +199,13 @@ def PSI_splitting_lie(lr, grid, dt, F_b, F_b_top_bottom, lr_periodic = None, loc
     # K step
     C1, C2 = computeC(lr, grid, dimensions = "2x1d")
     K = lr.U @ lr.S
-    K += dt * RK4(K, lambda K: Kstep2(C1, grid, lr, F_b, F_b_top_bottom), dt)
+    K += dt * RK4(K, lambda K: Kstep2(C1, grid, lr, F_b, F_b_top_bottom, DX, DY), dt)
     lr.U, lr.S = np.linalg.qr(K, mode="reduced")
     lr.U /= np.sqrt(grid.dx)
     lr.S *= np.sqrt(grid.dx)
 
     # S step
-    D1 = computeD(lr, grid, F_b, F_b_top_bottom, dimensions = "2x1d", option_dd = "dd")
+    D1 = computeD(lr, grid, F_b, F_b_top_bottom, DX = DX, DY = DY, dimensions = "2x1d", option_dd = "dd")
     lr.S += dt * RK4(lr.S, lambda S: Sstep2(C1, D1, grid), dt)
 
     # L step
@@ -245,7 +245,7 @@ def PSI_splitting_lie(lr, grid, dt, F_b, F_b_top_bottom, lr_periodic = None, loc
 
     return lr, grid, rank_adapted, rank_dropped
 
-def PSI_splitting_strang(lr, grid, dt, F_b, F_b_top_bottom, lr_periodic = None, location = "left", tol_sing_val = 1e-6, drop_tol = 1e-6, rank_adapted = None, rank_dropped = None):
+def PSI_splitting_strang(lr, grid, dt, F_b, F_b_top_bottom, DX = None, DY = None, lr_periodic = None, location = "left", tol_sing_val = 1e-6, drop_tol = 1e-6, rank_adapted = None, rank_dropped = None):
     """
     Projector splitting integrator with equation splitting and strang splitting.
 
@@ -265,7 +265,7 @@ def PSI_splitting_strang(lr, grid, dt, F_b, F_b_top_bottom, lr_periodic = None, 
         Boundary condition matrix for inflow conditions.
     """
 
-    # ToDo: Still need to add domain decomposition in Y to strang splitting, for now it only works with dd in X.
+    # ToDo: Still need to add domain decomposition in Y to strang splitting, for now it does not work at all.
     
     # Step 1: advection in x
 
@@ -275,13 +275,13 @@ def PSI_splitting_strang(lr, grid, dt, F_b, F_b_top_bottom, lr_periodic = None, 
     # 1/2 K step
     C1, C2 = computeC(lr, grid, dimensions = "2x1d")
     K = lr.U @ lr.S
-    K += 0.5 * dt * RK4(K, lambda K: Kstep1(C1, grid, lr, F_b), 0.5 * dt)
+    K += 0.5 * dt * RK4(K, lambda K: Kstep1(C1, grid, lr, F_b, DX, DY), 0.5 * dt)
     lr.U, lr.S = np.linalg.qr(K, mode="reduced")
     lr.U /= np.sqrt(grid.dx)
     lr.S *= np.sqrt(grid.dx)
 
     # 1/2 S step
-    D1 = computeD(lr, grid, F_b, F_b_top_bottom, dimensions = "2x1d", option_dd = "dd")
+    D1 = computeD(lr, grid, F_b, F_b_top_bottom, DX = DX, DY = DY, dimensions = "2x1d", option_dd = "dd")
     lr.S += 0.5 * dt * RK4(lr.S, lambda S: Sstep1(C1, D1, grid), 0.5 * dt)
 
     # L step
@@ -299,7 +299,7 @@ def PSI_splitting_strang(lr, grid, dt, F_b, F_b_top_bottom, lr_periodic = None, 
     elif location == "right":
         F_b = computeF_b_2x1d_X(lr.U @ lr.S @ lr.V.T, grid, f_left = lr_periodic.U @ lr_periodic.S @ lr_periodic.V.T, f_periodic = lr_periodic.U @ lr_periodic.S @ lr_periodic.V.T)      # recalculate F_b at time t + 0.5 dt
     
-    D1 = computeD(lr, grid, F_b, F_b_top_bottom, dimensions = "2x1d", option_dd = "dd")                                    # recalculate D1 because we recalculated F_b
+    D1 = computeD(lr, grid, F_b, F_b_top_bottom, DX = DX, DY = DY, dimensions = "2x1d", option_dd = "dd")                                    # recalculate D1 because we recalculated F_b
 
     # 1/2 S step
     C1, C2 = computeC(lr, grid, dimensions = "2x1d")     # need to recalculate C1 and C2 because we changed V in L step     
@@ -307,7 +307,7 @@ def PSI_splitting_strang(lr, grid, dt, F_b, F_b_top_bottom, lr_periodic = None, 
 
     # 1/2 K step
     K = lr.U @ lr.S
-    K += 0.5 * dt * RK4(K, lambda K: Kstep1(C1, grid, lr, F_b), 0.5 * dt)
+    K += 0.5 * dt * RK4(K, lambda K: Kstep1(C1, grid, lr, F_b, DX, DY), 0.5 * dt)
     lr.U, lr.S = np.linalg.qr(K, mode="reduced")
     lr.U /= np.sqrt(grid.dx)
     lr.S *= np.sqrt(grid.dx)
@@ -325,13 +325,13 @@ def PSI_splitting_strang(lr, grid, dt, F_b, F_b_top_bottom, lr_periodic = None, 
     # 1/2 K step
     C1, C2 = computeC(lr, grid, dimensions = "2x1d")
     K = lr.U @ lr.S
-    K += 0.5 * dt * RK4(K, lambda K: Kstep2(K, C1, grid), 0.5 * dt)
+    K += 0.5 * dt * RK4(K, lambda K: Kstep2(K, C1, grid, DX, DY), 0.5 * dt)
     lr.U, lr.S = np.linalg.qr(K, mode="reduced")
     lr.U /= np.sqrt(grid.dx)
     lr.S *= np.sqrt(grid.dx)
 
     # 1/2 S step
-    D1 = computeD(lr, grid, F_b, F_b_top_bottom, dimensions = "2x1d", option_dd = "dd")
+    D1 = computeD(lr, grid, F_b, F_b_top_bottom, DX = DX, DY = DY, dimensions = "2x1d", option_dd = "dd")
     lr.S += 0.5 * dt * RK4(lr.S, lambda S: Sstep2(S, C1, D1, grid), 0.5 * dt)
 
     # L step
@@ -348,7 +348,7 @@ def PSI_splitting_strang(lr, grid, dt, F_b, F_b_top_bottom, lr_periodic = None, 
     elif location == "right":
         F_b = computeF_b_2x1d_X(lr.U @ lr.S @ lr.V.T, grid, f_left = lr_periodic.U @ lr_periodic.S @ lr_periodic.V.T, f_periodic = lr_periodic.U @ lr_periodic.S @ lr_periodic.V.T)      # recalculate F_b at time t + 0.5 dt
     
-    D1 = computeD(lr, grid, F_b, F_b_top_bottom, dimensions = "2x1d", option_dd = "dd")                                    # maybe we dont even have to recompute here
+    D1 = computeD(lr, grid, F_b, F_b_top_bottom, DX = DX, DY = DY, dimensions = "2x1d", option_dd = "dd")                                    # maybe we dont even have to recompute here
 
     # 1/2 S step
     C1, C2 = computeC(lr, grid, dimensions = "2x1d")     # need to recalculate C1 and C2 because we changed V in L step     
@@ -356,7 +356,7 @@ def PSI_splitting_strang(lr, grid, dt, F_b, F_b_top_bottom, lr_periodic = None, 
 
     # 1/2 K step
     K = lr.U @ lr.S
-    K += 0.5 * dt * RK4(K, lambda K: Kstep2(K, C1, grid), 0.5 * dt)
+    K += 0.5 * dt * RK4(K, lambda K: Kstep2(K, C1, grid, DX, DY), 0.5 * dt)
     lr.U, lr.S = np.linalg.qr(K, mode="reduced")
     lr.U /= np.sqrt(grid.dx)
     lr.S *= np.sqrt(grid.dx)

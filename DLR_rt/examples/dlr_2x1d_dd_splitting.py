@@ -6,6 +6,7 @@ from DLR_rt.src.integrators import PSI_splitting_lie, PSI_splitting_strang
 from DLR_rt.src.lr import LR, computeF_b_2x1d_X, computeF_b_2x1d_Y
 from DLR_rt.src.grid import Grid_2x1d
 from DLR_rt.src.initial_condition import setInitialCondition_2x1d_lr
+from DLR_rt.src.util import computeD_cendiff_2x1d
 
 
 # ToDo: Add strang splitting (need to make strang available for domain decomp in Y)
@@ -20,6 +21,8 @@ def integrate(lr0_left: LR, lr0_right: LR, grid_left: Grid_2x1d, grid_right: Gri
     rank_left_dropped = [grid_left.r]
     rank_right_adapted = [grid_right.r]
     rank_right_dropped = [grid_right.r]
+
+    DX, DY = computeD_cendiff_2x1d(grid_left, "dd")      # all grids have same size, thus enough to compute once
 
     with tqdm(total=t_f/dt, desc="Running Simulation") as pbar:
 
@@ -43,17 +46,17 @@ def integrate(lr0_left: LR, lr0_right: LR, grid_left: Grid_2x1d, grid_right: Gri
 
             ### Run PSI with adaptive rank strategy
             if method == "lie":
-                lr_left, grid_left, rank_left_adapted, rank_left_dropped = PSI_splitting_lie(lr_left, grid_left, dt, F_b_X_left, F_b_Y_left, lr_right, "left", tol_sing_val, drop_tol, rank_left_adapted, rank_left_dropped)
+                lr_left, grid_left, rank_left_adapted, rank_left_dropped = PSI_splitting_lie(lr_left, grid_left, dt, F_b_X_left, F_b_Y_left, DX, DY, lr_right, "left", tol_sing_val, drop_tol, rank_left_adapted, rank_left_dropped)
             elif method == "strang":
-                lr_left, grid_left, rank_left_adapted, rank_left_dropped = PSI_splitting_strang(lr_left, grid_left, dt, F_b_X_left, F_b_Y_left, lr_right, "left", tol_sing_val, drop_tol, rank_left_adapted, rank_left_dropped)
+                lr_left, grid_left, rank_left_adapted, rank_left_dropped = PSI_splitting_strang(lr_left, grid_left, dt, F_b_X_left, F_b_Y_left, DX, DY, lr_right, "left", tol_sing_val, drop_tol, rank_left_adapted, rank_left_dropped)
 
             ### Update right side
 
             ### Run PSI with adaptive rank strategy
             if method == "lie":
-                lr_right, grid_right, rank_right_adapted, rank_right_dropped = PSI_splitting_lie(lr_right, grid_right, dt, F_b_X_right, F_b_Y_right, lr_left_old, "right", tol_sing_val, drop_tol, rank_right_adapted, rank_right_dropped)
+                lr_right, grid_right, rank_right_adapted, rank_right_dropped = PSI_splitting_lie(lr_right, grid_right, dt, F_b_X_right, F_b_Y_right, DX, DY, lr_left_old, "right", tol_sing_val, drop_tol, rank_right_adapted, rank_right_dropped)
             elif method == "strang":
-                lr_right, grid_right, rank_right_adapted, rank_right_dropped = PSI_splitting_strang(lr_right, grid_right, dt, F_b_X_right, F_b_Y_right, lr_left_old, "right", tol_sing_val, drop_tol, rank_right_adapted, rank_right_dropped)
+                lr_right, grid_right, rank_right_adapted, rank_right_dropped = PSI_splitting_strang(lr_right, grid_right, dt, F_b_X_right, F_b_Y_right, DX, DY, lr_left_old, "right", tol_sing_val, drop_tol, rank_right_adapted, rank_right_dropped)
 
             ### Update time
             t += dt

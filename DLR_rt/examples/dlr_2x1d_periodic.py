@@ -6,6 +6,7 @@ from DLR_rt.src.grid import Grid_2x1d
 from DLR_rt.src.integrators import PSI_lie
 from DLR_rt.src.initial_condition import setInitialCondition_2x1d_lr
 from DLR_rt.src.lr import LR
+from DLR_rt.src.util import computeD_cendiff_2x1d
 
 
 def integrate(lr0: LR, grid: Grid_2x1d, t_f: float, dt: float, option: str = "lie"):
@@ -13,6 +14,8 @@ def integrate(lr0: LR, grid: Grid_2x1d, t_f: float, dt: float, option: str = "li
     t = 0
     time = []
     time.append(t)
+
+    DX, DY = computeD_cendiff_2x1d(grid, "no_dd")
 
     with tqdm(total=t_f/dt, desc="Running Simulation") as pbar:
 
@@ -24,7 +27,7 @@ def integrate(lr0: LR, grid: Grid_2x1d, t_f: float, dt: float, option: str = "li
                 dt = t_f - t
 
             if option=="lie":
-                lr, grid = PSI_lie(lr, grid, dt, dimensions = "2x1d")
+                lr, grid = PSI_lie(lr, grid, dt, DX = DX, DY = DY, dimensions = "2x1d")
 
             t += dt
             time.append(t)

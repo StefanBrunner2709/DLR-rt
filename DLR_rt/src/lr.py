@@ -398,14 +398,13 @@ def computedxK(lr, K_bdry_left, K_bdry_right, grid):
 
     return dxK
 
-def computedxK_2x1d(lr, K_bdry_left, K_bdry_right, K_bdry_bottom, K_bdry_top, grid):
+def computedxK_2x1d(lr, K_bdry_left, K_bdry_right, K_bdry_bottom, K_bdry_top, grid, DX, DY):
     """
     Compute the gradient of K.
 
     Compute the first derivative of K in x and y using a centered difference stencil.
     """
     K = lr.U @ lr.S
-    DX, DY = computeD_cendiff_2x1d(grid, option_dd = "dd")
 
     DXK = DX @ K
 
@@ -466,7 +465,7 @@ def computeB(L, grid, dimensions = "1x1d"):
 
     return B1
 
-def computeD(lr, grid, F_b = None, F_b_Y = None, dimensions = "1x1d", option_dd = "no_dd"):
+def computeD(lr, grid, F_b = None, F_b_Y = None, DX = None, DY = None, dimensions = "1x1d", option_dd = "no_dd"):
     """
     Compute D coeffiecient.
 
@@ -489,7 +488,6 @@ def computeD(lr, grid, F_b = None, F_b_Y = None, dimensions = "1x1d", option_dd 
     elif dimensions == "2x1d":
         
         if option_dd == "no_dd":
-            DX, DY = computeD_cendiff_2x1d(grid)
             D1X = lr.U.T @ DX @ lr.U * grid.dx
             D1Y = lr.U.T @ DY @ lr.U * grid.dy
             D1 = [D1X, D1Y]
@@ -497,7 +495,7 @@ def computeD(lr, grid, F_b = None, F_b_Y = None, dimensions = "1x1d", option_dd 
         elif option_dd == "dd":
             K_bdry_left, K_bdry_right = computeK_bdry_2x1d_X(lr, grid, F_b)
             K_bdry_bottom, K_bdry_top = computeK_bdry_2x1d_Y(lr, grid, F_b_Y)
-            DXK, DYK = computedxK_2x1d(lr, K_bdry_left, K_bdry_right, K_bdry_bottom, K_bdry_top, grid)
+            DXK, DYK = computedxK_2x1d(lr, K_bdry_left, K_bdry_right, K_bdry_bottom, K_bdry_top, grid, DX, DY)
             D1X = lr.U.T @ DXK * grid.dx
 
             D1Y = lr.U.T @ DYK * grid.dy
@@ -506,7 +504,7 @@ def computeD(lr, grid, F_b = None, F_b_Y = None, dimensions = "1x1d", option_dd 
 
     return D1
 
-def Kstep(K, C1, C2, grid, lr = None, F_b = None, inflow = False, dimensions = "1x1d"):
+def Kstep(K, C1, C2, grid, lr = None, F_b = None, DX = None, DY = None, inflow = False, dimensions = "1x1d"):
     """
     K step of radiative transfer equation.
 
@@ -527,7 +525,6 @@ def Kstep(K, C1, C2, grid, lr = None, F_b = None, inflow = False, dimensions = "
 
     elif dimensions == "2x1d":
 
-        DX, DY = computeD_cendiff_2x1d(grid)
         rhs = - (grid.coeff) * DX @ K @ C1[0] - (grid.coeff) * DY @ K @ C1[1] + 0.5 / (np.pi) * (grid.coeff)**2 * K @ C2.T @ C2 - (grid.coeff)**2 * K
     
     return rhs
@@ -575,7 +572,7 @@ def Lstep(L, D1, B1, grid, lr = None, inflow = False, dimensions = "1x1d"):
     
     return rhs
 
-def Kstep1(C1, grid, lr, F_b_X, F_b_Y):
+def Kstep1(C1, grid, lr, F_b_X, F_b_Y, DX, DY):
     """
     K step of radiative transfer equation.
 
@@ -584,12 +581,12 @@ def Kstep1(C1, grid, lr, F_b_X, F_b_Y):
 
     K_bdry_left, K_bdry_right = computeK_bdry_2x1d_X(lr, grid, F_b_X)
     K_bdry_bottom, K_bdry_top = computeK_bdry_2x1d_Y(lr, grid, F_b_Y)
-    DXK = computedxK_2x1d(lr, K_bdry_left, K_bdry_right, K_bdry_bottom, K_bdry_top, grid)[0]
+    DXK = computedxK_2x1d(lr, K_bdry_left, K_bdry_right, K_bdry_bottom, K_bdry_top, grid, DX, DY)[0]
     rhs = - (grid.coeff) * DXK @ C1[0]
 
     return rhs
 
-def Kstep2(C1, grid, lr, F_b_X, F_b_Y):
+def Kstep2(C1, grid, lr, F_b_X, F_b_Y, DX, DY):
     """
     K step of radiative transfer equation.
 
@@ -598,7 +595,7 @@ def Kstep2(C1, grid, lr, F_b_X, F_b_Y):
 
     K_bdry_left, K_bdry_right = computeK_bdry_2x1d_X(lr, grid, F_b_X)
     K_bdry_bottom, K_bdry_top = computeK_bdry_2x1d_Y(lr, grid, F_b_Y)
-    DYK = computedxK_2x1d(lr, K_bdry_left, K_bdry_right, K_bdry_bottom, K_bdry_top, grid)[1]
+    DYK = computedxK_2x1d(lr, K_bdry_left, K_bdry_right, K_bdry_bottom, K_bdry_top, grid, DX, DY)[1]
     rhs = - (grid.coeff) * DYK @ C1[1]
 
     return rhs
