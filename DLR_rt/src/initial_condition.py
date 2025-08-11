@@ -56,7 +56,7 @@ def setInitialCondition_2x1d_lr(grid: Grid_2x1d):
     V = np.zeros((grid.Nphi, grid.r))
     for i in range(grid.Ny):
         U[i*grid.Nx:(i+1)*grid.Nx, 0] = 1/(2 * np.pi) * np.exp(-((grid.X-0.5)**2)/0.07) * np.exp(-((grid.Y[i]-0.5)**2)/0.07)
-    V[0, 0] = 1.0
+    V[4, 0] = 1.0
     S[0, 0] = 1.0
 
     U_ortho, R_U = np.linalg.qr(U, mode="reduced")

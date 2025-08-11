@@ -107,11 +107,11 @@ def integrate(lr0_1: LR, lr0_2: LR, lr0_3: LR, lr0_4: LR, grid_1, grid_2, grid_3
 
 ### Just one plot for certain rank and certain time
 
-Nx = 128
-Nmu = 128
+Nx = 64
+Nmu = 64
 dt = 1e-4
 r = 5
-t_f = 2.0
+t_f = 0.5
 fs = 30
 method = "lie"
 savepath = "plots/"

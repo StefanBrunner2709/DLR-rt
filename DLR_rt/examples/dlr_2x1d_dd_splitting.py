@@ -59,7 +59,7 @@ Ny = 32
 Nphi = 32
 dt = 1e-3
 r = 5
-t_f = 1.0
+t_f = 0.1
 fs = 16
 savepath = "plots/"
 method = "lie"
@@ -137,48 +137,48 @@ plt.tight_layout()
 plt.savefig(savepath + "dd_splitting_2x1d_rho_final.pdf")
 
 
-### Slice plot
+# ### Slice plot
 
-rho_vector_x = rho_matrix[:,int(grid_left.Ny/2)]
+# rho_vector_x = rho_matrix[:,int(grid_left.Ny/2)]
 
-fig, axes = plt.subplots(1, 1, figsize=(10, 8))
-plt.plot(grid.X, rho_vector_x)
-plt.title("$y$ fixed")
-axes.set_xlabel("$x$", fontsize=fs)
-axes.set_ylabel("$f(x)$", fontsize=fs)
-plt.savefig(savepath + "dd_splitting_2x1d_rho_x_final.pdf")
-
-
-### Rank plots
-
-fig, axes = plt.subplots(1, 1, figsize=(10, 8))
-plt.plot(time,  rank_left_adapted)
-plt.title("rank left adapted")
-axes.set_xlabel("$t$", fontsize=fs)
-axes.set_ylabel("$r(t)$", fontsize=fs)
-plt.savefig(savepath + "dd_splitting_2x1d_rank_left_adapted.pdf")
-
-fig, axes = plt.subplots(1, 1, figsize=(10, 8))
-plt.plot(time,  rank_left_dropped)
-plt.title("rank left dropped")
-axes.set_xlabel("$t$", fontsize=fs)
-axes.set_ylabel("$r(t)$", fontsize=fs)
-plt.savefig(savepath + "dd_splitting_2x1d_rank_left_dropped.pdf")
-
-fig, axes = plt.subplots(1, 1, figsize=(10, 8))
-plt.plot(time,  rank_right_adapted)
-plt.title("rank right adapted")
-axes.set_xlabel("$t$", fontsize=fs)
-axes.set_ylabel("$r(t)$", fontsize=fs)
-plt.savefig(savepath + "dd_splitting_2x1d_rank_right_adapted.pdf")
-
-fig, axes = plt.subplots(1, 1, figsize=(10, 8))
-plt.plot(time,  rank_right_dropped)
-plt.title("rank right dropped")
-axes.set_xlabel("$t$", fontsize=fs)
-axes.set_ylabel("$r(t)$", fontsize=fs)
-plt.savefig(savepath + "dd_splitting_2x1d_rank_right_dropped.pdf")
+# fig, axes = plt.subplots(1, 1, figsize=(10, 8))
+# plt.plot(grid.X, rho_vector_x)
+# plt.title("$y$ fixed")
+# axes.set_xlabel("$x$", fontsize=fs)
+# axes.set_ylabel("$f(x)$", fontsize=fs)
+# plt.savefig(savepath + "dd_splitting_2x1d_rho_x_final.pdf")
 
 
-### Print frobenius error
-print(np.linalg.norm(rho0_matrix-rho_matrix, 'fro'))
+# ### Rank plots
+
+# fig, axes = plt.subplots(1, 1, figsize=(10, 8))
+# plt.plot(time,  rank_left_adapted)
+# plt.title("rank left adapted")
+# axes.set_xlabel("$t$", fontsize=fs)
+# axes.set_ylabel("$r(t)$", fontsize=fs)
+# plt.savefig(savepath + "dd_splitting_2x1d_rank_left_adapted.pdf")
+
+# fig, axes = plt.subplots(1, 1, figsize=(10, 8))
+# plt.plot(time,  rank_left_dropped)
+# plt.title("rank left dropped")
+# axes.set_xlabel("$t$", fontsize=fs)
+# axes.set_ylabel("$r(t)$", fontsize=fs)
+# plt.savefig(savepath + "dd_splitting_2x1d_rank_left_dropped.pdf")
+
+# fig, axes = plt.subplots(1, 1, figsize=(10, 8))
+# plt.plot(time,  rank_right_adapted)
+# plt.title("rank right adapted")
+# axes.set_xlabel("$t$", fontsize=fs)
+# axes.set_ylabel("$r(t)$", fontsize=fs)
+# plt.savefig(savepath + "dd_splitting_2x1d_rank_right_adapted.pdf")
+
+# fig, axes = plt.subplots(1, 1, figsize=(10, 8))
+# plt.plot(time,  rank_right_dropped)
+# plt.title("rank right dropped")
+# axes.set_xlabel("$t$", fontsize=fs)
+# axes.set_ylabel("$r(t)$", fontsize=fs)
+# plt.savefig(savepath + "dd_splitting_2x1d_rank_right_dropped.pdf")
+
+
+# ### Print frobenius error
+# print(np.linalg.norm(rho0_matrix-rho_matrix, 'fro'))
