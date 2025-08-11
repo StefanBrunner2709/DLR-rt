@@ -1,13 +1,12 @@
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
 from tqdm import tqdm
 
-from DLR_rt.src.integrators import PSI_splitting_lie
-from DLR_rt.src.lr import LR, computeF_b_2x1d_X, computeF_b_2x1d_Y
 from DLR_rt.src.grid import Grid_2x1d
 from DLR_rt.src.initial_condition import setInitialCondition_2x1d_lr
+from DLR_rt.src.integrators import PSI_splitting_lie
+from DLR_rt.src.lr import LR, computeF_b_2x1d_X, computeF_b_2x1d_Y
 from DLR_rt.src.util import computeD_cendiff_2x1d
-
 
 # ToDo: Add strang splitting (need to make strang available for domain decomp in Y)
 
