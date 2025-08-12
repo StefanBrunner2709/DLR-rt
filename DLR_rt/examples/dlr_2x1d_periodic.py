@@ -1,10 +1,10 @@
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
 from tqdm import tqdm
 
 from DLR_rt.src.grid import Grid_2x1d
-from DLR_rt.src.integrators import PSI_lie
 from DLR_rt.src.initial_condition import setInitialCondition_2x1d_lr
+from DLR_rt.src.integrators import PSI_lie
 from DLR_rt.src.lr import LR
 from DLR_rt.src.util import computeD_cendiff_2x1d
 
@@ -17,17 +17,15 @@ def integrate(lr0: LR, grid: Grid_2x1d, t_f: float, dt: float, option: str = "li
 
     DX, DY = computeD_cendiff_2x1d(grid, "no_dd")
 
-    with tqdm(total=t_f/dt, desc="Running Simulation") as pbar:
-
+    with tqdm(total=t_f / dt, desc="Running Simulation") as pbar:
         while t < t_f:
-
             pbar.update(1)
 
-            if (t + dt > t_f):
+            if t + dt > t_f:
                 dt = t_f - t
 
-            if option=="lie":
-                lr, grid = PSI_lie(lr, grid, dt, DX = DX, DY = DY, dimensions = "2x1d")
+            if option == "lie":
+                lr, grid = PSI_lie(lr, grid, dt, DX=DX, DY=DY, dimensions="2x1d")
 
             t += dt
             time.append(t)
@@ -53,22 +51,26 @@ f0 = lr0.U @ lr0.S @ lr0.V.T
 lr, time = integrate(lr0, grid, t_f, dt)
 f = lr.U @ lr.S @ lr.V.T
 
-rho0 = (f0 @ np.ones(grid.Nphi)) * grid.dphi    # This is now a vector, only depends on x and y
-rho = (f @ np.ones(grid.Nphi)) * grid.dphi    # This is now a vector, only depends on x and y
+rho0 = (
+    f0 @ np.ones(grid.Nphi)
+) * grid.dphi  # This is now a vector, only depends on x and y
+rho = (
+    f @ np.ones(grid.Nphi)
+) * grid.dphi  # This is now a vector, only depends on x and y
 
-rho0_matrix = rho0.reshape((grid.Nx, grid.Ny), order='F')
-rho_matrix = rho.reshape((grid.Nx, grid.Ny), order='F')
+rho0_matrix = rho0.reshape((grid.Nx, grid.Ny), order="F")
+rho_matrix = rho.reshape((grid.Nx, grid.Ny), order="F")
 
 extent = [grid.X[0], grid.X[-1], grid.Y[0], grid.Y[-1]]
 
 fig, axes = plt.subplots(1, 1, figsize=(10, 8))
 
-im = axes.imshow(rho0_matrix.T, extent=extent, origin='lower')
+im = axes.imshow(rho0_matrix.T, extent=extent, origin="lower")
 axes.set_xlabel("$x$", fontsize=fs)
 axes.set_ylabel("y", fontsize=fs, labelpad=-5)
 axes.set_xticks([0, 0.5, 1])
 axes.set_yticks([0, 0.5, 1])
-axes.tick_params(axis='both', labelsize=fs, pad=10)
+axes.tick_params(axis="both", labelsize=fs, pad=10)
 
 cbar_fixed = fig.colorbar(im, ax=axes)
 cbar_fixed.set_ticks([np.min(rho0_matrix), np.max(rho0_matrix)])
@@ -79,12 +81,12 @@ plt.savefig(savepath + "2x1d_rho_initial.pdf")
 
 fig, axes = plt.subplots(1, 1, figsize=(10, 8))
 
-im = axes.imshow(rho_matrix.T, extent=extent, origin='lower')
+im = axes.imshow(rho_matrix.T, extent=extent, origin="lower")
 axes.set_xlabel("$x$", fontsize=fs)
 axes.set_ylabel("y", fontsize=fs, labelpad=-5)
 axes.set_xticks([0, 0.5, 1])
 axes.set_yticks([0, 0.5, 1])
-axes.tick_params(axis='both', labelsize=fs, pad=10)
+axes.tick_params(axis="both", labelsize=fs, pad=10)
 
 cbar_fixed = fig.colorbar(im, ax=axes)
 cbar_fixed.set_ticks([np.min(rho_matrix), np.max(rho_matrix)])
@@ -106,7 +108,8 @@ plt.savefig(savepath + "2x1d_rho_final.pdf")
 # f0_reshaped = f0.reshape(Ny, Nx, Nphi)
 
 # # Apply trapezoidal integration along the x-axis (axis=1)
-# f0_integrated = np.trapezoid(f0_reshaped, grid.X, axis=1)  # Result shape: (n_y, n_phi)
+# f0_integrated = np.trapezoid(f0_reshaped, grid.X, axis=1)
+# # Result shape: (n_y, n_phi)
 
 # fig, axes = plt.subplots(1, 1, figsize=(10, 8))
 

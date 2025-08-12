@@ -4,6 +4,7 @@ Contains functions like mass computation.
 
 import numpy as np
 from scipy import sparse
+
 from DLR_rt.src.grid import Grid_2x1d
 
 
@@ -13,7 +14,8 @@ def compute_mass(lr, grid):
     M = np.trapezoid(rho, dx=grid.dx, axis=0)
     return M
 
-def computeD_cendiff_2x1d(grid : Grid_2x1d, option_dd : str = "no_dd"):
+
+def computeD_cendiff_2x1d(grid: Grid_2x1d, option_dd: str = "no_dd"):
     """
     Compute centered difference matrices.
 
@@ -34,15 +36,16 @@ def computeD_cendiff_2x1d(grid : Grid_2x1d, option_dd : str = "no_dd"):
     np.fill_diagonal(Dx[:, 1:], 1)
 
     if option_dd == "no_dd":
-        Dx[0, grid.Nx-1] = -1
-        Dx[grid.Nx-1, 0] = 1
+        Dx[0, grid.Nx - 1] = -1
+        Dx[grid.Nx - 1, 0] = 1
 
-    # If option = "dd", we need to add information afterwards with inflow/outflow and cannot just impose periodic b.c.
+    # If option = "dd", we need to add information afterwards with inflow/outflow 
+    # and cannot just impose periodic b.c.
 
-    I = np.eye(grid.Ny, grid.Ny)
+    identity = np.eye(grid.Ny, grid.Ny)
 
     # Step 2: Use np.kron
-    DX = np.kron(I, Dx)
+    DX = np.kron(identity, Dx)
 
     ### Compute DY
     # Step 1: Set up cen difference matrix
@@ -51,15 +54,16 @@ def computeD_cendiff_2x1d(grid : Grid_2x1d, option_dd : str = "no_dd"):
     np.fill_diagonal(Dy[:, 1:], 1)
 
     if option_dd == "no_dd":
-        Dy[0, grid.Ny-1] = -1
-        Dy[grid.Ny-1, 0] = 1
+        Dy[0, grid.Ny - 1] = -1
+        Dy[grid.Ny - 1, 0] = 1
 
-    # If option = "dd", we need to add information afterwards with inflow/outflow and cannot just impose periodic b.c.
+    # If option = "dd", we need to add information afterwards with inflow/outflow 
+    # and cannot just impose periodic b.c.
 
-    I = np.eye(grid.Nx, grid.Nx)
+    identity = np.eye(grid.Nx, grid.Nx)
 
     # Step 2: Use np.kron
-    DY = np.kron(Dy, I)
+    DY = np.kron(Dy, identity)
 
     ### Scale matrices
     DX = 0.5 * DX / grid.dx
