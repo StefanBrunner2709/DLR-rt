@@ -126,7 +126,7 @@ class Grid_2x1d:
     _Y
         Optional Y grid, given as np.array. Standard value is interval [0,1].
     _coeff
-        1/epsilon for radiative transfer equation on this domain.
+        Array of coefficients for different parts of equation, i.e. [c_adv, c_s, c_t].
     """
 
     def __init__(
@@ -138,7 +138,7 @@ class Grid_2x1d:
         _option_dd: str = "no_dd",
         _X=None,
         _Y=None,
-        _coeff: float = 1.0,
+        _coeff = [1.0, 1.0, 1.0],  # noqa: B006
     ):
         self.Nx = _Nx
         self.Ny = _Ny

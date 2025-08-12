@@ -648,10 +648,10 @@ def Kstep(
 
     elif dimensions == "2x1d":
         rhs = (
-            -(grid.coeff) * DX @ K @ C1[0]
-            - (grid.coeff) * DY @ K @ C1[1]
-            + 0.5 / (np.pi) * (grid.coeff) ** 2 * K @ C2.T @ C2
-            - (grid.coeff) ** 2 * K
+            -(grid.coeff[0]) * DX @ K @ C1[0]
+            - (grid.coeff[0]) * DY @ K @ C1[1]
+            + 0.5 / (np.pi) * (grid.coeff[1]) * K @ C2.T @ C2
+            - (grid.coeff[2]) * K
         )
 
     return rhs
@@ -682,10 +682,10 @@ def Sstep(S, C1, C2, D1, grid, inflow=False, dimensions="1x1d"):
 
     elif dimensions == "2x1d":
         rhs = (
-            (grid.coeff) * D1[0] @ S @ C1[0]
-            + (grid.coeff) * D1[1] @ S @ C1[1]
-            - 0.5 / (np.pi) * (grid.coeff) ** 2 * S @ C2.T @ C2
-            + (grid.coeff) ** 2 * S
+            (grid.coeff[0]) * D1[0] @ S @ C1[0]
+            + (grid.coeff[0]) * D1[1] @ S @ C1[1]
+            - 0.5 / (np.pi) * (grid.coeff[1]) * S @ C2.T @ C2
+            + (grid.coeff[2]) * S
         )
 
     return rhs
@@ -715,10 +715,10 @@ def Lstep(L, D1, B1, grid, lr=None, inflow=False, dimensions="1x1d"):
 
     elif dimensions == "2x1d":
         rhs = (
-            -(grid.coeff) * np.diag(np.cos(grid.PHI)) @ L @ D1[0].T
-            - (grid.coeff) * np.diag(np.sin(grid.PHI)) @ L @ D1[1].T
-            + 0.5 / (np.pi) * (grid.coeff) ** 2 * B1
-            - (grid.coeff) ** 2 * L
+            -(grid.coeff[0]) * np.diag(np.cos(grid.PHI)) @ L @ D1[0].T
+            - (grid.coeff[0]) * np.diag(np.sin(grid.PHI)) @ L @ D1[1].T
+            + 0.5 / (np.pi) * (grid.coeff[1]) * B1
+            - (grid.coeff[2]) * L
         )
 
     return rhs
@@ -737,7 +737,7 @@ def Kstep1(C1, grid, lr, F_b_X, F_b_Y, DX, DY):
     DXK = computedxK_2x1d(
         lr, K_bdry_left, K_bdry_right, K_bdry_bottom, K_bdry_top, grid, DX, DY
     )[0]
-    rhs = -(grid.coeff) * DXK @ C1[0]
+    rhs = -(grid.coeff[0]) * DXK @ C1[0]
 
     return rhs
 
@@ -755,7 +755,7 @@ def Kstep2(C1, grid, lr, F_b_X, F_b_Y, DX, DY):
     DYK = computedxK_2x1d(
         lr, K_bdry_left, K_bdry_right, K_bdry_bottom, K_bdry_top, grid, DX, DY
     )[1]
-    rhs = -(grid.coeff) * DYK @ C1[1]
+    rhs = -(grid.coeff[0]) * DYK @ C1[1]
 
     return rhs
 
@@ -768,7 +768,7 @@ def Kstep3(K, C2, grid):
     after splitting the full equation in 2x1d.
     """
 
-    rhs = 0.5 / (np.pi) * (grid.coeff) ** 2 * K @ C2.T @ C2 - (grid.coeff) ** 2 * K
+    rhs = 0.5 / (np.pi) * (grid.coeff[1]) * K @ C2.T @ C2 - (grid.coeff[2]) * K
 
     return rhs
 
@@ -781,7 +781,7 @@ def Sstep1(C1, D1, grid):
     after splitting the full equation in 2x1d.
     """
 
-    rhs = (grid.coeff) * D1[0] @ C1[0]
+    rhs = (grid.coeff[0]) * D1[0] @ C1[0]
 
     return rhs
 
@@ -793,7 +793,7 @@ def Sstep2(C1, D1, grid):
     Part of the S step associated to the y advection 
     after splitting the full equation in 2x1d.
     """
-    rhs = (grid.coeff) * D1[1] @ C1[1]
+    rhs = (grid.coeff[0]) * D1[1] @ C1[1]
 
     return rhs
 
@@ -806,7 +806,7 @@ def Sstep3(S, C2, grid):
     after splitting the full equation in 2x1d.
     """
 
-    rhs = -0.5 / (np.pi) * (grid.coeff) ** 2 * S @ C2.T @ C2 + (grid.coeff) ** 2 * S
+    rhs = -0.5 / (np.pi) * (grid.coeff[1]) * S @ C2.T @ C2 + (grid.coeff[2]) * S
 
     return rhs
 
@@ -819,7 +819,7 @@ def Lstep1(lr, D1, grid):
     after splitting the full equation in 2x1d.
     """
 
-    rhs = -(grid.coeff) * np.diag(np.cos(grid.PHI)) @ lr.V @ D1[0].T
+    rhs = -(grid.coeff[0]) * np.diag(np.cos(grid.PHI)) @ lr.V @ D1[0].T
 
     return rhs
 
@@ -832,7 +832,7 @@ def Lstep2(lr, D1, grid):
     after splitting the full equation in 2x1d.
     """
 
-    rhs = -(grid.coeff) * np.diag(np.sin(grid.PHI)) @ lr.V @ D1[1].T
+    rhs = -(grid.coeff[0]) * np.diag(np.sin(grid.PHI)) @ lr.V @ D1[1].T
 
     return rhs
 
@@ -845,7 +845,7 @@ def Lstep3(L, B1, grid):
     after splitting the full equation in 2x1d.
     """
 
-    rhs = 0.5 / (np.pi) * (grid.coeff) ** 2 * B1 - (grid.coeff) ** 2 * L
+    rhs = 0.5 / (np.pi) * (grid.coeff[1]) * B1 - (grid.coeff[2]) * L
 
     return rhs
 
