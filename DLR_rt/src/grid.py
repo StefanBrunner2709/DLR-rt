@@ -127,6 +127,7 @@ class Grid_2x1d:
         Optional Y grid, given as np.array. Standard value is interval [0,1].
     _coeff
         Array of coefficients for different parts of equation, i.e. [c_adv, c_s, c_t].
+        If coeffiecients are space dependent, write e.g. c_adv as a vector of size NxNy.
     """
 
     def __init__(

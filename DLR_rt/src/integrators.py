@@ -21,6 +21,7 @@ from DLR_rt.src.lr import (
     computeB,
     computeC,
     computeD,
+    computeE,
     computeF_b,
     computeF_b_2x1d_X,
     drop_basis_functions,
@@ -48,7 +49,8 @@ def RK4(f, rhs, dt):
     )
 
 
-def PSI_lie(lr, grid, dt, F_b=None, DX=None, DY=None, dimensions="1x1d"):
+def PSI_lie(lr, grid, dt, F_b=None, DX=None, DY=None, dimensions="1x1d", 
+            option_coeff="constant"):
     """
     Projector splitting integrator with lie splitting.
 
@@ -68,6 +70,8 @@ def PSI_lie(lr, grid, dt, F_b=None, DX=None, DY=None, dimensions="1x1d"):
         Boundary condition matrix for inflow conditions.
     dimensions
         Number of dimensions, given as a string.
+    option_coeff
+        Possible values are "constant" and "space_dep"
     """
     inflow = F_b is not None
 
@@ -77,7 +81,8 @@ def PSI_lie(lr, grid, dt, F_b=None, DX=None, DY=None, dimensions="1x1d"):
     K += dt * RK4(
         K,
         lambda K: Kstep(
-            K, C1, C2, grid, lr, F_b, DX=DX, DY=DY, inflow=inflow, dimensions=dimensions
+            K, C1, C2, grid, lr, F_b, DX=DX, DY=DY, inflow=inflow, 
+            dimensions=dimensions, option_coeff=option_coeff
         ),
         dt,
     )
@@ -86,16 +91,24 @@ def PSI_lie(lr, grid, dt, F_b=None, DX=None, DY=None, dimensions="1x1d"):
     lr.S *= np.sqrt(grid.dx)
 
     # S step
-    D1 = computeD(lr, grid, F_b, DX=DX, DY=DY, dimensions=dimensions)
+    D1 = computeD(lr, grid, F_b, DX=DX, DY=DY, 
+                  dimensions=dimensions, option_coeff=option_coeff)
+    if option_coeff == "constant":
+        E1 = None
+    elif option_coeff == "space_dep":
+        E1 = computeE(lr, grid)
     lr.S += dt * RK4(
-        lr.S, lambda S: Sstep(S, C1, C2, D1, grid, inflow, dimensions=dimensions), dt
+        lr.S, lambda S: Sstep(S, C1, C2, D1, grid, 
+                              inflow, dimensions=dimensions, 
+                              option_coeff=option_coeff, E1=E1), dt
     )
 
     # L step
     L = lr.V @ lr.S.T
     B1 = computeB(L, grid, dimensions=dimensions)
     L += dt * RK4(
-        L, lambda L: Lstep(L, D1, B1, grid, lr, inflow, dimensions=dimensions), dt
+        L, lambda L: Lstep(L, D1, B1, grid, lr, inflow, dimensions=dimensions, 
+                              option_coeff=option_coeff, E1=E1), dt
     )
     lr.V, St = np.linalg.qr(L, mode="reduced")
     lr.S = St.T

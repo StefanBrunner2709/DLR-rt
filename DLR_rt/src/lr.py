@@ -567,6 +567,7 @@ def computeD(
     DY=None,
     dimensions="1x1d",
     option_dd="no_dd",
+    option_coeff="constant"
 ):
     """
     Compute D coeffiecient.
@@ -590,9 +591,15 @@ def computeD(
 
     elif dimensions == "2x1d":
         if option_dd == "no_dd":
-            D1X = lr.U.T @ DX @ lr.U * grid.dx
-            D1Y = lr.U.T @ DY @ lr.U * grid.dy
-            D1 = [D1X, D1Y]
+            if option_coeff == "constant":
+                D1X = lr.U.T @ DX @ lr.U * grid.dx
+                D1Y = lr.U.T @ DY @ lr.U * grid.dy
+                D1 = [D1X, D1Y]
+            
+            elif option_coeff == "space_dep":
+                D1X = lr.U.T @ np.diag(grid.coeff[0]) @ (DX @ lr.U) * grid.dx
+                D1Y = lr.U.T @ np.diag(grid.coeff[0]) @ (DY @ lr.U) * grid.dy
+                D1 = [D1X, D1Y]
 
         elif option_dd == "dd":
             K_bdry_left, K_bdry_right = computeK_bdry_2x1d_X(lr, grid, F_b)
@@ -600,13 +607,29 @@ def computeD(
             DXK, DYK = computedxK_2x1d(
                 lr, K_bdry_left, K_bdry_right, K_bdry_bottom, K_bdry_top, grid, DX, DY
             )
-            D1X = lr.U.T @ DXK * grid.dx
+            if option_coeff == "constant":
+                D1X = lr.U.T @ DXK * grid.dx
 
-            D1Y = lr.U.T @ DYK * grid.dy
+                D1Y = lr.U.T @ DYK * grid.dy
 
-            D1 = [D1X, D1Y]
+                D1 = [D1X, D1Y]
+            
+            elif option_coeff == "space_dep":
+                D1X = lr.U.T @ np.diag(grid.coeff[0]) @ DXK * grid.dx
+
+                D1Y = lr.U.T @ np.diag(grid.coeff[0]) @ DYK * grid.dy
+
+                D1 = [D1X, D1Y]
 
     return D1
+
+def computeE(lr, grid):
+
+    E1_1 = lr.U.T @ np.diag(grid.coeff[1]) @ lr.U * grid.dx
+    E1_2 = lr.U.T @ np.diag(grid.coeff[2]) @ lr.U * grid.dx
+    E1 = [E1_1, E1_2]
+
+    return E1
 
 
 def Kstep(
@@ -620,6 +643,7 @@ def Kstep(
     DY=None,
     inflow=False,
     dimensions="1x1d",
+    option_coeff="constant",
 ):
     """
     K step of radiative transfer equation.
@@ -647,17 +671,27 @@ def Kstep(
             )
 
     elif dimensions == "2x1d":
-        rhs = (
-            -(grid.coeff[0]) * DX @ K @ C1[0]
-            - (grid.coeff[0]) * DY @ K @ C1[1]
-            + 0.5 / (np.pi) * (grid.coeff[1]) * K @ C2.T @ C2
-            - (grid.coeff[2]) * K
-        )
+        if option_coeff == "constant":
+            rhs = (
+                -(grid.coeff[0]) * DX @ K @ C1[0]
+                - (grid.coeff[0]) * DY @ K @ C1[1]
+                + 0.5 / (np.pi) * (grid.coeff[1]) * K @ C2.T @ C2
+                - (grid.coeff[2]) * K
+            )
+
+        elif option_coeff == "space_dep":
+            rhs = (
+                -(np.diag(grid.coeff[0])) @ (DX @ K @ C1[0])
+                - (np.diag(grid.coeff[0])) @ (DY @ K @ C1[1])
+                + 0.5 / (np.pi) * (np.diag(grid.coeff[1])) @ K @ C2.T @ C2
+                - (np.diag(grid.coeff[2])) @ K
+            )
 
     return rhs
 
 
-def Sstep(S, C1, C2, D1, grid, inflow=False, dimensions="1x1d"):
+def Sstep(S, C1, C2, D1, grid, inflow=False, 
+          dimensions="1x1d", option_coeff="constant", E1=None):
     """
     S step of radiative transfer equation.
 
@@ -681,17 +715,27 @@ def Sstep(S, C1, C2, D1, grid, inflow=False, dimensions="1x1d"):
             )
 
     elif dimensions == "2x1d":
-        rhs = (
-            (grid.coeff[0]) * D1[0] @ S @ C1[0]
-            + (grid.coeff[0]) * D1[1] @ S @ C1[1]
-            - 0.5 / (np.pi) * (grid.coeff[1]) * S @ C2.T @ C2
-            + (grid.coeff[2]) * S
-        )
+        if option_coeff == "constant":
+            rhs = (
+                (grid.coeff[0]) * D1[0] @ S @ C1[0]
+                + (grid.coeff[0]) * D1[1] @ S @ C1[1]
+                - 0.5 / (np.pi) * (grid.coeff[1]) * S @ C2.T @ C2
+                + (grid.coeff[2]) * S
+            )
+
+        elif option_coeff == "space_dep":
+            rhs = (
+                D1[0] @ S @ C1[0]
+                + D1[1] @ S @ C1[1]
+                - 0.5 / (np.pi) * E1[0] @ S @ C2.T @ C2
+                + E1[1] @ S
+            )
 
     return rhs
 
 
-def Lstep(L, D1, B1, grid, lr=None, inflow=False, dimensions="1x1d"):
+def Lstep(L, D1, B1, grid, lr=None, inflow=False, 
+          dimensions="1x1d", option_coeff="constant", E1=None):
     """
     L step of radiative transfer equation.
 
@@ -714,12 +758,21 @@ def Lstep(L, D1, B1, grid, lr=None, inflow=False, dimensions="1x1d"):
             )
 
     elif dimensions == "2x1d":
-        rhs = (
-            -(grid.coeff[0]) * np.diag(np.cos(grid.PHI)) @ L @ D1[0].T
-            - (grid.coeff[0]) * np.diag(np.sin(grid.PHI)) @ L @ D1[1].T
-            + 0.5 / (np.pi) * (grid.coeff[1]) * B1
-            - (grid.coeff[2]) * L
-        )
+        if option_coeff == "constant":
+            rhs = (
+                -(grid.coeff[0]) * np.diag(np.cos(grid.PHI)) @ L @ D1[0].T
+                - (grid.coeff[0]) * np.diag(np.sin(grid.PHI)) @ L @ D1[1].T
+                + 0.5 / (np.pi) * (grid.coeff[1]) * B1
+                - (grid.coeff[2]) * L
+            )
+        
+        elif option_coeff == "space_dep":
+            rhs = (
+                -np.diag(np.cos(grid.PHI)) @ L @ D1[0].T
+                - np.diag(np.sin(grid.PHI)) @ L @ D1[1].T
+                + 0.5 / (np.pi) * B1 @ E1[0]
+                - L @ E1[1]
+            )
 
     return rhs
 
