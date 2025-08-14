@@ -350,15 +350,16 @@ def computeK_bdry_2x1d_X(lr, grid, F_b_X):
 
     Transforms the boundary information given by F_b_X into a boundary information in K.
     """
-    e_mat_left = np.zeros((len(grid.Y), len(grid.PHI)))
-    e_mat_right = np.zeros((len(grid.Y), len(grid.PHI)))
+    # --- Precompute masks for PHI direction ---
+    mask_left = (np.pi / 2 > grid.PHI) | (3 * np.pi / 2 < grid.PHI)
+    mask_right = ~mask_left  # opposite of left
 
-    # Values from boundary condition:
-    for i in range(len(grid.PHI)):  # compute e-vector
-        if grid.PHI[i] < np.pi / 2 or grid.PHI[i] > 3 * np.pi / 2:
-            e_mat_left[:, i] = F_b_X[: len(grid.Y), i]
-        else:
-            e_mat_right[:, i] = F_b_X[len(grid.Y) :, i]
+    # --- Fill e_mats using masks (vectorized) ---
+    e_mat_left = np.zeros((grid.Ny, grid.Nphi))
+    e_mat_right = np.zeros((grid.Ny, grid.Nphi))
+
+    e_mat_left[:, mask_left] = F_b_X[:grid.Ny, mask_left]
+    e_mat_right[:, mask_right] = F_b_X[grid.Ny:, mask_right]
 
     int_exp_left = (
         (e_mat_left @ lr.V) * grid.dphi
@@ -366,26 +367,18 @@ def computeK_bdry_2x1d_X(lr, grid, F_b_X):
     int_exp_right = (e_mat_right @ lr.V) * grid.dphi  # now matrix of dimension Ny x r
 
     K = lr.U @ lr.S
-    K_extrapol_left = np.zeros([len(grid.Y), grid.r])
-    K_extrapol_right = np.zeros([len(grid.Y), grid.r])
 
-    for i in range(grid.r):  # calculate extrapolated values
-        indices_outflow_left_0 = list(range(0, grid.Nx * (grid.Ny), grid.Nx))
-        indices_outflow_left_1 = list(range(1, grid.Nx * (grid.Ny) + 1, grid.Nx))
-        K_extrapol_left[:, i] = K[indices_outflow_left_0, i] - (
-            K[indices_outflow_left_1, i] - K[indices_outflow_left_0, i]
-        )
+    # --- Precompute indices once ---
+    idx_outflow_left_0 = np.arange(0, grid.Nx * grid.Ny, grid.Nx)
+    idx_outflow_left_1 = idx_outflow_left_0 + 1
+    idx_outflow_right_1 = np.arange(grid.Nx - 1, grid.Nx * (grid.Ny + 1) - 1, grid.Nx)
+    idx_outflow_right_2 = idx_outflow_right_1 - 1
 
-        indices_outflow_right_1 = list(
-            range(grid.Nx - 1, grid.Nx * (grid.Ny + 1) - 1, grid.Nx)
-        )
-        indices_outflow_right_2 = list(
-            range(grid.Nx - 2, grid.Nx * (grid.Ny + 1) - 2, grid.Nx)
-        )
-        K_extrapol_right[:, i] = K[indices_outflow_right_1, i] + (
-            K[indices_outflow_right_1, i] - K[indices_outflow_right_2, i]
-        )
+    # --- Vectorized extrapolation for extrapolated values ---
+    K_extrapol_left = 2 * K[idx_outflow_left_0] - K[idx_outflow_left_1]
+    K_extrapol_right = 2 * K[idx_outflow_right_1] - K[idx_outflow_right_2]
 
+    # compute V_int
     V_indicator_left = np.copy(
         lr.V
     )  # generate V*indicator, Note: Only works for Nx even
@@ -416,15 +409,16 @@ def computeK_bdry_2x1d_Y(lr, grid, F_b_Y):
 
     Transforms the boundary information given by F_b_Y into a boundary information in K.
     """
-    e_mat_bottom = np.zeros((len(grid.X), len(grid.PHI)))
-    e_mat_top = np.zeros((len(grid.X), len(grid.PHI)))
+    # --- Precompute masks for PHI direction ---
+    mask_bottom = (np.pi > grid.PHI)
+    mask_top = ~mask_bottom  # opposite of bpttom
 
-    # Values from boundary condition:
-    for i in range(len(grid.PHI)):  # compute e-vector
-        if grid.PHI[i] < np.pi:
-            e_mat_bottom[:, i] = F_b_Y[: len(grid.X), i]
-        else:
-            e_mat_top[:, i] = F_b_Y[len(grid.X) :, i]
+    # --- Fill e_mats using masks (vectorized) ---
+    e_mat_bottom = np.zeros((grid.Nx, grid.Nphi))
+    e_mat_top = np.zeros((grid.Nx, grid.Nphi))
+
+    e_mat_bottom[:, mask_bottom] = F_b_Y[:grid.Nx, mask_bottom]
+    e_mat_top[:, mask_top] = F_b_Y[grid.Nx:, mask_top]
 
     int_exp_bottom = (
         (e_mat_bottom @ lr.V) * grid.dphi
@@ -432,19 +426,13 @@ def computeK_bdry_2x1d_Y(lr, grid, F_b_Y):
     int_exp_top = (e_mat_top @ lr.V) * grid.dphi  # now matrix of dimension Nx x r
 
     K = lr.U @ lr.S
-    K_extrapol_bottom = np.zeros([len(grid.X), grid.r])
-    K_extrapol_top = np.zeros([len(grid.X), grid.r])
 
-    for i in range(grid.r):  # calculate extrapolated values
-        K_extrapol_bottom[:, i] = K[: grid.Nx, i] - (
-            K[grid.Nx : grid.Nx * 2, i] - K[: grid.Nx, i]
-        )
+    # --- Vectorized extrapolation ---
+    K_extrapol_bottom = 2 * K[:grid.Nx, :] - K[grid.Nx : 2*grid.Nx, :]
+    K_extrapol_top = (2 * K[grid.Nx*(grid.Ny-1) : grid.Nx*grid.Ny, :] - 
+                      K[grid.Nx*(grid.Ny-2) : grid.Nx*(grid.Ny-1), :])
 
-        K_extrapol_top[:, i] = K[grid.Nx * (grid.Ny - 1) : grid.Nx * grid.Ny, i] + (
-            K[grid.Nx * (grid.Ny - 1) : grid.Nx * grid.Ny, i]
-            - K[grid.Nx * (grid.Ny - 2) : grid.Nx * (grid.Ny - 1), i]
-        )
-
+    # compute V_int
     V_indicator_bottom = np.copy(
         lr.V
     )  # generate V*indicator, Note: Only works for Ny even
