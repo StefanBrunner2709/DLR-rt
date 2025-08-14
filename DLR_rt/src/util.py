@@ -31,9 +31,9 @@ def computeD_cendiff_2x1d(grid: Grid_2x1d, option_dd: str = "no_dd"):
     """
     ### Compute DX
     # Step 1: Set up cen difference matrix
-    Dx = np.zeros((grid.Nx, grid.Nx), dtype=int)
-    np.fill_diagonal(Dx[1:], -1)
-    np.fill_diagonal(Dx[:, 1:], 1)
+    Dx = sparse.lil_matrix((grid.Nx, grid.Nx), dtype=float)
+    Dx.setdiag(-1, k=-1)
+    Dx.setdiag(1, k=1)
 
     if option_dd == "no_dd":
         Dx[0, grid.Nx - 1] = -1
@@ -42,16 +42,16 @@ def computeD_cendiff_2x1d(grid: Grid_2x1d, option_dd: str = "no_dd"):
     # If option = "dd", we need to add information afterwards with inflow/outflow 
     # and cannot just impose periodic b.c.
 
-    identity = np.eye(grid.Ny, grid.Ny)
+    Ix = sparse.identity(grid.Ny, format="csr", dtype=float)
 
     # Step 2: Use np.kron
-    DX = np.kron(identity, Dx)
+    DX = sparse.kron(Ix, Dx, format="csr")  # Ny × Ny blocks, each block is Dx
 
     ### Compute DY
     # Step 1: Set up cen difference matrix
-    Dy = np.zeros((grid.Ny, grid.Ny), dtype=int)
-    np.fill_diagonal(Dy[1:], -1)
-    np.fill_diagonal(Dy[:, 1:], 1)
+    Dy = sparse.lil_matrix((grid.Ny, grid.Ny), dtype=float)
+    Dy.setdiag(-1, k=-1)
+    Dy.setdiag(1, k=1)
 
     if option_dd == "no_dd":
         Dy[0, grid.Ny - 1] = -1
@@ -60,17 +60,13 @@ def computeD_cendiff_2x1d(grid: Grid_2x1d, option_dd: str = "no_dd"):
     # If option = "dd", we need to add information afterwards with inflow/outflow 
     # and cannot just impose periodic b.c.
 
-    identity = np.eye(grid.Nx, grid.Nx)
+    Iy = sparse.identity(grid.Nx, format="csr", dtype=float)
 
     # Step 2: Use np.kron
-    DY = np.kron(Dy, identity)
+    DY = sparse.kron(Dy, Iy, format="csr")  # Nx × Nx blocks, each block is Dy
 
     ### Scale matrices
-    DX = 0.5 * DX / grid.dx
-    DY = 0.5 * DY / grid.dy
+    DX *= 0.5 / grid.dx
+    DY *= 0.5 / grid.dy
 
-    ### Make matrix sparse
-    DX = sparse.csr_matrix(DX)
-    DY = sparse.csr_matrix(DY)
-
-    return DX, DY
+    return DX.tocsr(), DY.tocsr()
