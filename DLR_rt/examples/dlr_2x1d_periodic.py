@@ -44,8 +44,9 @@ t_f = 0.1
 fs = 16
 savepath = "plots/"
 method = "lie"
+option_grid = "dd"      # Just changes how gridpoints are chosen
 
-grid = Grid_2x1d(Nx, Ny, Nphi, r)
+grid = Grid_2x1d(Nx, Ny, Nphi, r, _option_dd=option_grid)
 lr0 = setInitialCondition_2x1d_lr(grid)
 f0 = lr0.U @ lr0.S @ lr0.V.T
 lr, time = integrate(lr0, grid, t_f, dt)

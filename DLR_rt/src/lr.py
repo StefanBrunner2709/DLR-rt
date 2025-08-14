@@ -597,8 +597,8 @@ def computeD(
                 D1 = [D1X, D1Y]
             
             elif option_coeff == "space_dep":
-                D1X = lr.U.T @ np.diag(grid.coeff[0]) @ (DX @ lr.U) * grid.dx
-                D1Y = lr.U.T @ np.diag(grid.coeff[0]) @ (DY @ lr.U) * grid.dy
+                D1X = lr.U.T @ grid.coeff[0] @ DX @ lr.U * grid.dx
+                D1Y = lr.U.T @ grid.coeff[0] @ DY @ lr.U * grid.dy
                 D1 = [D1X, D1Y]
 
         elif option_dd == "dd":
@@ -615,9 +615,9 @@ def computeD(
                 D1 = [D1X, D1Y]
             
             elif option_coeff == "space_dep":
-                D1X = lr.U.T @ np.diag(grid.coeff[0]) @ DXK * grid.dx
+                D1X = lr.U.T @ grid.coeff[0] @ DXK * grid.dx
 
-                D1Y = lr.U.T @ np.diag(grid.coeff[0]) @ DYK * grid.dy
+                D1Y = lr.U.T @ grid.coeff[0] @ DYK * grid.dy
 
                 D1 = [D1X, D1Y]
 
@@ -625,8 +625,8 @@ def computeD(
 
 def computeE(lr, grid):
 
-    E1_1 = lr.U.T @ np.diag(grid.coeff[1]) @ lr.U * grid.dx
-    E1_2 = lr.U.T @ np.diag(grid.coeff[2]) @ lr.U * grid.dx
+    E1_1 = lr.U.T @ grid.coeff[1] @ lr.U * grid.dx
+    E1_2 = lr.U.T @ grid.coeff[2] @ lr.U * grid.dx
     E1 = [E1_1, E1_2]
 
     return E1
@@ -681,10 +681,10 @@ def Kstep(
 
         elif option_coeff == "space_dep":
             rhs = (
-                -(np.diag(grid.coeff[0])) @ (DX @ K @ C1[0])
-                - (np.diag(grid.coeff[0])) @ (DY @ K @ C1[1])
-                + 0.5 / (np.pi) * (np.diag(grid.coeff[1])) @ K @ C2.T @ C2
-                - (np.diag(grid.coeff[2])) @ K
+                -grid.coeff[0] @ DX @ K @ C1[0]
+                - grid.coeff[0] @ DY @ K @ C1[1]
+                + 0.5 / (np.pi) * grid.coeff[1] @ K @ C2.T @ C2
+                - grid.coeff[2] @ K
             )
 
     return rhs

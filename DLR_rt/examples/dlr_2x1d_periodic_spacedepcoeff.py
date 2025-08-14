@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
+from scipy.sparse import diags
 from tqdm import tqdm
 
 from DLR_rt.src.grid import Grid_2x1d
@@ -48,9 +49,9 @@ method = "lie"
 option_grid = "dd"      # Just changes how gridpoints are chosen
 
 ### To compare with constant coefficient results
-c_adv = np.ones(Nx*Ny)
-c_s = np.ones(Nx*Ny)
-c_t = np.ones(Nx*Ny)
+c_adv = diags(np.ones(Nx*Ny))
+c_s = diags(np.ones(Nx*Ny))
+c_t = diags(np.ones(Nx*Ny))
 
 # ### Simplified lattice test setup
 # c_adv = np.ones(Nx*Ny)
