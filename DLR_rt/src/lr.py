@@ -580,13 +580,13 @@ def computeD(
     elif dimensions == "2x1d":
         if option_dd == "no_dd":
             if option_coeff == "constant":
-                D1X = lr.U.T @ DX @ lr.U * grid.dx
-                D1Y = lr.U.T @ DY @ lr.U * grid.dy
+                D1X = lr.U.T @ DX @ lr.U * grid.dx * grid.dy
+                D1Y = lr.U.T @ DY @ lr.U * grid.dy * grid.dx
                 D1 = [D1X, D1Y]
             
             elif option_coeff == "space_dep":
-                D1X = lr.U.T @ grid.coeff[0] @ DX @ lr.U * grid.dx
-                D1Y = lr.U.T @ grid.coeff[0] @ DY @ lr.U * grid.dy
+                D1X = lr.U.T @ grid.coeff[0] @ DX @ lr.U * grid.dx * grid.dy
+                D1Y = lr.U.T @ grid.coeff[0] @ DY @ lr.U * grid.dy * grid.dx
                 D1 = [D1X, D1Y]
 
         elif option_dd == "dd":
@@ -596,16 +596,16 @@ def computeD(
                 lr, K_bdry_left, K_bdry_right, K_bdry_bottom, K_bdry_top, grid, DX, DY
             )
             if option_coeff == "constant":
-                D1X = lr.U.T @ DXK * grid.dx
+                D1X = lr.U.T @ DXK * grid.dx * grid.dy
 
-                D1Y = lr.U.T @ DYK * grid.dy
+                D1Y = lr.U.T @ DYK * grid.dy * grid.dx
 
                 D1 = [D1X, D1Y]
             
             elif option_coeff == "space_dep":
-                D1X = lr.U.T @ grid.coeff[0] @ DXK * grid.dx
+                D1X = lr.U.T @ grid.coeff[0] @ DXK * grid.dx * grid.dy
 
-                D1Y = lr.U.T @ grid.coeff[0] @ DYK * grid.dy
+                D1Y = lr.U.T @ grid.coeff[0] @ DYK * grid.dy * grid.dx
 
                 D1 = [D1X, D1Y]
 
@@ -613,8 +613,9 @@ def computeD(
 
 def computeE(lr, grid):
 
-    E1_1 = lr.U.T @ grid.coeff[1] @ lr.U * grid.dx
-    E1_2 = lr.U.T @ grid.coeff[2] @ lr.U * grid.dx
+    E1_1 = lr.U.T @ grid.coeff[1] @ lr.U * grid.dx * grid.dy
+    #multiply with grid.dy as well?
+    E1_2 = lr.U.T @ grid.coeff[2] @ lr.U * grid.dx * grid.dy
     E1 = [E1_1, E1_2]
 
     return E1
@@ -930,12 +931,12 @@ def add_basis_functions(
 
     # QR-decomp
     lr.U, R_U = np.linalg.qr(lr.U, mode="reduced")
-    if option == "x_advection":
+    if dimensions == "1x1d":
         lr.U /= np.sqrt(grid.dx)
         R_U *= np.sqrt(grid.dx)
-    elif option == "y_advection":
-        lr.U /= np.sqrt(grid.dy)
-        R_U *= np.sqrt(grid.dy)
+    elif dimensions == "2x1d":
+        lr.U /= (np.sqrt(grid.dx) * np.sqrt(grid.dy))
+        R_U *= (np.sqrt(grid.dx) * np.sqrt(grid.dy))
     lr.V, R_V = np.linalg.qr(lr.V, mode="reduced")
     if dimensions == "1x1d":
         lr.V /= np.sqrt(grid.dmu)

@@ -87,8 +87,12 @@ def PSI_lie(lr, grid, dt, F_b=None, DX=None, DY=None, dimensions="1x1d",
         dt,
     )
     lr.U, lr.S = np.linalg.qr(K, mode="reduced")
-    lr.U /= np.sqrt(grid.dx)
-    lr.S *= np.sqrt(grid.dx)
+    if dimensions == "1x1d":
+        lr.U /= np.sqrt(grid.dx)
+        lr.S *= np.sqrt(grid.dx)
+    elif dimensions == "2x1d":
+        lr.U /= (np.sqrt(grid.dx) * np.sqrt(grid.dy))
+        lr.S *= (np.sqrt(grid.dx) * np.sqrt(grid.dy))
 
     # S step
     D1 = computeD(lr, grid, F_b, DX=DX, DY=DY, 
@@ -244,8 +248,8 @@ def PSI_splitting_lie(
     K = lr.U @ lr.S
     K += dt * RK4(K, lambda K: Kstep1(C1, grid, lr, F_b, F_b_top_bottom, DX, DY), dt)
     lr.U, lr.S = np.linalg.qr(K, mode="reduced")
-    lr.U /= np.sqrt(grid.dx)
-    lr.S *= np.sqrt(grid.dx)
+    lr.U /= (np.sqrt(grid.dx) * np.sqrt(grid.dy))
+    lr.S *= (np.sqrt(grid.dx) * np.sqrt(grid.dy))
 
     # S step
     D1 = computeD(
@@ -279,8 +283,8 @@ def PSI_splitting_lie(
     K = lr.U @ lr.S
     K += dt * RK4(K, lambda K: Kstep2(C1, grid, lr, F_b, F_b_top_bottom, DX, DY), dt)
     lr.U, lr.S = np.linalg.qr(K, mode="reduced")
-    lr.U /= np.sqrt(grid.dx)
-    lr.S *= np.sqrt(grid.dx)
+    lr.U /= (np.sqrt(grid.dx) * np.sqrt(grid.dy))
+    lr.S *= (np.sqrt(grid.dx) * np.sqrt(grid.dy))
 
     # S step
     D1 = computeD(
@@ -308,8 +312,8 @@ def PSI_splitting_lie(
     K = lr.U @ lr.S
     K += dt * RK4(K, lambda K: Kstep3(K, C2, grid), dt)
     lr.U, lr.S = np.linalg.qr(K, mode="reduced")
-    lr.U /= np.sqrt(grid.dx)
-    lr.S *= np.sqrt(grid.dx)
+    lr.U /= (np.sqrt(grid.dx) * np.sqrt(grid.dy))
+    lr.S *= (np.sqrt(grid.dx) * np.sqrt(grid.dy))
 
     # S step
     lr.S += dt * RK4(lr.S, lambda S: Sstep3(S, C2, grid), dt)
@@ -375,8 +379,8 @@ def PSI_splitting_strang(
     K = lr.U @ lr.S
     K += 0.5 * dt * RK4(K, lambda K: Kstep1(C1, grid, lr, F_b, DX, DY), 0.5 * dt)
     lr.U, lr.S = np.linalg.qr(K, mode="reduced")
-    lr.U /= np.sqrt(grid.dx)
-    lr.S *= np.sqrt(grid.dx)
+    lr.U /= (np.sqrt(grid.dx) * np.sqrt(grid.dy))
+    lr.S *= (np.sqrt(grid.dx) * np.sqrt(grid.dy))
 
     # 1/2 S step
     D1 = computeD(
@@ -423,8 +427,8 @@ def PSI_splitting_strang(
     K = lr.U @ lr.S
     K += 0.5 * dt * RK4(K, lambda K: Kstep1(C1, grid, lr, F_b, DX, DY), 0.5 * dt)
     lr.U, lr.S = np.linalg.qr(K, mode="reduced")
-    lr.U /= np.sqrt(grid.dx)
-    lr.S *= np.sqrt(grid.dx)
+    lr.U /= (np.sqrt(grid.dx) * np.sqrt(grid.dy))
+    lr.S *= (np.sqrt(grid.dx) * np.sqrt(grid.dy))
 
     ### Drop basis for adaptive rank strategy:
     lr, grid = drop_basis_functions(lr, grid, drop_tol)
@@ -443,8 +447,8 @@ def PSI_splitting_strang(
     K = lr.U @ lr.S
     K += 0.5 * dt * RK4(K, lambda K: Kstep2(K, C1, grid, DX, DY), 0.5 * dt)
     lr.U, lr.S = np.linalg.qr(K, mode="reduced")
-    lr.U /= np.sqrt(grid.dx)
-    lr.S *= np.sqrt(grid.dx)
+    lr.U /= (np.sqrt(grid.dx) * np.sqrt(grid.dy))
+    lr.S *= (np.sqrt(grid.dx) * np.sqrt(grid.dy))
 
     # 1/2 S step
     D1 = computeD(
@@ -490,8 +494,8 @@ def PSI_splitting_strang(
     K = lr.U @ lr.S
     K += 0.5 * dt * RK4(K, lambda K: Kstep2(K, C1, grid, DX, DY), 0.5 * dt)
     lr.U, lr.S = np.linalg.qr(K, mode="reduced")
-    lr.U /= np.sqrt(grid.dx)
-    lr.S *= np.sqrt(grid.dx)
+    lr.U /= (np.sqrt(grid.dx) * np.sqrt(grid.dy))
+    lr.S *= (np.sqrt(grid.dx) * np.sqrt(grid.dy))
 
     ### Drop basis for adaptive rank strategy:
     lr, grid = drop_basis_functions(lr, grid, drop_tol)
@@ -505,8 +509,8 @@ def PSI_splitting_strang(
     K = lr.U @ lr.S
     K += 0.5 * dt * RK4(K, lambda K: Kstep3(K, C2, grid), 0.5 * dt)
     lr.U, lr.S = np.linalg.qr(K, mode="reduced")
-    lr.U /= np.sqrt(grid.dx)
-    lr.S *= np.sqrt(grid.dx)
+    lr.U /= (np.sqrt(grid.dx) * np.sqrt(grid.dy))
+    lr.S *= (np.sqrt(grid.dx) * np.sqrt(grid.dy))
 
     # 1/2 S step
     lr.S += 0.5 * dt * RK4(lr.S, lambda S: Sstep3(S, C2, grid), 0.5 * dt)
@@ -530,7 +534,7 @@ def PSI_splitting_strang(
     K = lr.U @ lr.S
     K += 0.5 * dt * RK4(K, lambda K: Kstep3(K, C2, grid), 0.5 * dt)
     lr.U, lr.S = np.linalg.qr(K, mode="reduced")
-    lr.U /= np.sqrt(grid.dx)
-    lr.S *= np.sqrt(grid.dx)
+    lr.U /= (np.sqrt(grid.dx) * np.sqrt(grid.dy))
+    lr.S *= (np.sqrt(grid.dx) * np.sqrt(grid.dy))
 
     return lr, grid, rank_adapted, rank_dropped
