@@ -633,6 +633,7 @@ def Kstep(
     inflow=False,
     dimensions="1x1d",
     option_coeff="constant",
+    source=None
 ):
     """
     K step of radiative transfer equation.
@@ -669,18 +670,23 @@ def Kstep(
             )
 
         elif option_coeff == "space_dep":
+
+            V_int =(lr.V.T @ np.ones((grid.Nphi, grid.Nphi))).T * grid.dphi
+            M = np.ones((1, grid.Nphi))
+
             rhs = (
                 -grid.coeff[0] @ DX @ K @ C1[0]
                 - grid.coeff[0] @ DY @ K @ C1[1]
                 + 0.5 / (np.pi) * grid.coeff[1] @ K @ C2.T @ C2
                 - grid.coeff[2] @ K
+                + 0.5 / (np.pi) * source @ (M @ V_int)
             )
 
     return rhs
 
 
 def Sstep(S, C1, C2, D1, grid, inflow=False, 
-          dimensions="1x1d", option_coeff="constant", E1=None):
+          dimensions="1x1d", option_coeff="constant", E1=None, source=None, lr=None):
     """
     S step of radiative transfer equation.
 
@@ -713,18 +719,23 @@ def Sstep(S, C1, C2, D1, grid, inflow=False,
             )
 
         elif option_coeff == "space_dep":
+
+            V_int = (lr.V.T @ np.ones((grid.Nphi, grid.Nphi))).T * grid.dphi
+            M = np.ones((1, grid.Nphi))
+
             rhs = (
                 D1[0] @ S @ C1[0]
                 + D1[1] @ S @ C1[1]
                 - 0.5 / (np.pi) * E1[0] @ S @ C2.T @ C2
                 + E1[1] @ S
+                - 0.5 / (np.pi) * lr.U.T @ source @ (M @ V_int) * grid.dx * grid.dy
             )
 
     return rhs
 
 
 def Lstep(L, D1, B1, grid, lr=None, inflow=False, 
-          dimensions="1x1d", option_coeff="constant", E1=None):
+          dimensions="1x1d", option_coeff="constant", E1=None, source=None):
     """
     L step of radiative transfer equation.
 
@@ -756,11 +767,15 @@ def Lstep(L, D1, B1, grid, lr=None, inflow=False,
             )
         
         elif option_coeff == "space_dep":
+
+            M = np.ones((1, grid.Nphi))
+
             rhs = (
                 -np.diag(np.cos(grid.PHI)) @ L @ D1[0].T
                 - np.diag(np.sin(grid.PHI)) @ L @ D1[1].T
                 + 0.5 / (np.pi) * B1 @ E1[0]
                 - L @ E1[1]
+                + 0.5 / (np.pi) * ((lr.U.T @ source) @ M).T * grid.dx * grid.dy
             )
 
     return rhs

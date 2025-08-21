@@ -50,28 +50,36 @@ def setInitialCondition_1x1d_lr(grid: Grid_1x1d, sigma: float = 1.0):
     return lr
 
 
-def setInitialCondition_2x1d_lr(grid: Grid_2x1d):
+def setInitialCondition_2x1d_lr(grid: Grid_2x1d, option_cond: str = "standard"):
     """
     Set initial condition.
 
     Set initial condition for 2x1d low rank grid with or without domain decomposition 
     and periodic boundary conditions.
+    Set option_cond = "lattice" for lattice grid simulation.
     """
     S = np.zeros((grid.r, grid.r))
     U = np.zeros((grid.Nx * grid.Ny, grid.r))
     V = np.zeros((grid.Nphi, grid.r))
-    for i in range(grid.Ny):
-        U[i * grid.Nx : (i + 1) * grid.Nx, 0] = (
-            1
-            / (2 * np.pi)
-            * np.exp(-((grid.X - 0.5) ** 2) / 0.07)
-            * np.exp(-((grid.Y[i] - 0.5) ** 2) / 0.07)
-        )
-        # U[i*grid.Nx:(i+1)*grid.Nx, 0] = (
-        #     np.sin(2*np.pi*grid.X)*np.sin(2*np.pi*grid.Y[i])
-        # )
-    V[4, 0] = 1.0
-    S[0, 0] = 1.0
+
+    if option_cond == "standard":
+        for i in range(grid.Ny):
+            U[i * grid.Nx : (i + 1) * grid.Nx, 0] = (
+                1
+                / (2 * np.pi)
+                * np.exp(-((grid.X - 0.5) ** 2) / 0.07)
+                * np.exp(-((grid.Y[i] - 0.5) ** 2) / 0.07)
+            )
+            # U[i*grid.Nx:(i+1)*grid.Nx, 0] = (
+            #     np.sin(2*np.pi*grid.X)*np.sin(2*np.pi*grid.Y[i])
+            # )
+        V[4, 0] = 1.0
+        S[0, 0] = 1.0
+    
+    elif option_cond == "lattice":
+        U[:,0] = 1e-9
+        V[:,0] = 1.0 / grid.Nphi
+        S[0,0] = 1.0
 
     U_ortho, R_U = np.linalg.qr(U, mode="reduced")
     V_ortho, R_V = np.linalg.qr(V, mode="reduced")

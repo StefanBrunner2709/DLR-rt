@@ -50,7 +50,7 @@ def RK4(f, rhs, dt):
 
 
 def PSI_lie(lr, grid, dt, F_b=None, DX=None, DY=None, dimensions="1x1d", 
-            option_coeff="constant"):
+            option_coeff="constant", source=None):
     """
     Projector splitting integrator with lie splitting.
 
@@ -82,7 +82,7 @@ def PSI_lie(lr, grid, dt, F_b=None, DX=None, DY=None, dimensions="1x1d",
         K,
         lambda K: Kstep(
             K, C1, C2, grid, lr, F_b, DX=DX, DY=DY, inflow=inflow, 
-            dimensions=dimensions, option_coeff=option_coeff
+            dimensions=dimensions, option_coeff=option_coeff, source=source
         ),
         dt,
     )
@@ -104,7 +104,8 @@ def PSI_lie(lr, grid, dt, F_b=None, DX=None, DY=None, dimensions="1x1d",
     lr.S += dt * RK4(
         lr.S, lambda S: Sstep(S, C1, C2, D1, grid, 
                               inflow, dimensions=dimensions, 
-                              option_coeff=option_coeff, E1=E1), dt
+                              option_coeff=option_coeff, E1=E1, source=source, 
+                              lr=lr), dt
     )
 
     # L step
@@ -112,7 +113,7 @@ def PSI_lie(lr, grid, dt, F_b=None, DX=None, DY=None, dimensions="1x1d",
     B1 = computeB(L, grid, dimensions=dimensions)
     L += dt * RK4(
         L, lambda L: Lstep(L, D1, B1, grid, lr, inflow, dimensions=dimensions, 
-                              option_coeff=option_coeff, E1=E1), dt
+                              option_coeff=option_coeff, E1=E1, source=source), dt
     )
     lr.V, St = np.linalg.qr(L, mode="reduced")
     lr.S = St.T
