@@ -6,16 +6,25 @@ from DLR_rt.src.grid import Grid_2x1d
 from DLR_rt.src.initial_condition import setInitialCondition_2x1d_lr
 from DLR_rt.src.integrators import PSI_lie
 from DLR_rt.src.lr import LR
-from DLR_rt.src.util import computeD_cendiff_2x1d
+from DLR_rt.src.util import computeD_cendiff_2x1d, computeD_upwind_2x1d
 
 
-def integrate(lr0: LR, grid: Grid_2x1d, t_f: float, dt: float, option: str = "lie"):
+def integrate(lr0: LR, grid: Grid_2x1d, t_f: float, dt: float, option: str = "lie", 
+              option_scheme: str = "cendiff"):
     lr = lr0
     t = 0
     time = []
     time.append(t)
 
     DX, DY = computeD_cendiff_2x1d(grid, "no_dd")
+
+    if option_scheme == "upwind":
+        DX_0, DX_1, DY_0, DY_1 = computeD_upwind_2x1d(grid, "no_dd")
+    else:
+        DX_0 = None
+        DX_1 = None
+        DY_0 = None
+        DY_1 = None
 
     with tqdm(total=t_f / dt, desc="Running Simulation") as pbar:
         while t < t_f:
@@ -25,7 +34,9 @@ def integrate(lr0: LR, grid: Grid_2x1d, t_f: float, dt: float, option: str = "li
                 dt = t_f - t
 
             if option == "lie":
-                lr, grid = PSI_lie(lr, grid, dt, DX=DX, DY=DY, dimensions="2x1d")
+                lr, grid = PSI_lie(lr, grid, dt, DX=DX, DY=DY, dimensions="2x1d", 
+                                   option_scheme=option_scheme,
+                                   DX_0=DX_0, DX_1=DX_1, DY_0=DY_0, DY_1=DY_1)
 
             t += dt
             time.append(t)
@@ -35,9 +46,9 @@ def integrate(lr0: LR, grid: Grid_2x1d, t_f: float, dt: float, option: str = "li
 
 ### Plotting
 
-Nx = 32
-Ny = 32
-Nphi = 32
+Nx = 64
+Ny = 64
+Nphi = 64
 dt = 1e-3
 r = 5
 t_f = 0.1
@@ -45,11 +56,12 @@ fs = 16
 savepath = "plots/"
 method = "lie"
 option_grid = "dd"      # Just changes how gridpoints are chosen
+option_scheme = "upwind"
 
-grid = Grid_2x1d(Nx, Ny, Nphi, r, _option_dd=option_grid)
+grid = Grid_2x1d(Nx, Ny, Nphi, r, _option_dd=option_grid, _coeff=[1.0, 1.0, 1.0])
 lr0 = setInitialCondition_2x1d_lr(grid)
 f0 = lr0.U @ lr0.S @ lr0.V.T
-lr, time = integrate(lr0, grid, t_f, dt)
+lr, time = integrate(lr0, grid, t_f, dt, option_scheme=option_scheme)
 f = lr.U @ lr.S @ lr.V.T
 
 rho0 = (

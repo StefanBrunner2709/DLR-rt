@@ -633,7 +633,12 @@ def Kstep(
     inflow=False,
     dimensions="1x1d",
     option_coeff="constant",
-    source=None
+    source=None,
+    option_scheme="cendiff",
+    DX_0=None,
+    DX_1=None,
+    DY_0=None,
+    DY_1=None
 ):
     """
     K step of radiative transfer equation.
@@ -661,26 +666,89 @@ def Kstep(
             )
 
     elif dimensions == "2x1d":
-        if option_coeff == "constant":
-            rhs = (
-                -(grid.coeff[0]) * DX @ K @ C1[0]
-                - (grid.coeff[0]) * DY @ K @ C1[1]
-                + 0.5 / (np.pi) * (grid.coeff[1]) * K @ C2.T @ C2
-                - (grid.coeff[2]) * K
-            )
+        if option_scheme=="cendiff":
 
-        elif option_coeff == "space_dep":
+            if option_coeff == "constant":
+                rhs = (
+                    -(grid.coeff[0]) * DX @ K @ C1[0]
+                    - (grid.coeff[0]) * DY @ K @ C1[1]
+                    + 0.5 / (np.pi) * (grid.coeff[1]) * K @ C2.T @ C2
+                    - (grid.coeff[2]) * K
+                )
 
-            V_int =(lr.V.T @ np.ones((grid.Nphi, grid.Nphi))).T * grid.dphi
-            M = np.ones((1, grid.Nphi))
+            elif option_coeff == "space_dep":
 
-            rhs = (
-                -grid.coeff[0] @ DX @ K @ C1[0]
-                - grid.coeff[0] @ DY @ K @ C1[1]
-                + 0.5 / (np.pi) * grid.coeff[1] @ K @ C2.T @ C2
-                - grid.coeff[2] @ K
-                + 0.5 / (np.pi) * source @ (M @ V_int)
-            )
+                V_int =(lr.V.T @ np.ones((grid.Nphi, grid.Nphi))).T * grid.dphi
+                M = np.ones((1, grid.Nphi))
+
+                rhs = (
+                    -grid.coeff[0] @ DX @ K @ C1[0]
+                    - grid.coeff[0] @ DY @ K @ C1[1]
+                    + 0.5 / (np.pi) * grid.coeff[1] @ K @ C2.T @ C2
+                    - grid.coeff[2] @ K
+                    + 0.5 / (np.pi) * source @ (M @ V_int)
+                )
+        
+        elif option_scheme=="upwind":
+            ### Diagonalize matrix C
+            # Eigen-decomposition
+            eigvals_0, P_0 = np.linalg.eig(C1[0])
+            eigvals_1, P_1 = np.linalg.eig(C1[1])
+
+            # Construct diagonal matrix of eigenvalues
+            T1_0 = np.diag(eigvals_0)
+            T1_1 = np.diag(eigvals_1)
+
+            ### Obtain matrices from upwind
+            # Project into eigenbasis
+            KP_0 = K @ P_0
+            KP_1 = K @ P_1
+
+            # Set up upwind matrices
+            DXK_0 = DX_0 @ KP_0
+            DXK_1 = DX_1 @ KP_0
+            DYK_0 = DY_0 @ KP_1
+            DYK_1 = DY_1 @ KP_1
+
+            # calculate DXK and DYK
+            DXK = np.zeros((grid.Nx*grid.Ny,grid.r))
+            DYK = np.zeros((grid.Nx*grid.Ny,grid.r))
+            for i in range(grid.r):
+
+                if eigvals_0[i] > 0:
+                    DXK[:,i] = DXK_0[:,i]
+                else:
+                    DXK[:,i] = DXK_1[:,i]
+
+                if eigvals_1[i] > 0:
+                    DYK[:,i] = DYK_0[:,i]
+                else:
+                    DYK[:,i] = DYK_1[:,i]
+
+            # # Project back to physical space
+            # DXK = DXK @ P_0
+            # DYK = DYK @ P_1
+
+            if option_coeff == "constant":
+                rhs = (
+                    -(grid.coeff[0]) * DXK @ T1_0 @ np.linalg.inv(P_0)
+                    - (grid.coeff[0]) * DYK @ T1_1 @ np.linalg.inv(P_1)
+                    + 0.5 / (np.pi) * (grid.coeff[1]) * K @ C2.T @ C2
+                    - (grid.coeff[2]) * K
+                )
+
+            elif option_coeff == "space_dep":
+
+                V_int =(lr.V.T @ np.ones((grid.Nphi, grid.Nphi))).T * grid.dphi
+                M = np.ones((1, grid.Nphi))
+
+                rhs = (
+                    -grid.coeff[0] @ DXK @ T1_0 @ np.linalg.inv(P_0)
+                    - grid.coeff[0] @ DYK @ T1_1 @ np.linalg.inv(P_1)
+                    + 0.5 / (np.pi) * grid.coeff[1] @ K @ C2.T @ C2
+                    - grid.coeff[2] @ K
+                    + 0.5 / (np.pi) * source @ (M @ V_int)
+                )
 
     return rhs
 

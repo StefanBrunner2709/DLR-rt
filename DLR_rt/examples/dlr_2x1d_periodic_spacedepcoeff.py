@@ -7,17 +7,25 @@ from DLR_rt.src.grid import Grid_2x1d
 from DLR_rt.src.initial_condition import setInitialCondition_2x1d_lr
 from DLR_rt.src.integrators import PSI_lie
 from DLR_rt.src.lr import LR
-from DLR_rt.src.util import computeD_cendiff_2x1d
+from DLR_rt.src.util import computeD_cendiff_2x1d, computeD_upwind_2x1d
 
 
 def integrate(lr0: LR, grid: Grid_2x1d, t_f: float, dt: float, 
-              option: str = "lie", source = None):
+              option: str = "lie", source = None, option_scheme : str = "cendiff"):
     lr = lr0
     t = 0
     time = []
     time.append(t)
 
     DX, DY = computeD_cendiff_2x1d(grid, "no_dd")
+
+    if option_scheme == "upwind":
+        DX_0, DX_1, DY_0, DY_1 = computeD_upwind_2x1d(grid, "no_dd")
+    else:
+        DX_0 = None
+        DX_1 = None
+        DY_0 = None
+        DY_1 = None
 
     with tqdm(total=t_f / dt, desc="Running Simulation") as pbar:
         while t < t_f:
@@ -29,7 +37,8 @@ def integrate(lr0: LR, grid: Grid_2x1d, t_f: float, dt: float,
             if option == "lie":
                 lr, grid = PSI_lie(lr, grid, dt, DX=DX, DY=DY, 
                                    dimensions="2x1d", option_coeff="space_dep", 
-                                   source=source)
+                                   source=source, option_scheme=option_scheme,
+                                   DX_0=DX_0, DX_1=DX_1, DY_0=DY_0, DY_1=DY_1)
 
             t += dt
             time.append(t)
@@ -43,12 +52,13 @@ Nx = 128
 Ny = 128
 Nphi = 128
 dt = 1e-3
-r = 128
+r = 5
 t_f = 0.1
 fs = 16
 savepath = "plots/"
 method = "lie"
 option_grid = "dd"      # Just changes how gridpoints are chosen
+option_scheme = "upwind"
 
 # ### To compare with constant coefficient results
 # c_adv = diags(np.ones(Nx*Ny))
@@ -140,8 +150,8 @@ c_t = diags(c_t_vec)
 # c_s = diags(np.zeros(Nx*Ny))
 # c_t = diags(np.zeros(Nx*Ny))
 
-# num_blocks = 8
-# block_size = int(Nx/num_blocks)  
+num_blocks = 8
+block_size = int(Nx/num_blocks)  
 
 ### Calculate source
 
@@ -162,7 +172,7 @@ source = matrix.flatten()[:, None]
 grid = Grid_2x1d(Nx, Ny, Nphi, r, _option_dd=option_grid, _coeff=[c_adv, c_s, c_t])
 lr0 = setInitialCondition_2x1d_lr(grid, option_cond="lattice")
 f0 = lr0.U @ lr0.S @ lr0.V.T
-lr, time = integrate(lr0, grid, t_f, dt, source=source)
+lr, time = integrate(lr0, grid, t_f, dt, source=source, option_scheme=option_scheme)
 f = lr.U @ lr.S @ lr.V.T
 
 rho0 = (
