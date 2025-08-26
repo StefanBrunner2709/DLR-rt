@@ -25,6 +25,7 @@ def integrate(
     tol_sing_val: float = 1e-6,
     drop_tol: float = 1e-6,
     method="lie",
+    source_left_bottom=None
 ):
     lr_left_bottom = lr0_left_bottom
     lr_left_top = lr0_left_top
@@ -118,6 +119,7 @@ def integrate(
                 drop_tol=drop_tol,
                 rank_adapted=rank_left_bottom_adapted,
                 rank_dropped=rank_left_bottom_dropped,
+                source=source_left_bottom,
             )
 
             ### Update left_top side
@@ -209,12 +211,12 @@ def integrate(
 
 ### Plotting
 
-Nx = 32
-Ny = 32
-Nphi = 32
+Nx = 64
+Ny = 64
+Nphi = 64
 dt = 1e-3
 r = 5
-t_f = 0.1
+t_f = 0.5
 fs = 16
 savepath = "plots/"
 method = "lie"
@@ -228,10 +230,28 @@ grid_left, grid_right = grid.split_x()
 grid_left_bottom, grid_left_top = grid_left.split_y()
 grid_right_bottom, grid_right_top = grid_right.split_y()
 
-lr0_left_bottom = setInitialCondition_2x1d_lr(grid_left_bottom)
-lr0_left_top = setInitialCondition_2x1d_lr(grid_left_top)
-lr0_right_bottom = setInitialCondition_2x1d_lr(grid_right_bottom)
-lr0_right_top = setInitialCondition_2x1d_lr(grid_right_top)
+grid_left_bottom.coeff = [1,0,0]
+grid_left_top.coeff = [1,0,0]
+grid_right_bottom.coeff = [1,0,0]
+grid_right_top.coeff = [1,0,0]
+
+# Set source in left_bottom grid
+source_left_bottom = np.ones((grid_left_bottom.Nx, grid_left_bottom.Ny))
+# for i in range(grid_left_bottom.Nx):
+#     for j in range(grid_left_bottom.Ny):
+#         source_left_bottom[i,j] = (
+#                         1
+#                         / (2 * np.pi)
+#                         * np.exp(-((grid.X[i] - 0.25) ** 2) / 0.02)
+#                         * np.exp(-((grid.Y[j] - 0.25) ** 2) / 0.02)
+#                     )
+
+source_left_bottom = source_left_bottom.flatten()[:, None]
+
+lr0_left_bottom = setInitialCondition_2x1d_lr(grid_left_bottom, option_cond="lattice")
+lr0_left_top = setInitialCondition_2x1d_lr(grid_left_top, option_cond="lattice")
+lr0_right_bottom = setInitialCondition_2x1d_lr(grid_right_bottom, option_cond="lattice")
+lr0_right_top = setInitialCondition_2x1d_lr(grid_right_top, option_cond="lattice")
 
 f0_left_bottom = lr0_left_bottom.U @ lr0_left_bottom.S @ lr0_left_bottom.V.T
 f0_left_top = lr0_left_top.U @ lr0_left_top.S @ lr0_left_top.V.T
@@ -321,7 +341,8 @@ plt.savefig(savepath + "dd_splitting_2x1d_rho_initial.pdf")
     dt,
     method=method,
     tol_sing_val=1e-3,
-    drop_tol=1e-6,
+    drop_tol=1e-7,
+    source_left_bottom=source_left_bottom,
 )
 
 f_left_bottom = lr_left_bottom.U @ lr_left_bottom.S @ lr_left_bottom.V.T

@@ -251,6 +251,7 @@ def PSI_splitting_lie(
     drop_tol=1e-6,
     rank_adapted=None,
     rank_dropped=None,
+    source=None,
 ):
     """
     Projector splitting integrator with equation splitting and lie splitting.
@@ -340,23 +341,23 @@ def PSI_splitting_lie(
     if rank_dropped is not None:
         rank_dropped.append(grid.r)
 
-    # Step 3: collisions
+    # Step 3: collisions and source
 
     # K step
     C1, C2 = computeC(lr, grid, dimensions="2x1d")
     K = lr.U @ lr.S
-    K += dt * RK4(K, lambda K: Kstep3(K, C2, grid), dt)
+    K += dt * RK4(K, lambda K: Kstep3(K, C2, grid, lr, source=source), dt)
     lr.U, lr.S = np.linalg.qr(K, mode="reduced")
     lr.U /= (np.sqrt(grid.dx) * np.sqrt(grid.dy))
     lr.S *= (np.sqrt(grid.dx) * np.sqrt(grid.dy))
 
     # S step
-    lr.S += dt * RK4(lr.S, lambda S: Sstep3(S, C2, grid), dt)
+    lr.S += dt * RK4(lr.S, lambda S: Sstep3(S, C2, grid, lr, source=source), dt)
 
     # L step
     L = lr.V @ lr.S.T
     B1 = computeB(L, grid, dimensions="2x1d")
-    L += dt * RK4(L, lambda L: Lstep3(L, B1, grid), dt)
+    L += dt * RK4(L, lambda L: Lstep3(L, B1, grid, lr, source=source), dt)
     lr.V, St = np.linalg.qr(L, mode="reduced")
     lr.S = St.T
     lr.V /= np.sqrt(grid.dphi)

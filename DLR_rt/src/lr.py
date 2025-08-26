@@ -885,7 +885,7 @@ def Kstep2(C1, grid, lr, F_b_X, F_b_Y, DX, DY):
     return rhs
 
 
-def Kstep3(K, C2, grid):
+def Kstep3(K, C2, grid, lr, source=None):
     """
     K step of radiative transfer equation.
 
@@ -893,7 +893,13 @@ def Kstep3(K, C2, grid):
     after splitting the full equation in 2x1d.
     """
 
-    rhs = 0.5 / (np.pi) * (grid.coeff[1]) * K @ C2.T @ C2 - (grid.coeff[2]) * K
+    if source is None:
+        rhs = 0.5 / (np.pi) * (grid.coeff[1]) * K @ C2.T @ C2 - (grid.coeff[2]) * K
+    else:
+        V_int =(lr.V.T @ np.ones((grid.Nphi, grid.Nphi))).T * grid.dphi
+        M = np.ones((1, grid.Nphi))
+        rhs = (0.5 / (np.pi) * (grid.coeff[1]) * K @ C2.T @ C2 - (grid.coeff[2]) * K 
+               + 0.5 / (np.pi) * source @ (M @ V_int))
 
     return rhs
 
@@ -923,7 +929,7 @@ def Sstep2(C1, D1, grid):
     return rhs
 
 
-def Sstep3(S, C2, grid):
+def Sstep3(S, C2, grid, lr, source=None):
     """
     S step of radiative transfer equation.
 
@@ -931,7 +937,13 @@ def Sstep3(S, C2, grid):
     after splitting the full equation in 2x1d.
     """
 
-    rhs = -0.5 / (np.pi) * (grid.coeff[1]) * S @ C2.T @ C2 + (grid.coeff[2]) * S
+    if source is None:
+        rhs = -0.5 / (np.pi) * (grid.coeff[1]) * S @ C2.T @ C2 + (grid.coeff[2]) * S
+    else:
+        V_int = (lr.V.T @ np.ones((grid.Nphi, grid.Nphi))).T * grid.dphi
+        M = np.ones((1, grid.Nphi))
+        rhs = (-0.5 / (np.pi) * (grid.coeff[1]) * S @ C2.T @ C2 + (grid.coeff[2]) * S 
+               - 0.5 / (np.pi) * lr.U.T @ source @ (M @ V_int) * grid.dx * grid.dy)
 
     return rhs
 
@@ -962,7 +974,7 @@ def Lstep2(lr, D1, grid):
     return rhs
 
 
-def Lstep3(L, B1, grid):
+def Lstep3(L, B1, grid, lr, source=None):
     """
     L step of radiative transfer equation.
 
@@ -970,7 +982,12 @@ def Lstep3(L, B1, grid):
     after splitting the full equation in 2x1d.
     """
 
-    rhs = 0.5 / (np.pi) * (grid.coeff[1]) * B1 - (grid.coeff[2]) * L
+    if source is None:
+        rhs = 0.5 / (np.pi) * (grid.coeff[1]) * B1 - (grid.coeff[2]) * L
+    else:
+        M = np.ones((1, grid.Nphi))
+        rhs = (0.5 / (np.pi) * (grid.coeff[1]) * B1 - (grid.coeff[2]) * L 
+               + 0.5 / (np.pi) * ((lr.U.T @ source) @ M).T * grid.dx * grid.dy)
 
     return rhs
 
