@@ -326,6 +326,11 @@ class Grid_2x1d:
                     _Y=Y_sub,
                     _coeff=self.coeff,
                 )
+
+                # Save number of subgrids
+                subgrid.n_split_x = n_split_x
+                subgrid.n_split_y = n_split_y
+
                 row.append(subgrid)
             subgrids.append(row)
 

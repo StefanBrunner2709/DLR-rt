@@ -105,3 +105,41 @@ def setInitialCondition_2x1d_lr(grid: Grid_2x1d, option_cond: str = "standard"):
 
     lr = LR(U_ortho, S_ortho, V_ortho)
     return lr
+
+
+def setInitialCondition_2x1d_lr_subgrids(subgrids, option_cond: str = "standard"):
+
+    n_split_x = subgrids[0][0].n_split_x
+    n_split_y = subgrids[0][0].n_split_y
+
+    lr_on_subgrids = []
+
+    for j in range(n_split_y):
+        row = []
+        for i in range(n_split_x):
+
+            S = np.zeros((subgrids[j][i].r, subgrids[j][i].r))
+            U = np.zeros((subgrids[j][i].Nx * subgrids[j][i].Ny, subgrids[j][i].r))
+            V = np.zeros((subgrids[j][i].Nphi, subgrids[j][i].r))
+
+            if option_cond == "standard":
+                for k in range(subgrids[j][i].Ny):
+                    U[k * subgrids[j][i].Nx : (k + 1) * subgrids[j][i].Nx, 0] = (
+                        1
+                        / (2 * np.pi)
+                        * np.exp(-((subgrids[j][i].X - 0.5) ** 2) / 0.02)
+                        * np.exp(-((subgrids[j][i].Y[k] - 0.5) ** 2) / 0.02)
+                    )
+                V[0, 0] = 1.0
+                S[0, 0] = 1.0
+
+            U_ortho, R_U = np.linalg.qr(U, mode="reduced")
+            V_ortho, R_V = np.linalg.qr(V, mode="reduced")
+            S_ortho = R_U @ S @ R_V.T
+
+            lr = LR(U_ortho, S_ortho, V_ortho)
+
+            row.append(lr)
+        lr_on_subgrids.append(row)
+
+    return lr_on_subgrids
