@@ -277,7 +277,8 @@ class Grid_2x1d:
 
         return bottom_grid, top_grid
 
-    def split_grid_into_subgrids(self, n_split_x: int = 8, n_split_y: int = 8):
+    def split_grid_into_subgrids(self, n_split_x: int = 8, n_split_y: int = 8, 
+                                 option_coeff: str = "standard"):
         """
         Split a Grid_2x1d object into smaller subgrids.
 
@@ -289,6 +290,8 @@ class Grid_2x1d:
             Number of subgrids along x-direction (default = 8).
         n_split_y : int
             Number of subgrids along y-direction (default = 8).
+        option_coeff : str
+            Set lattice for lattice grid 8x8.
 
         Returns
         -------
@@ -325,5 +328,17 @@ class Grid_2x1d:
                 )
                 row.append(subgrid)
             subgrids.append(row)
+
+        if option_coeff == "lattice":
+
+            for j in range(1,7,2):  # Set coefficients of 9 subgrids
+                for i in range(1,7,2):
+                    subgrids[j][i].coeff = [1.0, 0.0, 10.0]
+
+            subgrids[1][3].coeff = [1.0, 1.0, 1.0]  # Set back coeff of 1 subgrid
+
+            for j in range(2,6,2):
+                for i in range(2,6,2):
+                    subgrids[j][i].coeff = [1.0, 0.0, 10.0]
 
         return subgrids
