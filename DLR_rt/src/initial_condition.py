@@ -67,19 +67,37 @@ def setInitialCondition_2x1d_lr(grid: Grid_2x1d, option_cond: str = "standard"):
             U[i * grid.Nx : (i + 1) * grid.Nx, 0] = (
                 1
                 / (2 * np.pi)
-                * np.exp(-((grid.X - 0.5) ** 2) / 0.07)
-                * np.exp(-((grid.Y[i] - 0.5) ** 2) / 0.07)
+                * np.exp(-((grid.X - 0.5) ** 2) / 0.02)
+                * np.exp(-((grid.Y[i] - 0.5) ** 2) / 0.02)
             )
             # U[i*grid.Nx:(i+1)*grid.Nx, 0] = (
             #     np.sin(2*np.pi*grid.X)*np.sin(2*np.pi*grid.Y[i])
             # )
-        V[4, 0] = 1.0
+        V[32, 0] = 1.0
         S[0, 0] = 1.0
     
     elif option_cond == "lattice":
-        U[:,0] = 1e-9
+        U[:,0] = 0
+        # V[8, 0] = 1.0
         V[:,0] = 1.0 / grid.Nphi
         S[0,0] = 1.0
+
+    elif option_cond == "f_direct":
+        f = np.zeros((grid.Nx * grid.Ny, grid.Nphi))
+        for i in range(grid.Ny):
+            f[i * grid.Nx : (i + 1) * grid.Nx, 0] = (
+                1
+                / (2 * np.pi)
+                * np.exp(-((grid.X - 0.5) ** 2) / 0.02)
+                * np.exp(-((grid.Y[i] - 0.5) ** 2) / 0.02)
+            )
+
+        U, S, Vt = np.linalg.svd(f, full_matrices=False)
+        V = Vt.T
+
+        U = U[:,:grid.r]
+        V = V[:,:grid.r]
+        S = np.diag(S[:grid.r])
 
     U_ortho, R_U = np.linalg.qr(U, mode="reduced")
     V_ortho, R_V = np.linalg.qr(V, mode="reduced")
