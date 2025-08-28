@@ -620,6 +620,19 @@ def computeE(lr, grid):
 
     return E1
 
+def eigh_sorted_desc(A):
+    # eigendecomposition (A symmetric), sorted descending if you like
+    vals, vecs = np.linalg.eigh(A)
+    idx = np.argsort(vals)[::-1]
+    return vals[idx], vecs[:, idx]
+
+def split_pm(vals, tol=0.0):
+    # optional tolerance: treat tiny eigenvalues as zero
+    if tol > 0.0:
+        vals = np.where(np.abs(vals) < tol, 0.0, vals)
+    lam_p = np.maximum(vals, 0.0)
+    lam_m = np.minimum(vals, 0.0)
+    return lam_p, lam_m
 
 def Kstep(
     K,
@@ -692,8 +705,8 @@ def Kstep(
         elif option_scheme=="upwind":
             ### Diagonalize matrix C
             # Eigen-decomposition
-            eigvals_0, P_0 = np.linalg.eig(C1[0])
-            eigvals_1, P_1 = np.linalg.eig(C1[1])
+            eigvals_0, P_0 = np.linalg.eigh(C1[0])  # matrix C1 is symmetric
+            eigvals_1, P_1 = np.linalg.eigh(C1[1])  
 
             # Construct diagonal matrix of eigenvalues
             T1_0 = np.diag(eigvals_0)
@@ -725,14 +738,10 @@ def Kstep(
                 else:
                     DYK[:,i] = DYK_1[:,i]
 
-            # # Project back to physical space
-            # DXK = DXK @ P_0
-            # DYK = DYK @ P_1
-
             if option_coeff == "constant":
                 rhs = (
-                    -(grid.coeff[0]) * DXK @ T1_0 @ np.linalg.inv(P_0)
-                    - (grid.coeff[0]) * DYK @ T1_1 @ np.linalg.inv(P_1)
+                    -(grid.coeff[0]) * DXK @ T1_0 @ P_0.T   # P is orthogonal
+                    - (grid.coeff[0]) * DYK @ T1_1 @ P_1.T
                     + 0.5 / (np.pi) * (grid.coeff[1]) * K @ C2.T @ C2
                     - (grid.coeff[2]) * K
                 )
