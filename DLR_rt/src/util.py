@@ -185,12 +185,23 @@ def plot_rho_subgrids(subgrids, lr_on_subgrids, fs = 16, savepath = "plots/", t 
             rho = (f @ np.ones(subgrids[j][i].Nphi)) * subgrids[j][i].dphi
 
             rho_matrix = rho.reshape((subgrids[j][i].Nx, subgrids[j][i].Ny),
-                                      order="F").T  # needed to add transpose
-
+                                      order="F")
             row.append(rho_matrix)
         rho_matrix_on_subgrids.append(row)
+    
+    rho_matrix_concatenate_y_list = []
+    for i in range(n_split_x):
+        rho_matrix_concatenate_y = rho_matrix_on_subgrids[0][i]
+        for j in range(1,n_split_y):
+            rho_matrix_concatenate_y = np.concatenate((rho_matrix_concatenate_y, 
+                                                    rho_matrix_on_subgrids[j][i]), 
+                                                    axis=1)
+        rho_matrix_concatenate_y_list.append(rho_matrix_concatenate_y)
 
-    rho_matrix_full = np.block(rho_matrix_on_subgrids)
+    rho_matrix_full = rho_matrix_concatenate_y_list[0]
+    for i in range(1,n_split_x):
+        rho_matrix_full = np.concatenate((rho_matrix_full, 
+                                          rho_matrix_concatenate_y_list[i]), axis=0)
 
     ### Do the plotting
     extent = [subgrids[0][0].X[0], subgrids[0][n_split_x-1].X[-1], 
