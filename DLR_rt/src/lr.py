@@ -179,7 +179,36 @@ def computeF_b_2x1d_X(f, grid, f_left=None, f_right=None, f_periodic=None):
                     )  # outflow to left side
 
     elif f_left is not None and f_right is not None:  # middle domain
-        print("ToDo")
+        for i in range(len(grid.PHI)):
+                if grid.PHI[i] < np.pi / 2 or grid.PHI[i] > 3 / 2 * np.pi:
+                    indices_left = list(
+                        range(grid.Nx - 1, grid.Nx * (grid.Ny + 1) - 1, grid.Nx)
+                    )  # pick every Nxth row
+                    F_b_X[: len(grid.Y), i] = f_left[
+                        indices_left, i
+                    ]  # This is inflow from left
+
+                    indices_outflow_1 = list(
+                        range(grid.Nx - 1, grid.Nx * (grid.Ny + 1) - 1, grid.Nx)
+                    )
+                    indices_outflow_2 = list(
+                        range(grid.Nx - 2, grid.Nx * (grid.Ny + 1) - 2, grid.Nx)
+                    )
+                    F_b_X[len(grid.Y) :, i] = f[indices_outflow_1, i] + (
+                        f[indices_outflow_1, i] - f[indices_outflow_2, i]
+                    )  # outflow to right side
+
+                else:
+                    indices_right = list(range(0, grid.Nx * (grid.Ny), grid.Nx))
+                    F_b_X[len(grid.Y) :, i] = f_right[
+                        indices_right, i
+                    ]  # This is inflow from right
+
+                    indices_outflow_0 = list(range(0, grid.Nx * (grid.Ny), grid.Nx))
+                    indices_outflow_1 = list(range(1, grid.Nx * (grid.Ny) + 1, grid.Nx))
+                    F_b_X[: len(grid.Y), i] = f[indices_outflow_0, i] - (
+                        f[indices_outflow_1, i] - f[indices_outflow_0, i]
+                    )  # outflow to left side
 
     else:  # only one domain
         print("ToDo")
@@ -264,7 +293,27 @@ def computeF_b_2x1d_Y(f, grid, f_bottom=None, f_top=None, f_periodic=None):
                     )  # outflow to bottom
 
     elif f_bottom is not None and f_top is not None:  # middle domain
-        print("ToDo")
+        for i in range(len(grid.PHI)):
+                if grid.PHI[i] < np.pi:
+                    F_b_Y[: len(grid.X), i] = f_bottom[
+                        grid.Nx * (grid.Ny - 1) : grid.Nx * grid.Ny, i
+                    ]  # This is inflow from bottom
+
+                    F_b_Y[len(grid.X) :, i] = f[
+                        grid.Nx * (grid.Ny - 1) : grid.Nx * grid.Ny, i
+                    ] + (
+                        f[grid.Nx * (grid.Ny - 1) : grid.Nx * grid.Ny, i]
+                        - f[grid.Nx * (grid.Ny - 2) : grid.Nx * (grid.Ny - 1), i]
+                    )  # outflow to top
+
+                else:
+                    F_b_Y[len(grid.X) :, i] = f_top[
+                        : grid.Nx, i
+                    ]  # This is inflow from top
+
+                    F_b_Y[: len(grid.X), i] = f[: grid.Nx, i] - (
+                        f[grid.Nx : grid.Nx * 2, i] - f[: grid.Nx, i]
+                    )  # outflow to bottom
 
     else:  # only one domain
         for i in range(len(grid.PHI)):
