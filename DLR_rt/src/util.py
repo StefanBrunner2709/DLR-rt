@@ -2,6 +2,7 @@
 Contains functions like mass computation.
 """
 
+import matplotlib.pyplot as plt
 import numpy as np
 from scipy import sparse
 
@@ -160,3 +161,55 @@ def computeD_upwind_2x1d(grid: Grid_2x1d, option_dd: str = "no_dd"):
     DY_1 *= 1 / grid.dy
 
     return DX_0.tocsr(), DX_1.tocsr(), DY_0.tocsr(), DY_1.tocsr()
+
+def plot_rho_subgrids(subgrids, lr_on_subgrids, fs = 16, savepath = "plots/", t = 0.0):
+    """
+    Plot rho over x and y.
+
+    Generate a colorplot of rho for simulation done on subgrids.
+    """
+
+    ### Build rho matrix
+    n_split_x = subgrids[0][0].n_split_x
+    n_split_y = subgrids[0][0].n_split_y
+
+    rho_matrix_on_subgrids = []
+
+    for j in range(n_split_y):
+        row = []
+        for i in range(n_split_x):
+
+            f = (lr_on_subgrids[j][i].U @ lr_on_subgrids[j][i].S @ 
+                 lr_on_subgrids[j][i].V.T)
+            
+            rho = (f @ np.ones(subgrids[j][i].Nphi)) * subgrids[j][i].dphi
+
+            rho_matrix = rho.reshape((subgrids[j][i].Nx, subgrids[j][i].Ny),
+                                      order="F").T  # needed to add transpose
+
+            row.append(rho_matrix)
+        rho_matrix_on_subgrids.append(row)
+
+    rho_matrix_full = np.block(rho_matrix_on_subgrids)
+
+    ### Do the plotting
+    extent = [subgrids[0][0].X[0], subgrids[0][n_split_x-1].X[-1], 
+              subgrids[0][0].Y[0], subgrids[n_split_y-1][0].Y[-1]]
+
+    fig, axes = plt.subplots(1, 1, figsize=(10, 8))
+
+    im = axes.imshow(rho_matrix_full.T, extent=extent, origin="lower")
+    axes.set_xlabel("$x$", fontsize=fs)
+    axes.set_ylabel("$y$", fontsize=fs)
+    axes.set_xticks([0, 0.5, 1])
+    axes.set_yticks([0, 0.5, 1])
+    axes.tick_params(axis="both", labelsize=fs, pad=10)
+
+    cbar_fixed = fig.colorbar(im, ax=axes)
+    cbar_fixed.set_ticks([np.min(rho_matrix_full), np.max(rho_matrix_full)])
+    cbar_fixed.ax.tick_params(labelsize=fs)
+
+    plt.tight_layout()
+    plt.savefig(savepath + "dd_splitting_2x1d_subgrids_rho_t" + str(t) + ".pdf")
+
+    return
