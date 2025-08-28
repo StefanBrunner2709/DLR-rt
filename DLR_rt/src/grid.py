@@ -276,3 +276,54 @@ class Grid_2x1d:
         )
 
         return bottom_grid, top_grid
+
+    def split_grid_into_subgrids(self, n_split_x: int = 8, n_split_y: int = 8):
+        """
+        Split a Grid_2x1d object into smaller subgrids.
+
+        Can be used for generating the grid of the lattice example.
+
+        Parameters
+        ----------
+        n_split_x : int
+            Number of subgrids along x-direction (default = 8).
+        n_split_y : int
+            Number of subgrids along y-direction (default = 8).
+
+        Returns
+        -------
+        subgrids : list of list of Grid_2x1d
+            2D list (n_split_y × n_split_x) of subgrid objects.
+        """
+
+        # Ensure divisibility
+        if self.Nx % n_split_x != 0 or self.Ny % n_split_y != 0:
+            raise ValueError("Nx and Ny must be divisible by n_split_x and n_split_y.")
+
+        sub_Nx = self.Nx // n_split_x
+        sub_Ny = self.Ny // n_split_y
+
+        subgrids = []
+
+        for j in range(n_split_y):
+            row = []
+            for i in range(n_split_x):
+                # Extract the slice of X and Y
+                X_sub = self.X[i * sub_Nx : (i + 1) * sub_Nx]
+                Y_sub = self.Y[j * sub_Ny : (j + 1) * sub_Ny]
+
+                # Create subgrid
+                subgrid = Grid_2x1d(
+                    _Nx=sub_Nx,
+                    _Ny=sub_Ny,
+                    _Nphi=self.Nphi,
+                    _r=self.r,
+                    _option_dd="dd",  # keep consistent spacing
+                    _X=X_sub,
+                    _Y=Y_sub,
+                    _coeff=self.coeff,
+                )
+                row.append(subgrid)
+            subgrids.append(row)
+
+        return subgrids
