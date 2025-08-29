@@ -73,7 +73,7 @@ def setInitialCondition_2x1d_lr(grid: Grid_2x1d, option_cond: str = "standard"):
             # U[i*grid.Nx:(i+1)*grid.Nx, 0] = (
             #     np.sin(2*np.pi*grid.X)*np.sin(2*np.pi*grid.Y[i])
             # )
-        V[32, 0] = 1.0
+        V[16, 0] = 1.0
         S[0, 0] = 1.0
     
     elif option_cond == "lattice":

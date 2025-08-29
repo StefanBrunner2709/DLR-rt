@@ -88,24 +88,15 @@ def PSI_lie(lr, grid, dt, F_b=None, DX=None, DY=None, dimensions="1x1d",
     # K step
     C1, C2 = computeC(lr, grid, dimensions=dimensions)
     K = lr.U @ lr.S
-    if option_scheme == "cendiff":
-        K += dt * RK4(
-            K,
-            lambda K: Kstep(
-                K, C1, C2, grid, lr, F_b, DX=DX, DY=DY, inflow=inflow, 
-                dimensions=dimensions, option_coeff=option_coeff, source=source
-            ),
-            dt,
-        )
-    elif option_scheme == "upwind":
-        K += dt * expl_Euler(
-            K,
-            lambda K: Kstep(
-                K, C1, C2, grid, lr, F_b, DX=DX, DY=DY, inflow=inflow, 
-                dimensions=dimensions, option_coeff=option_coeff, source=source,
-                option_scheme=option_scheme, DX_0=DX_0, DX_1=DX_1, DY_0=DY_0, DY_1=DY_1
-            ),
-        )
+    K += dt * RK4(
+        K,
+        lambda K: Kstep(
+            K, C1, C2, grid, lr, F_b, DX=DX, DY=DY, inflow=inflow, 
+            dimensions=dimensions, option_coeff=option_coeff, source=source,
+            option_scheme=option_scheme, DX_0=DX_0, DX_1=DX_1, DY_0=DY_0, DY_1=DY_1
+        ),
+        dt,
+    )   # we use RK4 for both cendiff and upwind
     lr.U, lr.S = np.linalg.qr(K, mode="reduced")
     if dimensions == "1x1d":
         lr.U /= np.sqrt(grid.dx)
@@ -121,34 +112,20 @@ def PSI_lie(lr, grid, dt, F_b=None, DX=None, DY=None, dimensions="1x1d",
         E1 = None
     elif option_coeff == "space_dep":
         E1 = computeE(lr, grid)
-    if option_scheme == "cendiff":
-        lr.S += dt * RK4(
-            lr.S, lambda S: Sstep(S, C1, C2, D1, grid, 
-                                inflow, dimensions=dimensions, 
-                                option_coeff=option_coeff, E1=E1, source=source, 
-                                lr=lr), dt
-        )
-    elif option_scheme == "upwind":
-        lr.S += dt * expl_Euler(
-            lr.S, lambda S: Sstep(S, C1, C2, D1, grid, 
-                                inflow, dimensions=dimensions, 
-                                option_coeff=option_coeff, E1=E1, source=source, 
-                                lr=lr)
-        )
+    lr.S += dt * RK4(
+        lr.S, lambda S: Sstep(S, C1, C2, D1, grid, 
+                            inflow, dimensions=dimensions, 
+                            option_coeff=option_coeff, E1=E1, source=source, 
+                            lr=lr), dt
+    )   # we use RK4 for both cendiff and upwind
 
     # L step
     L = lr.V @ lr.S.T
     B1 = computeB(L, grid, dimensions=dimensions)
-    if option_scheme == "cendiff":
-        L += dt * RK4(
-            L, lambda L: Lstep(L, D1, B1, grid, lr, inflow, dimensions=dimensions, 
-                                option_coeff=option_coeff, E1=E1, source=source), dt
-        )
-    elif option_scheme == "upwind":
-        L += dt * expl_Euler(
-            L, lambda L: Lstep(L, D1, B1, grid, lr, inflow, dimensions=dimensions, 
-                                option_coeff=option_coeff, E1=E1, source=source)
-        )
+    L += dt * RK4(
+        L, lambda L: Lstep(L, D1, B1, grid, lr, inflow, dimensions=dimensions, 
+                            option_coeff=option_coeff, E1=E1, source=source), dt
+    )   # we use RK4 for both cendiff and upwind
     lr.V, St = np.linalg.qr(L, mode="reduced")
     lr.S = St.T
     if dimensions == "1x1d":

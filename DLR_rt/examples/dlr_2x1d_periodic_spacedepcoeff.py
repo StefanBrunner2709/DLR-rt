@@ -51,9 +51,9 @@ def integrate(lr0: LR, grid: Grid_2x1d, t_f: float, dt: float,
 Nx = 128
 Ny = 128
 Nphi = 128
-dt = 1e-3
+dt = 0.95 / Nx
 r = 5
-t_f = 0.1
+t_f = 0.3
 fs = 16
 savepath = "plots/"
 method = "lie"
@@ -62,8 +62,8 @@ option_scheme = "upwind"
 
 # ### To compare with constant coefficient results
 # c_adv = diags(np.ones(Nx*Ny))
-# c_s = diags(np.ones(Nx*Ny))
-# c_t = diags(np.ones(Nx*Ny))
+# c_s = diags(np.zeros(Nx*Ny))
+# c_t = diags(np.zeros(Nx*Ny))
 
 # ### For question 1
 # s = np.ones(Nx*Ny)
@@ -161,16 +161,28 @@ block_matrix = np.zeros((num_blocks, num_blocks))
 # Set block (4,4) to 1
 block_row = 3
 block_col = 3
-block_matrix[block_row, block_col] = 1
+block_matrix[block_row, block_col] = 0
 
 # Expand to full matrix
 matrix = np.kron(block_matrix, np.ones((block_size, block_size)))
 
 source = matrix.flatten()[:, None]
 
+# ### Do Gaussian source
+# source = np.zeros((Nx,Ny))
+# for i in range(grid.Nx):
+#     for j in range(grid.Ny):
+#         source[i,j] = (
+#                         1
+#                         / (2 * np.pi)
+#                         * np.exp(-((grid.X[i] - 0.5) ** 2) / 0.02)
+#                         * np.exp(-((grid.Y[j] - 0.5) ** 2) / 0.02)
+#                     )
+# source = source.flatten()[:, None]
+
 ### Do the plotting
 grid = Grid_2x1d(Nx, Ny, Nphi, r, _option_dd=option_grid, _coeff=[c_adv, c_s, c_t])
-lr0 = setInitialCondition_2x1d_lr(grid, option_cond="lattice")
+lr0 = setInitialCondition_2x1d_lr(grid)
 f0 = lr0.U @ lr0.S @ lr0.V.T
 lr, time = integrate(lr0, grid, t_f, dt, source=source, option_scheme=option_scheme)
 f = lr.U @ lr.S @ lr.V.T
