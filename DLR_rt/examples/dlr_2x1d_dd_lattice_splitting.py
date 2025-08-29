@@ -4,11 +4,16 @@ from DLR_rt.src.grid import Grid_2x1d
 from DLR_rt.src.initial_condition import setInitialCondition_2x1d_lr_subgrids
 from DLR_rt.src.integrators import PSI_splitting_lie
 from DLR_rt.src.lr import LR, computeF_b_2x1d_X, computeF_b_2x1d_Y
-from DLR_rt.src.util import computeD_cendiff_2x1d, plot_rho_subgrids
+from DLR_rt.src.util import (
+    computeD_cendiff_2x1d,
+    computeD_upwind_2x1d,
+    plot_rho_subgrids,
+)
 
 
 def integrate(lr0_on_subgrids: LR, subgrids: Grid_2x1d, t_f: float, dt: float,
-               tol_sing_val: float = 1e-3, drop_tol: float = 1e-7, method="lie"):
+               tol_sing_val: float = 1e-3, drop_tol: float = 1e-7, method="lie", 
+               option_scheme: str = "cendiff"):
     
     lr_on_subgrids = lr0_on_subgrids
     t = 0
@@ -17,6 +22,14 @@ def integrate(lr0_on_subgrids: LR, subgrids: Grid_2x1d, t_f: float, dt: float,
 
     DX, DY = computeD_cendiff_2x1d(subgrids[0][0], "dd")
     # all grids have same size, thus enough to compute once
+
+    if option_scheme == "upwind":
+        DX_0, DX_1, DY_0, DY_1 = computeD_upwind_2x1d(subgrids[0][0], "no_dd")
+    else:
+        DX_0 = None
+        DX_1 = None
+        DY_0 = None
+        DY_1 = None
 
     n_split_x = subgrids[0][0].n_split_x
     n_split_y = subgrids[0][0].n_split_y
@@ -98,6 +111,8 @@ def integrate(lr0_on_subgrids: LR, subgrids: Grid_2x1d, t_f: float, dt: float,
                         DY=DY,
                         tol_sing_val=tol_sing_val,
                         drop_tol=drop_tol,
+                        option_scheme=option_scheme, 
+                        DX_0=DX_0, DX_1=DX_1, DY_0=DY_0, DY_1=DY_1
                     )
 
             ### Update time
@@ -109,21 +124,22 @@ def integrate(lr0_on_subgrids: LR, subgrids: Grid_2x1d, t_f: float, dt: float,
 
 ### Plotting
 
-Nx = 56
-Ny = 56
-Nphi = 56
-dt = 1e-3
+Nx = 128
+Ny = 128
+Nphi = 128
+dt = 0.95 / Nx
 r = 5
-t_f = 1.0
+t_f = 0.1
 fs = 16
 savepath = "plots/"
 method = "lie"
+option_scheme = "upwind"
 
 
 ### Initial configuration
-grid = Grid_2x1d(Nx, Ny, Nphi, r, _option_dd="dd", _coeff=[1.0, 1.0, 1.0])
+grid = Grid_2x1d(Nx, Ny, Nphi, r, _option_dd="dd", _coeff=[1.0, 0.0, 0.0])
 subgrids = grid.split_grid_into_subgrids(option_coeff="standard", 
-                                         n_split_y=7, n_split_x=7)
+                                         n_split_y=8, n_split_x=8)
 
 # # Print subgrids as a test:
 # for j in range(8):
@@ -137,6 +153,7 @@ lr0_on_subgrids = setInitialCondition_2x1d_lr_subgrids(subgrids)
 plot_rho_subgrids(subgrids, lr0_on_subgrids)
 
 ### Final configuration
-lr_on_subgrids, time = integrate(lr0_on_subgrids, subgrids, t_f, dt)
+lr_on_subgrids, time = integrate(lr0_on_subgrids, subgrids, t_f, dt, 
+                                 option_scheme=option_scheme)
 
 plot_rho_subgrids(subgrids, lr_on_subgrids, t=t_f)

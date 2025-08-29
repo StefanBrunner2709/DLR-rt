@@ -229,6 +229,11 @@ def PSI_splitting_lie(
     rank_adapted=None,
     rank_dropped=None,
     source=None,
+    option_scheme="cendiff", 
+    DX_0=None, 
+    DX_1=None, 
+    DY_0=None, 
+    DY_1=None
 ):
     """
     Projector splitting integrator with equation splitting and lie splitting.
@@ -259,7 +264,9 @@ def PSI_splitting_lie(
     # K step
     C1, C2 = computeC(lr, grid, dimensions="2x1d")
     K = lr.U @ lr.S
-    K += dt * RK4(K, lambda K: Kstep1(C1, grid, lr, F_b, F_b_top_bottom, DX, DY), dt)
+    K += dt * RK4(K, lambda K: Kstep1(C1, grid, lr, F_b, F_b_top_bottom, DX, DY, 
+                                      option_scheme=option_scheme, 
+                                      DX_0=DX_0, DX_1=DX_1, DY_0=DY_0, DY_1=DY_1), dt)
     lr.U, lr.S = np.linalg.qr(K, mode="reduced")
     lr.U /= (np.sqrt(grid.dx) * np.sqrt(grid.dy))
     lr.S *= (np.sqrt(grid.dx) * np.sqrt(grid.dy))
@@ -294,7 +301,9 @@ def PSI_splitting_lie(
     # K step
     C1, C2 = computeC(lr, grid, dimensions="2x1d")
     K = lr.U @ lr.S
-    K += dt * RK4(K, lambda K: Kstep2(C1, grid, lr, F_b, F_b_top_bottom, DX, DY), dt)
+    K += dt * RK4(K, lambda K: Kstep2(C1, grid, lr, F_b, F_b_top_bottom, DX, DY, 
+                                      option_scheme=option_scheme, 
+                                      DX_0=DX_0, DX_1=DX_1, DY_0=DY_0, DY_1=DY_1), dt)
     lr.U, lr.S = np.linalg.qr(K, mode="reduced")
     lr.U /= (np.sqrt(grid.dx) * np.sqrt(grid.dy))
     lr.S *= (np.sqrt(grid.dx) * np.sqrt(grid.dy))

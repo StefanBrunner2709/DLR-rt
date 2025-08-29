@@ -553,6 +553,65 @@ def computedxK_2x1d(
 
     return DXK, DYK
 
+def computedxK_2x1d_upwind(
+    lr, K_bdry_left, K_bdry_right, K_bdry_bottom, K_bdry_top, grid, 
+    DX_0, DX_1, DY_0, DY_1, eigvals_0, P_0, eigvals_1, P_1
+):
+    """
+    Compute the gradient of K.
+
+    Compute the first derivative of K in x and y using an upwind stencil.
+    """
+    K = lr.U @ lr.S
+
+    ### Compute DX
+
+    # Project into eigenbasis
+    KP_0 = K @ P_0
+
+    # Set up upwind matrices without boundary information
+    DXK_0 = DX_0 @ KP_0
+    DXK_1 = DX_1 @ KP_0
+
+    # Add boundary information to those matrices
+    indices_1 = list(range(0, grid.Nx * (grid.Ny), grid.Nx))
+    DXK_0[indices_1, :] = DXK_0[indices_1, :] - (K_bdry_left @ P_0) / (grid.dx)
+    indices_2 = list(range(grid.Nx - 1, grid.Nx * (grid.Ny + 1) - 1, grid.Nx))
+    DXK_1[indices_2, :] = DXK_1[indices_2, :] + (K_bdry_right @ P_0) / (grid.dx)
+
+    # calculate DXK
+    DXK = np.zeros((grid.Nx*grid.Ny,grid.r))
+    for i in range(grid.r):
+        if eigvals_0[i] > 0:
+            DXK[:,i] = DXK_0[:,i]
+        else:
+            DXK[:,i] = DXK_1[:,i]
+
+    ### Compute DYK
+
+    # Project into eigenbasis
+    KP_1 = K @ P_1
+
+    # Set up upwind matrices without boundary information
+    DYK_0 = DY_0 @ KP_1
+    DYK_1 = DY_1 @ KP_1
+
+    # Add boundary information to those matrices
+    DYK_0[: grid.Nx, :] = DYK_0[: grid.Nx, :] - (K_bdry_bottom @ P_1) / (grid.dy)
+    DYK_1[grid.Nx * (grid.Ny - 1) : grid.Nx * grid.Ny, :] = DYK_1[
+        grid.Nx * (grid.Ny - 1) : grid.Nx * grid.Ny, :
+    ] + (K_bdry_top @ P_1) / (grid.dy)    
+
+    # calculate DYK
+    DYK = np.zeros((grid.Nx*grid.Ny,grid.r))
+    for i in range(grid.r):
+        if eigvals_1[i] > 0:
+            DYK[:,i] = DYK_0[:,i]
+        else:
+            DYK[:,i] = DYK_1[:,i]
+
+    return DXK, DYK
+
 
 def computeC(lr, grid, dimensions="1x1d"):
     """
@@ -907,7 +966,8 @@ def Lstep(L, D1, B1, grid, lr=None, inflow=False,
     return rhs
 
 
-def Kstep1(C1, grid, lr, F_b_X, F_b_Y, DX, DY):
+def Kstep1(C1, grid, lr, F_b_X, F_b_Y, DX, DY, option_scheme="cendiff", 
+           DX_0=None, DX_1=None, DY_0=None, DY_1=None):
     """
     K step of radiative transfer equation.
 
@@ -917,15 +977,37 @@ def Kstep1(C1, grid, lr, F_b_X, F_b_Y, DX, DY):
 
     K_bdry_left, K_bdry_right = computeK_bdry_2x1d_X(lr, grid, F_b_X)
     K_bdry_bottom, K_bdry_top = computeK_bdry_2x1d_Y(lr, grid, F_b_Y)
-    DXK = computedxK_2x1d(
-        lr, K_bdry_left, K_bdry_right, K_bdry_bottom, K_bdry_top, grid, DX, DY
-    )[0]
-    rhs = -(grid.coeff[0]) * DXK @ C1[0]
+
+    if option_scheme=="cendiff":
+        DXK = computedxK_2x1d(
+            lr, K_bdry_left, K_bdry_right, K_bdry_bottom, K_bdry_top, grid, DX, DY
+        )[0]
+        rhs = -(grid.coeff[0]) * DXK @ C1[0]
+
+    elif option_scheme=="upwind":
+
+        ### Diagonalize matrix C
+        # Eigen-decomposition
+        eigvals_0, P_0 = np.linalg.eigh(C1[0])  # matrix C1 is symmetric
+        eigvals_1, P_1 = np.linalg.eigh(C1[1])  
+
+        # Construct diagonal matrix of eigenvalues
+        T1_0 = np.diag(eigvals_0)
+
+        ### Obtain matrix from upwind (multiplied with P_0 already)
+        DXK = computedxK_2x1d_upwind(
+            lr, K_bdry_left, K_bdry_right, K_bdry_bottom, K_bdry_top, grid, 
+            DX_0, DX_1, DY_0, DY_1, eigvals_0, P_0, eigvals_1, P_1
+        )[0]
+
+        ### Calculate rhs
+        rhs = -(grid.coeff[0]) * DXK @ T1_0 @ P_0.T   # P is orthogonal
 
     return rhs
 
 
-def Kstep2(C1, grid, lr, F_b_X, F_b_Y, DX, DY):
+def Kstep2(C1, grid, lr, F_b_X, F_b_Y, DX, DY, option_scheme="cendiff", 
+           DX_0=None, DX_1=None, DY_0=None, DY_1=None):
     """
     K step of radiative transfer equation.
 
@@ -935,10 +1017,31 @@ def Kstep2(C1, grid, lr, F_b_X, F_b_Y, DX, DY):
 
     K_bdry_left, K_bdry_right = computeK_bdry_2x1d_X(lr, grid, F_b_X)
     K_bdry_bottom, K_bdry_top = computeK_bdry_2x1d_Y(lr, grid, F_b_Y)
-    DYK = computedxK_2x1d(
-        lr, K_bdry_left, K_bdry_right, K_bdry_bottom, K_bdry_top, grid, DX, DY
-    )[1]
-    rhs = -(grid.coeff[0]) * DYK @ C1[1]
+
+    if option_scheme=="cendiff":
+        DYK = computedxK_2x1d(
+            lr, K_bdry_left, K_bdry_right, K_bdry_bottom, K_bdry_top, grid, DX, DY
+        )[1]
+        rhs = -(grid.coeff[0]) * DYK @ C1[1]
+    
+    elif option_scheme=="upwind":
+
+        ### Diagonalize matrix C
+        # Eigen-decomposition
+        eigvals_0, P_0 = np.linalg.eigh(C1[0])  # matrix C1 is symmetric
+        eigvals_1, P_1 = np.linalg.eigh(C1[1])  
+
+        # Construct diagonal matrix of eigenvalues
+        T1_1 = np.diag(eigvals_1)
+
+        ### Obtain matrix from upwind (multiplied with P_1 already)
+        DYK = computedxK_2x1d_upwind(
+            lr, K_bdry_left, K_bdry_right, K_bdry_bottom, K_bdry_top, grid, 
+            DX_0, DX_1, DY_0, DY_1, eigvals_0, P_0, eigvals_1, P_1
+        )[1]
+
+        ### Calculate rhs
+        rhs = -(grid.coeff[0]) * DYK @ T1_1 @ P_1.T   # P is orthogonal
 
     return rhs
 
