@@ -1,3 +1,4 @@
+import numpy as np
 from tqdm import tqdm
 
 from DLR_rt.src.grid import Grid_2x1d
@@ -98,6 +99,13 @@ def integrate(lr0_on_subgrids: LR, subgrids: Grid_2x1d, t_f: float, dt: float,
             ### Run PSI with adaptive rank strategy
             for j in range(n_split_y):
                 for i in range(n_split_x):
+
+                    if i==3 and j==3:
+                        source= np.ones((subgrids[j][i].Nx, subgrids[j][i].Ny))
+                        source = source.flatten()[:, None]
+                    else:
+                        source = None
+
                     (lr_on_subgrids[j][i], 
                      subgrids[j][i], 
                      rank_adapted, 
@@ -111,6 +119,7 @@ def integrate(lr0_on_subgrids: LR, subgrids: Grid_2x1d, t_f: float, dt: float,
                         DY=DY,
                         tol_sing_val=tol_sing_val,
                         drop_tol=drop_tol,
+                        source=source,
                         option_scheme=option_scheme, 
                         DX_0=DX_0, DX_1=DX_1, DY_0=DY_0, DY_1=DY_1
                     )
@@ -129,7 +138,7 @@ Ny = 128
 Nphi = 128
 dt = 0.95 / Nx
 r = 5
-t_f = 0.1
+t_f = 0.5
 fs = 16
 savepath = "plots/"
 method = "lie"
@@ -137,8 +146,8 @@ option_scheme = "upwind"
 
 
 ### Initial configuration
-grid = Grid_2x1d(Nx, Ny, Nphi, r, _option_dd="dd", _coeff=[1.0, 0.0, 0.0])
-subgrids = grid.split_grid_into_subgrids(option_coeff="standard", 
+grid = Grid_2x1d(Nx, Ny, Nphi, r, _option_dd="dd", _coeff=[1.0, 1.0, 1.0])
+subgrids = grid.split_grid_into_subgrids(option_coeff="lattice", 
                                          n_split_y=8, n_split_x=8)
 
 # # Print subgrids as a test:
@@ -148,7 +157,7 @@ subgrids = grid.split_grid_into_subgrids(option_coeff="standard",
 #               subgrids[j][i].X, subgrids[j][i].Y, " with coefficients: ", 
 #               subgrids[j][i].coeff)
         
-lr0_on_subgrids = setInitialCondition_2x1d_lr_subgrids(subgrids)
+lr0_on_subgrids = setInitialCondition_2x1d_lr_subgrids(subgrids, option_cond="lattice")
 
 plot_rho_subgrids(subgrids, lr0_on_subgrids)
 

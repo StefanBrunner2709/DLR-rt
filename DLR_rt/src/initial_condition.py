@@ -133,6 +133,12 @@ def setInitialCondition_2x1d_lr_subgrids(subgrids, option_cond: str = "standard"
                 V[0, 0] = 1.0
                 S[0, 0] = 1.0
 
+            elif option_cond == "lattice":
+                U[:,0] = 1e-9
+                #V[0, 0] = 1.0
+                V[:,0] = 1.0 / subgrids[j][i].Nphi
+                S[0,0] = 1.0
+
             U_ortho, R_U = np.linalg.qr(U, mode="reduced")
             V_ortho, R_V = np.linalg.qr(V, mode="reduced")
             S_ortho = R_U @ S @ R_V.T

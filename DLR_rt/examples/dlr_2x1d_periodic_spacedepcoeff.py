@@ -161,7 +161,7 @@ block_matrix = np.zeros((num_blocks, num_blocks))
 # Set block (4,4) to 1
 block_row = 3
 block_col = 3
-block_matrix[block_row, block_col] = 0
+block_matrix[block_row, block_col] = 1
 
 # Expand to full matrix
 matrix = np.kron(block_matrix, np.ones((block_size, block_size)))
@@ -182,7 +182,7 @@ source = matrix.flatten()[:, None]
 
 ### Do the plotting
 grid = Grid_2x1d(Nx, Ny, Nphi, r, _option_dd=option_grid, _coeff=[c_adv, c_s, c_t])
-lr0 = setInitialCondition_2x1d_lr(grid)
+lr0 = setInitialCondition_2x1d_lr(grid, option_cond="lattice")
 f0 = lr0.U @ lr0.S @ lr0.V.T
 lr, time = integrate(lr0, grid, t_f, dt, source=source, option_scheme=option_scheme)
 f = lr.U @ lr.S @ lr.V.T
