@@ -24,7 +24,7 @@ def integrate(lr0_on_subgrids: LR, subgrids: Grid_2x1d, t_f: float, dt: float,
     # all grids have same size, thus enough to compute once
 
     if option_scheme == "upwind":
-        DX_0, DX_1, DY_0, DY_1 = computeD_upwind_2x1d(subgrids[0][0], "no_dd")
+        DX_0, DX_1, DY_0, DY_1 = computeD_upwind_2x1d(subgrids[0][0], "dd")
     else:
         DX_0 = None
         DX_1 = None
