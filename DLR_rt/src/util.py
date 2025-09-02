@@ -213,7 +213,8 @@ def plot_rho_subgrids(subgrids, lr_on_subgrids, fs = 16, savepath = "plots/", t 
         im = axes.imshow(rho_matrix_full.T, extent=extent, origin="lower")
     elif plot_option == "log":
         im = axes.imshow(np.log(rho_matrix_full.T), extent=extent, origin="lower", 
-                         vmin=np.log(1e-3), vmax=np.log(np.max(rho_matrix_full)))
+                         vmin=np.log(1e-3), vmax=np.log(np.max(rho_matrix_full)), 
+                         cmap="jet")
     axes.set_xlabel("$x$", fontsize=fs)
     axes.set_ylabel("$y$", fontsize=fs)
     axes.set_xticks([0, 0.5, 1])
