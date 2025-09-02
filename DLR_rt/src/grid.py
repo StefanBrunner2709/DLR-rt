@@ -341,6 +341,7 @@ class Grid_2x1d:
                     subgrids[j][i].coeff = [1.0, 0.0, 10.0]
 
             subgrids[1][3].coeff = [1.0, 1.0, 1.0]  # Set back coeff of 1 subgrid
+            subgrids[3][3].coeff = [1.0, 1.0, 1.0]  # Set back coeff of 1 subgrid
 
             for j in range(2,6,2):
                 for i in range(2,6,2):

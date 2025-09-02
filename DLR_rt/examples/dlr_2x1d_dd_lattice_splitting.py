@@ -133,12 +133,12 @@ def integrate(lr0_on_subgrids: LR, subgrids: Grid_2x1d, t_f: float, dt: float,
 
 ### Plotting
 
-Nx = 128
-Ny = 128
-Nphi = 128
+Nx = 252
+Ny = 252
+Nphi = 252
 dt = 0.95 / Nx
 r = 5
-t_f = 0.5
+t_f = 0.4
 fs = 16
 savepath = "plots/"
 method = "lie"
@@ -148,7 +148,7 @@ option_scheme = "upwind"
 ### Initial configuration
 grid = Grid_2x1d(Nx, Ny, Nphi, r, _option_dd="dd", _coeff=[1.0, 1.0, 1.0])
 subgrids = grid.split_grid_into_subgrids(option_coeff="lattice", 
-                                         n_split_y=8, n_split_x=8)
+                                         n_split_y=7, n_split_x=7)
 
 # # Print subgrids as a test:
 # for j in range(8):
@@ -159,10 +159,10 @@ subgrids = grid.split_grid_into_subgrids(option_coeff="lattice",
         
 lr0_on_subgrids = setInitialCondition_2x1d_lr_subgrids(subgrids, option_cond="lattice")
 
-plot_rho_subgrids(subgrids, lr0_on_subgrids)
+plot_rho_subgrids(subgrids, lr0_on_subgrids, plot_option="log")
 
 ### Final configuration
 lr_on_subgrids, time = integrate(lr0_on_subgrids, subgrids, t_f, dt, 
                                  option_scheme=option_scheme)
 
-plot_rho_subgrids(subgrids, lr_on_subgrids, t=t_f)
+plot_rho_subgrids(subgrids, lr_on_subgrids, t=t_f, plot_option="log")

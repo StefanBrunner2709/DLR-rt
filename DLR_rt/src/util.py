@@ -162,7 +162,8 @@ def computeD_upwind_2x1d(grid: Grid_2x1d, option_dd: str = "no_dd"):
 
     return DX_0.tocsr(), DX_1.tocsr(), DY_0.tocsr(), DY_1.tocsr()
 
-def plot_rho_subgrids(subgrids, lr_on_subgrids, fs = 16, savepath = "plots/", t = 0.0):
+def plot_rho_subgrids(subgrids, lr_on_subgrids, fs = 16, savepath = "plots/", t = 0.0, 
+                      plot_option = "normal"):
     """
     Plot rho over x and y.
 
@@ -208,8 +209,11 @@ def plot_rho_subgrids(subgrids, lr_on_subgrids, fs = 16, savepath = "plots/", t 
               subgrids[0][0].Y[0], subgrids[n_split_y-1][0].Y[-1]]
 
     fig, axes = plt.subplots(1, 1, figsize=(10, 8))
-
-    im = axes.imshow(rho_matrix_full.T, extent=extent, origin="lower")
+    if plot_option == "normal":
+        im = axes.imshow(rho_matrix_full.T, extent=extent, origin="lower")
+    elif plot_option == "log":
+        im = axes.imshow(np.log(rho_matrix_full.T), extent=extent, origin="lower", 
+                         vmin=np.log(1e-3), vmax=np.log(np.max(rho_matrix_full)))
     axes.set_xlabel("$x$", fontsize=fs)
     axes.set_ylabel("$y$", fontsize=fs)
     axes.set_xticks([0, 0.5, 1])
@@ -217,7 +221,10 @@ def plot_rho_subgrids(subgrids, lr_on_subgrids, fs = 16, savepath = "plots/", t 
     axes.tick_params(axis="both", labelsize=fs, pad=10)
 
     cbar_fixed = fig.colorbar(im, ax=axes)
-    cbar_fixed.set_ticks([np.min(rho_matrix_full), np.max(rho_matrix_full)])
+    if plot_option == "normal":
+        cbar_fixed.set_ticks([np.min(rho_matrix_full), np.max(rho_matrix_full)])
+    elif plot_option == "log":
+        cbar_fixed.set_ticks([np.log(1e-3), np.log(np.max(rho_matrix_full))])
     cbar_fixed.ax.tick_params(labelsize=fs)
 
     plt.tight_layout()
