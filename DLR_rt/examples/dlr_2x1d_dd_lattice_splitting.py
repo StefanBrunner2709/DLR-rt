@@ -67,11 +67,19 @@ def integrate(lr0_on_subgrids: LR, subgrids: Grid_2x1d, t_f: float, dt: float,
                     if i==0:
                         F_b_X = computeF_b_2x1d_X(f_on_subgrids[j][i],subgrids[j][i],
                                                   f_left=f_on_subgrids[j][n_split_x-1],
-                                                  f_right=f_on_subgrids[j][i+1])       
+                                                  f_right=f_on_subgrids[j][i+1])     
+                        for k in range(len(subgrids[j][i].PHI)):  # set outflow boundary
+                            if (subgrids[j][i].PHI[k] < np.pi / 2 
+                                or subgrids[j][i].PHI[k] > 3 / 2 * np.pi):
+                                F_b_X[: len(subgrids[j][i].Y), k] = 0
                     elif i==n_split_x-1:
                         F_b_X = computeF_b_2x1d_X(f_on_subgrids[j][i],subgrids[j][i],
                                                   f_left=f_on_subgrids[j][i-1],
                                                   f_right=f_on_subgrids[j][0])
+                        for k in range(len(subgrids[j][i].PHI)):  # set outflow boundary
+                            if (subgrids[j][i].PHI[k] >= np.pi / 2 
+                                and subgrids[j][i].PHI[k] <= 3 / 2 * np.pi):
+                                F_b_X[len(subgrids[j][i].Y) :, k] = 0
                     else:
                         F_b_X = computeF_b_2x1d_X(f_on_subgrids[j][i],subgrids[j][i],
                                                   f_left=f_on_subgrids[j][i-1],
@@ -81,10 +89,16 @@ def integrate(lr0_on_subgrids: LR, subgrids: Grid_2x1d, t_f: float, dt: float,
                         F_b_Y = computeF_b_2x1d_Y(f_on_subgrids[j][i],subgrids[j][i],
                                                   f_bottom=f_on_subgrids[n_split_y-1][i],
                                                   f_top=f_on_subgrids[j+1][i])
+                        for k in range(len(subgrids[j][i].PHI)):  # set outflow boundary
+                            if subgrids[j][i].PHI[k] < np.pi:
+                                F_b_Y[: len(subgrids[j][i].X), k] = 0
                     elif j==n_split_y-1:
                         F_b_Y = computeF_b_2x1d_Y(f_on_subgrids[j][i],subgrids[j][i],
                                                   f_bottom=f_on_subgrids[j-1][i],
                                                   f_top=f_on_subgrids[0][i])
+                        for k in range(len(subgrids[j][i].PHI)):  # set outflow boundary
+                            if subgrids[j][i].PHI[k] >= np.pi:
+                                F_b_Y[len(subgrids[j][i].X) :, k] = 0
                     else:
                         F_b_Y = computeF_b_2x1d_Y(f_on_subgrids[j][i],subgrids[j][i],
                                                   f_bottom=f_on_subgrids[j-1][i],
@@ -138,7 +152,7 @@ Ny = 252
 Nphi = 252
 dt = 0.95 / Nx
 r = 5
-t_f = 0.4
+t_f = 1.07
 fs = 16
 savepath = "plots/"
 method = "lie"
