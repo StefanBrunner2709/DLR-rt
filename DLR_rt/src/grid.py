@@ -278,7 +278,8 @@ class Grid_2x1d:
         return bottom_grid, top_grid
 
     def split_grid_into_subgrids(self, n_split_x: int = 8, n_split_y: int = 8, 
-                                 option_coeff: str = "standard"):
+                                 option_coeff: str = "standard", 
+                                 option_split: str = "equidistant"):
         """
         Split a Grid_2x1d object into smaller subgrids.
 
@@ -298,53 +299,124 @@ class Grid_2x1d:
         subgrids : list of list of Grid_2x1d
             2D list (n_split_y × n_split_x) of subgrid objects.
         """
+        if option_split == "equidistant":
 
-        # Ensure divisibility
-        if self.Nx % n_split_x != 0 or self.Ny % n_split_y != 0:
-            raise ValueError("Nx and Ny must be divisible by n_split_x and n_split_y.")
+            # Ensure divisibility
+            if self.Nx % n_split_x != 0 or self.Ny % n_split_y != 0:
+                raise ValueError("Nx, Ny must be divisible by n_split_x, n_split_y.")
 
-        sub_Nx = self.Nx // n_split_x
-        sub_Ny = self.Ny // n_split_y
+            sub_Nx = self.Nx // n_split_x
+            sub_Ny = self.Ny // n_split_y
 
-        subgrids = []
+            subgrids = []
 
-        for j in range(n_split_y):
-            row = []
-            for i in range(n_split_x):
-                # Extract the slice of X and Y
-                X_sub = self.X[i * sub_Nx : (i + 1) * sub_Nx]
-                Y_sub = self.Y[j * sub_Ny : (j + 1) * sub_Ny]
+            for j in range(n_split_y):
+                row = []
+                for i in range(n_split_x):
+                    # Extract the slice of X and Y
+                    X_sub = self.X[i * sub_Nx : (i + 1) * sub_Nx]
+                    Y_sub = self.Y[j * sub_Ny : (j + 1) * sub_Ny]
 
-                # Create subgrid
-                subgrid = Grid_2x1d(
-                    _Nx=sub_Nx,
-                    _Ny=sub_Ny,
-                    _Nphi=self.Nphi,
-                    _r=self.r,
-                    _option_dd="dd",  # keep consistent spacing
-                    _X=X_sub,
-                    _Y=Y_sub,
-                    _coeff=self.coeff,
-                )
+                    # Create subgrid
+                    subgrid = Grid_2x1d(
+                        _Nx=sub_Nx,
+                        _Ny=sub_Ny,
+                        _Nphi=self.Nphi,
+                        _r=self.r,
+                        _option_dd="dd",  # keep consistent spacing
+                        _X=X_sub,
+                        _Y=Y_sub,
+                        _coeff=self.coeff,
+                    )
 
-                # Save number of subgrids
-                subgrid.n_split_x = n_split_x
-                subgrid.n_split_y = n_split_y
+                    # Save number of subgrids
+                    subgrid.n_split_x = n_split_x
+                    subgrid.n_split_y = n_split_y
 
-                row.append(subgrid)
-            subgrids.append(row)
+                    row.append(subgrid)
+                subgrids.append(row)
 
-        if option_coeff == "lattice":
+            if option_coeff == "lattice":
 
-            for j in range(1,7,2):  # Set coefficients of 9 subgrids
-                for i in range(1,7,2):
-                    subgrids[j][i].coeff = [1.0, 0.0, 10.0]
+                for j in range(1,7,2):  # Set coefficients of 9 subgrids
+                    for i in range(1,7,2):
+                        subgrids[j][i].coeff = [1.0, 0.0, 10.0]
 
-            subgrids[5][3].coeff = [1.0, 1.0, 1.0]  # Set back coeff of 1 subgrid
-            subgrids[3][3].coeff = [1.0, 1.0, 1.0]  # Set back coeff of 1 subgrid
+                subgrids[5][3].coeff = [1.0, 1.0, 1.0]  # Set back coeff of 1 subgrid
+                subgrids[3][3].coeff = [1.0, 1.0, 1.0]  # Set back coeff of 1 subgrid
 
-            for j in range(2,6,2):
-                for i in range(2,6,2):
-                    subgrids[j][i].coeff = [1.0, 0.0, 10.0]
+                for j in range(2,6,2):
+                    for i in range(2,6,2):
+                        subgrids[j][i].coeff = [1.0, 0.0, 10.0]
+
+        elif option_split == "hohlraum":
+
+            n_split = 5
+
+            subgrids = []
+
+            for j in range(n_split):
+                row = []
+                for i in range(n_split):
+
+                    # Extract the slice of Y
+                    if j==0:
+                        Y_sub = self.Y[0 : int(self.Ny * 0.05)]
+                        sub_Ny = int(self.Ny * 0.05)
+                    elif j==1:
+                        Y_sub = self.Y[int(self.Ny * 0.05) : int(self.Ny * 0.25)]
+                        sub_Ny = int(self.Ny * 0.2)
+                    elif j==2:
+                        Y_sub = self.Y[int(self.Ny * 0.25) : int(self.Ny * 0.75)]
+                        sub_Ny = int(self.Ny * 0.5)
+                    elif j==3:
+                        Y_sub = self.Y[int(self.Ny * 0.75) : int(self.Ny * 0.95)]
+                        sub_Ny = int(self.Ny * 0.2)
+                    elif j==4:
+                        Y_sub = self.Y[int(self.Ny * 0.95) : self.Ny]
+                        sub_Ny = int(self.Ny * 0.05)
+
+                    # Extract the slice of X
+                    if i==0:
+                        X_sub = self.X[0 : int(self.Nx * 0.05)]
+                        sub_Nx = int(self.Nx * 0.05)
+                    elif i==1:
+                        X_sub = self.X[int(self.Nx * 0.05) : int(self.Nx * 0.25)]
+                        sub_Nx = int(self.Nx * 0.2)
+                    elif i==2:
+                        X_sub = self.X[int(self.Nx * 0.25) : int(self.Nx * 0.75)]
+                        sub_Nx = int(self.Nx * 0.5)
+                    elif i==3:
+                        X_sub = self.X[int(self.Nx * 0.75) : int(self.Nx * 0.95)]
+                        sub_Nx = int(self.Nx * 0.2)
+                    elif i==4:
+                        X_sub = self.X[int(self.Nx * 0.95) : self.Nx]
+                        sub_Nx = int(self.Nx * 0.05)
+
+                    # Create subgrid
+                    subgrid = Grid_2x1d(
+                        _Nx=sub_Nx,
+                        _Ny=sub_Ny,
+                        _Nphi=self.Nphi,
+                        _r=self.r,
+                        _option_dd="dd",  # keep consistent spacing
+                        _X=X_sub,
+                        _Y=Y_sub,
+                        _coeff=self.coeff,
+                    )
+
+                    # Set coefficients
+                    if ((j==0 or j==4 or i==4) or (j==2 and i==0) or (j==2 and i==2)):
+                        subgrid.coeff = [1.0, 0.0, 100.0]
+                    else:
+                        subgrid.coeff = [1.0, 0.0, 0.0]
+
+                    # Save number of subgrids
+                    subgrid.n_split_x = 5
+                    subgrid.n_split_y = 5
+
+                    row.append(subgrid)
+                subgrids.append(row)
+
 
         return subgrids

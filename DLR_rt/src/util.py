@@ -210,7 +210,7 @@ def plot_rho_subgrids(subgrids, lr_on_subgrids, fs = 16, savepath = "plots/", t 
 
     fig, axes = plt.subplots(1, 1, figsize=(10, 8))
     if plot_option == "normal":
-        im = axes.imshow(rho_matrix_full.T, extent=extent, origin="lower")
+        im = axes.imshow(rho_matrix_full.T, extent=extent, origin="lower", cmap="jet")
     elif plot_option == "log":
         im = axes.imshow(np.log(rho_matrix_full.T), extent=extent, origin="lower", 
                          vmin=np.log(1e-3), vmax=np.log(np.max(rho_matrix_full)), 
@@ -229,6 +229,9 @@ def plot_rho_subgrids(subgrids, lr_on_subgrids, fs = 16, savepath = "plots/", t 
     cbar_fixed.ax.tick_params(labelsize=fs)
 
     plt.tight_layout()
-    plt.savefig(savepath + "dd_splitting_2x1d_subgrids_rho_t" + str(t) + ".pdf")
+    if plot_option == "normal":
+        plt.savefig(savepath + "dd_splitting_2x1d_subgrids_rho_t" + str(t) + ".pdf")
+    elif plot_option == "log":
+        plt.savefig(savepath + "dd_splitting_2x1d_subgrids_rho_t" + str(t) + "_log.pdf")
 
     return

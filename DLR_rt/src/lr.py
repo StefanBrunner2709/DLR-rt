@@ -83,7 +83,8 @@ def computeF_b(t: float, f, grid, f_left=None, f_right=None):
     return F_b
 
 
-def computeF_b_2x1d_X(f, grid, f_left=None, f_right=None, f_periodic=None):
+def computeF_b_2x1d_X(f, grid, f_left=None, f_right=None, f_periodic=None, 
+                      grid_left=None, grid_right=None):
     """
     Generate discretization of 2x1d full X boundary.
 
@@ -110,6 +111,12 @@ def computeF_b_2x1d_X(f, grid, f_left=None, f_right=None, f_periodic=None):
     f_periodic
         Values of subdomain on other side of periodic boundary, given as matrix.
     """
+
+    if grid_left is None:
+        grid_left = grid
+
+    if grid_right is None:
+        grid_right = grid
 
     F_b_X = np.zeros((2 * len(grid.Y), len(grid.PHI)))
 
@@ -182,7 +189,8 @@ def computeF_b_2x1d_X(f, grid, f_left=None, f_right=None, f_periodic=None):
         for i in range(len(grid.PHI)):
                 if grid.PHI[i] < np.pi / 2 or grid.PHI[i] > 3 / 2 * np.pi:
                     indices_left = list(
-                        range(grid.Nx - 1, grid.Nx * (grid.Ny + 1) - 1, grid.Nx)
+                        range(grid_left.Nx - 1, grid_left.Nx * (grid_left.Ny + 1) - 1, 
+                              grid_left.Nx)
                     )  # pick every Nxth row
                     F_b_X[: len(grid.Y), i] = f_left[
                         indices_left, i
@@ -199,7 +207,8 @@ def computeF_b_2x1d_X(f, grid, f_left=None, f_right=None, f_periodic=None):
                     )  # outflow to right side
 
                 else:
-                    indices_right = list(range(0, grid.Nx * (grid.Ny), grid.Nx))
+                    indices_right = list(range(0, grid_right.Nx * (grid_right.Ny), 
+                                               grid_right.Nx))
                     F_b_X[len(grid.Y) :, i] = f_right[
                         indices_right, i
                     ]  # This is inflow from right
@@ -216,7 +225,8 @@ def computeF_b_2x1d_X(f, grid, f_left=None, f_right=None, f_periodic=None):
     return F_b_X
 
 
-def computeF_b_2x1d_Y(f, grid, f_bottom=None, f_top=None, f_periodic=None):
+def computeF_b_2x1d_Y(f, grid, f_bottom=None, f_top=None, f_periodic=None, 
+                      grid_bottom=None, grid_top=None):
     """
     Generate discretization of 2x1d full Y boundary.
 
@@ -243,6 +253,12 @@ def computeF_b_2x1d_Y(f, grid, f_bottom=None, f_top=None, f_periodic=None):
     f_periodic
         Values of subdomain on other side of periodic boundary, given as matrix.
     """
+
+    if grid_bottom is None:
+        grid_bottom = grid
+
+    if grid_top is None:
+        grid_top = grid
 
     F_b_Y = np.zeros((2 * len(grid.X), len(grid.PHI)))
 
@@ -296,7 +312,8 @@ def computeF_b_2x1d_Y(f, grid, f_bottom=None, f_top=None, f_periodic=None):
         for i in range(len(grid.PHI)):
                 if grid.PHI[i] < np.pi:
                     F_b_Y[: len(grid.X), i] = f_bottom[
-                        grid.Nx * (grid.Ny - 1) : grid.Nx * grid.Ny, i
+                        grid_bottom.Nx * (grid_bottom.Ny - 1) : 
+                        grid_bottom.Nx * grid_bottom.Ny, i
                     ]  # This is inflow from bottom
 
                     F_b_Y[len(grid.X) :, i] = f[
@@ -308,7 +325,7 @@ def computeF_b_2x1d_Y(f, grid, f_bottom=None, f_top=None, f_periodic=None):
 
                 else:
                     F_b_Y[len(grid.X) :, i] = f_top[
-                        : grid.Nx, i
+                        : grid_top.Nx, i
                     ]  # This is inflow from top
 
                     F_b_Y[: len(grid.X), i] = f[: grid.Nx, i] - (
@@ -860,8 +877,8 @@ def Kstep(
                 M = np.ones((1, grid.Nphi))
 
                 rhs = (
-                    -grid.coeff[0] @ DXK @ T1_0 @ np.linalg.inv(P_0)
-                    - grid.coeff[0] @ DYK @ T1_1 @ np.linalg.inv(P_1)
+                    -grid.coeff[0] @ DXK @ T1_0 @ P_0.T
+                    - grid.coeff[0] @ DYK @ T1_1 @ P_1.T
                     + 0.5 / (np.pi) * grid.coeff[1] @ K @ C2.T @ C2
                     - grid.coeff[2] @ K
                     + 0.5 / (np.pi) * source @ (M @ V_int)
