@@ -256,3 +256,94 @@ def plot_rho_subgrids(subgrids, lr_on_subgrids, fs = 16, savepath = "plots/", t 
 
 
     return
+
+def plot_ranks_subgrids(subgrids, time, 
+                        rank_on_subgrids_adapted, rank_on_subgrids_dropped, 
+                        fs = 16, savepath = "plots/"):
+    
+    ### Plot for rank over time
+
+    n_split_x = subgrids[0][0].n_split_x
+    n_split_y = subgrids[0][0].n_split_y
+    
+    fig, axes = plt.subplots(1, 1, figsize=(10, 8))
+    for j in range(n_split_y):
+        for i in range(n_split_x):
+
+            plt.plot(time,  rank_on_subgrids_adapted[j][i])
+
+    plt.title("rank adapted (before y advection)")
+    axes.set_xlabel("$t$", fontsize=fs)
+    axes.set_ylabel("$r(t)$", fontsize=fs)
+    plt.savefig(savepath + "dd_splitting_2x1d_subgrids_rank_adapted.pdf")
+
+    fig, axes = plt.subplots(1, 1, figsize=(10, 8))
+    for j in range(n_split_y):
+        for i in range(n_split_x):
+
+            plt.plot(time,  rank_on_subgrids_dropped[j][i])
+
+    plt.title("rank dropped (after y advection)")
+    axes.set_xlabel("$t$", fontsize=fs)
+    axes.set_ylabel("$r(t)$", fontsize=fs)
+    plt.savefig(savepath + "dd_splitting_2x1d_subgrids_rank_dropped.pdf")
+
+    ### Plot for final rank
+
+    # Example data for each cell (ny rows, nx columns)
+    data = np.zeros((n_split_x, n_split_y))
+    for j in range(n_split_y):
+        for i in range(n_split_x):
+            data[i,n_split_y-j-1] = rank_on_subgrids_adapted[j][i][-1]
+
+    # Create the plot
+    fig, ax = plt.subplots()
+    ax.imshow(data.T, cmap='viridis')  # You can change colormap
+
+    # Show numbers in each cell
+    for i in range(n_split_x):
+        for j in range(n_split_y):
+            ax.text(i, j, str(int(data[i, j])), ha='center', va='center', color='w')
+
+    # Optional: Add grid lines
+    ax.set_xticks(np.arange(n_split_x))
+    ax.set_yticks(np.arange(n_split_y))
+    ax.set_xticklabels(np.arange(n_split_x))
+    ax.set_yticklabels(np.arange(n_split_y-1, -1, -1))
+
+    ax.set_xticks(np.arange(-0.5, n_split_x, 1), minor=True)
+    ax.set_yticks(np.arange(-0.5, n_split_y, 1), minor=True)
+    ax.grid(which='minor', color='black', linewidth=1)
+    ax.set_title("Final adapted ranks (before y advection) for subdomains")
+
+    plt.savefig(savepath + "dd_splitting_2x1d_subgrids_rank_adapted_final.pdf")
+
+    # Example data for each cell (ny rows, nx columns)
+    data = np.zeros((n_split_x, n_split_y))
+    for j in range(n_split_y):
+        for i in range(n_split_x):
+            data[i,n_split_y-j-1] = rank_on_subgrids_dropped[j][i][-1]
+
+    # Create the plot
+    fig, ax = plt.subplots()
+    ax.imshow(data.T, cmap='viridis')  # You can change colormap
+
+    # Show numbers in each cell
+    for i in range(n_split_x):
+        for j in range(n_split_y):
+            ax.text(i, j, str(int(data[i, j])), ha='center', va='center', color='w')
+
+    # Optional: Add grid lines
+    ax.set_xticks(np.arange(n_split_x))
+    ax.set_yticks(np.arange(n_split_y))
+    ax.set_xticklabels(np.arange(n_split_x))
+    ax.set_yticklabels(np.arange(n_split_y-1, -1, -1))
+
+    ax.set_xticks(np.arange(-0.5, n_split_x, 1), minor=True)
+    ax.set_yticks(np.arange(-0.5, n_split_y, 1), minor=True)
+    ax.grid(which='minor', color='black', linewidth=1)
+    ax.set_title("Final dropped ranks (after y advection) for subdomains")
+
+    plt.savefig(savepath + "dd_splitting_2x1d_subgrids_rank_dropped_final.pdf")
+
+    return
