@@ -77,7 +77,7 @@ def setInitialCondition_2x1d_lr(grid: Grid_2x1d, option_cond: str = "standard"):
         S[0, 0] = 1.0
     
     elif option_cond == "lattice":
-        U[:,0] = 0
+        U[:,0] = 1e-9
         # V[8, 0] = 1.0
         V[:,0] = 1.0 / grid.Nphi
         S[0,0] = 1.0
