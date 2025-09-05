@@ -8,6 +8,7 @@ from DLR_rt.src.lr import LR, computeF_b_2x1d_X, computeF_b_2x1d_Y
 from DLR_rt.src.util import (
     computeD_cendiff_2x1d,
     computeD_upwind_2x1d,
+    plot_ranks_subgrids,
     plot_rho_subgrids,
 )
 
@@ -45,6 +46,22 @@ def integrate(lr0_on_subgrids: LR, subgrids: Grid_2x1d, t_f: float, dt: float,
 
             row.append(D)
         D_on_subgrids.append(row)
+
+    rank_on_subgrids_adapted = []
+    rank_on_subgrids_dropped = []
+
+    for j in range(n_split_y):
+        row_adapted = []
+        row_dropped = []
+        for i in range(n_split_x):
+
+            rank_adapted = [subgrids[j][i].r]
+            rank_dropped = [subgrids[j][i].r]
+
+            row_adapted.append(rank_adapted)
+            row_dropped.append(rank_dropped)
+        rank_on_subgrids_adapted.append(row_adapted)
+        rank_on_subgrids_dropped.append(row_dropped)
 
     with tqdm(total=t_f / dt, desc="Running Simulation") as pbar:
         while t < t_f:
@@ -145,8 +162,8 @@ def integrate(lr0_on_subgrids: LR, subgrids: Grid_2x1d, t_f: float, dt: float,
 
                     (lr_on_subgrids[j][i], 
                      subgrids[j][i], 
-                     rank_adapted, 
-                     rank_dropped) = PSI_splitting_lie(
+                     rank_on_subgrids_adapted[j][i], 
+                     rank_on_subgrids_dropped[j][i]) = PSI_splitting_lie(
                         lr_on_subgrids[j][i],
                         subgrids[j][i],
                         dt,
@@ -156,6 +173,8 @@ def integrate(lr0_on_subgrids: LR, subgrids: Grid_2x1d, t_f: float, dt: float,
                         DY=D_on_subgrids[j][i][1],
                         tol_sing_val=tol_sing_val,
                         drop_tol=drop_tol,
+                        rank_adapted=rank_on_subgrids_adapted[j][i],
+                        rank_dropped=rank_on_subgrids_dropped[j][i],
                         source=source,
                         option_scheme=option_scheme, 
                         DX_0=D_on_subgrids[j][i][2], 
@@ -168,7 +187,7 @@ def integrate(lr0_on_subgrids: LR, subgrids: Grid_2x1d, t_f: float, dt: float,
             t += dt
             time.append(t)
 
-    return lr_on_subgrids, time
+    return lr_on_subgrids, time, rank_on_subgrids_adapted, rank_on_subgrids_dropped
 
 
 ### Plotting
@@ -178,7 +197,7 @@ Ny = 200
 Nphi = 200
 dt = 0.95 / Nx
 r = 5
-t_f = 3
+t_f = 1.5
 fs = 16
 savepath = "plots/"
 method = "lie"
@@ -202,10 +221,13 @@ lr0_on_subgrids = setInitialCondition_2x1d_lr_subgrids(subgrids, option_cond="la
 plot_rho_subgrids(subgrids, lr0_on_subgrids)
 
 ### Final configuration
-lr_on_subgrids, time = integrate(lr0_on_subgrids, subgrids, t_f, dt, 
-                                 option_scheme=option_scheme, 
-                                 tol_sing_val=1e-3, drop_tol=1e-7)
+lr_on_subgrids, time, rank_on_subgrids_adapted, rank_on_subgrids_dropped = integrate(
+    lr0_on_subgrids, subgrids, t_f, dt, option_scheme=option_scheme, 
+    tol_sing_val=1e-2, drop_tol=1e-3
+    )
 
 plot_rho_subgrids(subgrids, lr_on_subgrids, t=t_f)
 
 plot_rho_subgrids(subgrids, lr_on_subgrids, t=t_f, plot_option="log")
+
+plot_ranks_subgrids(subgrids, time, rank_on_subgrids_adapted, rank_on_subgrids_dropped)
