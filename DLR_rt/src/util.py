@@ -40,6 +40,12 @@ def computeD_cendiff_2x1d(grid: Grid_2x1d, option_dd: str = "no_dd"):
         Dx[0, grid.Nx - 1] = -1
         Dx[grid.Nx - 1, 0] = 1
 
+    if option_dd == "outflow":
+        Dx[0, 0] = -2
+        Dx[0, 1] = 2
+        Dx[grid.Nx - 1, grid.Nx - 1] = 2
+        Dx[grid.Nx - 1, grid.Nx - 2] = -2
+
     # If option = "dd", we need to add information afterwards with inflow/outflow 
     # and cannot just impose periodic b.c.
 
@@ -57,6 +63,12 @@ def computeD_cendiff_2x1d(grid: Grid_2x1d, option_dd: str = "no_dd"):
     if option_dd == "no_dd":
         Dy[0, grid.Ny - 1] = -1
         Dy[grid.Ny - 1, 0] = 1
+
+    if option_dd == "outflow":
+        Dy[0, 0] = -2
+        Dy[0, 1] = 2
+        Dy[grid.Ny - 1, grid.Ny - 1] = 2
+        Dy[grid.Ny - 1, grid.Ny - 2] = -2
 
     # If option = "dd", we need to add information afterwards with inflow/outflow 
     # and cannot just impose periodic b.c.
@@ -95,6 +107,10 @@ def computeD_upwind_2x1d(grid: Grid_2x1d, option_dd: str = "no_dd"):
     if option_dd == "no_dd":
         Dx_0[0, grid.Nx - 1] = -1
 
+    if option_dd == "outflow":
+        Dx_0[0, 0] = -1
+        Dx_0[0, 1] = 1
+
     # If option = "dd", we need to add information afterwards with inflow/outflow 
     # and cannot just impose periodic b.c.
 
@@ -111,6 +127,10 @@ def computeD_upwind_2x1d(grid: Grid_2x1d, option_dd: str = "no_dd"):
 
     if option_dd == "no_dd":
         Dx_1[grid.Nx - 1, 0] = 1
+
+    if option_dd == "outflow":
+        Dx_1[grid.Nx - 1, grid.Nx - 1] = 1
+        Dx_1[grid.Nx - 1, grid.Nx - 2] = -1
 
     # If option = "dd", we need to add information afterwards with inflow/outflow 
     # and cannot just impose periodic b.c.
@@ -129,6 +149,10 @@ def computeD_upwind_2x1d(grid: Grid_2x1d, option_dd: str = "no_dd"):
     if option_dd == "no_dd":
         Dy_0[0, grid.Ny - 1] = -1
 
+    if option_dd == "outflow":
+        Dy_0[0, 0] = -1
+        Dy_0[0, 1] = 1
+
     # If option = "dd", we need to add information afterwards with inflow/outflow 
     # and cannot just impose periodic b.c.
 
@@ -145,6 +169,10 @@ def computeD_upwind_2x1d(grid: Grid_2x1d, option_dd: str = "no_dd"):
 
     if option_dd == "no_dd":
         Dy_1[grid.Ny - 1, 0] = 1
+
+    if option_dd == "outflow":
+        Dy_1[grid.Ny - 1, grid.Ny - 1] = 1
+        Dy_1[grid.Ny - 1, grid.Ny - 2] = -1
 
     # If option = "dd", we need to add information afterwards with inflow/outflow 
     # and cannot just impose periodic b.c.
