@@ -815,15 +815,14 @@ def Kstep(
 
             elif option_coeff == "space_dep":
 
-                V_int =(lr.V.T @ np.ones((grid.Nphi, grid.Nphi))).T * grid.dphi
-                M = np.ones((1, grid.Nphi))
+                V_int =(lr.V.T @ np.ones((grid.Nphi, 1))).T * grid.dphi
 
                 rhs = (
                     -grid.coeff[0] @ DX @ K @ C1[0]
                     - grid.coeff[0] @ DY @ K @ C1[1]
                     + 0.5 / (np.pi) * grid.coeff[1] @ K @ C2.T @ C2
                     - grid.coeff[2] @ K
-                    + 0.5 / (np.pi) * source @ (M @ V_int)
+                    + 0.5 / (np.pi) * source @ V_int
                 )
         
         elif option_scheme=="upwind":
@@ -872,15 +871,14 @@ def Kstep(
 
             elif option_coeff == "space_dep":
 
-                V_int =(lr.V.T @ np.ones((grid.Nphi, grid.Nphi))).T * grid.dphi
-                M = np.ones((1, grid.Nphi))
+                V_int =(lr.V.T @ np.ones((grid.Nphi, 1))).T * grid.dphi
 
                 rhs = (
                     -grid.coeff[0] @ DXK @ T1_0 @ P_0.T
                     - grid.coeff[0] @ DYK @ T1_1 @ P_1.T
                     + 0.5 / (np.pi) * grid.coeff[1] @ K @ C2.T @ C2
                     - grid.coeff[2] @ K
-                    + 0.5 / (np.pi) * source @ (M @ V_int)
+                    + 0.5 / (np.pi) * source @ V_int
                 )
 
     return rhs
@@ -921,15 +919,14 @@ def Sstep(S, C1, C2, D1, grid, inflow=False,
 
         elif option_coeff == "space_dep":
 
-            V_int = (lr.V.T @ np.ones((grid.Nphi, grid.Nphi))).T * grid.dphi
-            M = np.ones((1, grid.Nphi))
+            V_int = (lr.V.T @ np.ones((grid.Nphi, 1))).T * grid.dphi
 
             rhs = (
                 D1[0] @ S @ C1[0]
                 + D1[1] @ S @ C1[1]
                 - 0.5 / (np.pi) * E1[0] @ S @ C2.T @ C2
                 + E1[1] @ S
-                - 0.5 / (np.pi) * lr.U.T @ source @ (M @ V_int) * grid.dx * grid.dy
+                - 0.5 / (np.pi) * lr.U.T @ source @ V_int * grid.dx * grid.dy
             )
 
     return rhs
@@ -1073,10 +1070,9 @@ def Kstep3(K, C2, grid, lr, source=None):
     if source is None:
         rhs = 0.5 / (np.pi) * (grid.coeff[1]) * K @ C2.T @ C2 - (grid.coeff[2]) * K
     else:
-        V_int =(lr.V.T @ np.ones((grid.Nphi, grid.Nphi))).T * grid.dphi
-        M = np.ones((1, grid.Nphi))
+        V_int =(lr.V.T @ np.ones((grid.Nphi, 1))).T * grid.dphi
         rhs = (0.5 / (np.pi) * (grid.coeff[1]) * K @ C2.T @ C2 - (grid.coeff[2]) * K 
-               + 0.5 / (np.pi) * source @ (M @ V_int))
+               + 0.5 / (np.pi) * source @ V_int)
 
     return rhs
 
@@ -1117,10 +1113,9 @@ def Sstep3(S, C2, grid, lr, source=None):
     if source is None:
         rhs = -0.5 / (np.pi) * (grid.coeff[1]) * S @ C2.T @ C2 + (grid.coeff[2]) * S
     else:
-        V_int = (lr.V.T @ np.ones((grid.Nphi, grid.Nphi))).T * grid.dphi
-        M = np.ones((1, grid.Nphi))
+        V_int = (lr.V.T @ np.ones((grid.Nphi, 1))).T * grid.dphi
         rhs = (-0.5 / (np.pi) * (grid.coeff[1]) * S @ C2.T @ C2 + (grid.coeff[2]) * S 
-               - 0.5 / (np.pi) * lr.U.T @ source @ (M @ V_int) * grid.dx * grid.dy)
+               - 0.5 / (np.pi) * lr.U.T @ source @ V_int * grid.dx * grid.dy)
 
     return rhs
 
