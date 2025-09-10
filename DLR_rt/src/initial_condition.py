@@ -63,6 +63,30 @@ def setInitialCondition_2x1d_lr(grid: Grid_2x1d, option_cond: str = "standard"):
     V = np.zeros((grid.Nphi, grid.r))
 
     if option_cond == "standard":
+
+        # # Start with all zeros
+        # block_matrix = np.zeros((7, 7))
+        # # Set block (4,4) to 1
+        # block_row = 3
+        # block_col = 3
+        # block_matrix[block_row, block_col] = 1000
+        # # Expand to full matrix
+        # block_init = np.kron(block_matrix, np.ones((int(grid.Nx/7), int(grid.Ny/7))))
+        # U[:,0] = block_init.flatten()
+
+        # # Do sinus init
+        # block_size = int(grid.Nx/7)
+        # init = np.zeros((grid.Nx,grid.Ny))
+        # for i in range(3*block_size, 4*block_size):
+        #     for j in range(3*block_size, 4*block_size):
+        #         init[i,j] = 1000 * (
+        #                         np.sin((grid.X[i] - 3*block_size/grid.Nx) 
+        #                                * grid.Nx/block_size * np.pi)
+        #                         * np.sin((grid.Y[j] - 3*block_size/grid.Ny) 
+        #                                 * grid.Ny/block_size * np.pi)
+        #                     )
+        # U[:,0] = init.flatten()
+
         for i in range(grid.Ny):
             U[i * grid.Nx : (i + 1) * grid.Nx, 0] = (
                 1
@@ -73,7 +97,7 @@ def setInitialCondition_2x1d_lr(grid: Grid_2x1d, option_cond: str = "standard"):
             # U[i*grid.Nx:(i+1)*grid.Nx, 0] = (
             #     np.sin(2*np.pi*grid.X)*np.sin(2*np.pi*grid.Y[i])
             # )
-        V[16, 0] = 1.0
+        V[:,0] = 1.0 / grid.Nphi
         S[0, 0] = 1.0
     
     elif option_cond == "lattice":
