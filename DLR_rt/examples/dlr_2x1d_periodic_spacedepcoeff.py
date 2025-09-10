@@ -17,10 +17,10 @@ def integrate(lr0: LR, grid: Grid_2x1d, t_f: float, dt: float,
     time = []
     time.append(t)
 
-    DX, DY = computeD_cendiff_2x1d(grid, "no_dd")
+    DX, DY = computeD_cendiff_2x1d(grid, "dd")
 
     if option_scheme == "upwind":
-        DX_0, DX_1, DY_0, DY_1 = computeD_upwind_2x1d(grid, "no_dd")
+        DX_0, DX_1, DY_0, DY_1 = computeD_upwind_2x1d(grid, "dd")
     else:
         DX_0 = None
         DX_1 = None
@@ -52,8 +52,8 @@ Nx = 252
 Ny = 252
 Nphi = 252
 dt = 0.95 / Nx
-r = 50
-t_f = 0.05
+r = 20
+t_f = 0.7
 fs = 16
 savepath = "plots/"
 method = "lie"
@@ -90,6 +90,20 @@ block_pattern_t = np.array([[1,1,1,1,1,1,1],
                             [1,1,10,1,10,1,1],
                             [1,10,1,1,1,10,1],
                             [1,1,1,1,1,1,1]])
+# block_pattern_s = np.array([[1,0,1,1,1,0,1],
+#                             [1,0,1,1,1,0,1],
+#                             [1,0,1,1,1,0,1],
+#                             [1,0,1,1,1,0,1],
+#                             [1,0,1,1,1,0,1],
+#                             [1,0,1,1,1,0,1],
+#                             [1,0,1,1,1,0,1]])
+# block_pattern_t = np.array([[1,10,1,1,1,10,1],
+#                             [1,10,1,1,1,10,1],
+#                             [1,10,1,1,1,10,1],
+#                             [1,10,1,1,1,10,1],
+#                             [1,10,1,1,1,10,1],
+#                             [1,10,1,1,1,10,1],
+#                             [1,10,1,1,1,10,1]])
 
 # Expand each block into block_size x block_size
 c_s_matrix = np.kron(block_pattern_s, np.ones((block_size, block_size), dtype=int))
@@ -110,17 +124,36 @@ lr0 = setInitialCondition_2x1d_lr(grid, option_cond="lattice")
 f0 = lr0.U @ lr0.S @ lr0.V.T
 
 
-# ### Do normal 1 source
-# # Start with all zeros
-# block_matrix = np.zeros((num_blocks, num_blocks))
+### Plot lattice
+extent = [grid.X[0], grid.X[-1], grid.Y[0], grid.Y[-1]]
+fig, axes = plt.subplots(1, 1, figsize=(10, 8))
 
-# # Set block (4,4) to 1
-# block_row = 3
-# block_col = 3
-# block_matrix[block_row, block_col] = 1
+im = axes.imshow(c_s_matrix, extent=extent, origin="lower", cmap="jet")
+axes.set_xlabel("$x$", fontsize=fs)
+axes.set_ylabel("y", fontsize=fs, labelpad=-5)
+axes.set_xticks([0, 0.5, 1])
+axes.set_yticks([0, 0.5, 1])
+axes.tick_params(axis="both", labelsize=fs, pad=10)
 
-# # Expand to full matrix
-# source = np.kron(block_matrix, np.ones((block_size, block_size)))
+cbar_fixed = fig.colorbar(im, ax=axes)
+cbar_fixed.set_ticks([np.min(c_s_matrix), np.max(c_s_matrix)])
+cbar_fixed.ax.tick_params(labelsize=fs)
+
+plt.tight_layout()
+plt.savefig(savepath + "lattice1.pdf")
+
+
+### Do normal 1 source
+# Start with all zeros
+block_matrix = np.zeros((num_blocks, num_blocks))
+
+# Set block (4,4) to 1
+block_row = 3
+block_col = 3
+block_matrix[block_row, block_col] = 1
+
+# Expand to full matrix
+source = np.kron(block_matrix, np.ones((block_size, block_size)))
 
 
 # ### Do Gaussian source
@@ -135,15 +168,15 @@ f0 = lr0.U @ lr0.S @ lr0.V.T
 #                     )
 
 
-### Do sinus source
-source = np.zeros((Nx,Ny))
-for i in range(3*block_size, 4*block_size):
-    for j in range(3*block_size, 4*block_size):
-        source[i,j] = (
-                        np.sin((grid.X[i] - 3*block_size/Nx) * Nx/block_size * np.pi)
-                        * np.sin((grid.Y[j] - 3*block_size/Ny) 
-                                 * Nx/block_size * np.pi)
-                    )
+# ### Do sinus source
+# source = np.zeros((Nx,Ny))
+# for i in range(3*block_size, 4*block_size):
+#     for j in range(3*block_size, 4*block_size):
+#         source[i,j] = (
+#                         np.sin((grid.X[i] - 3*block_size/Nx) * Nx/block_size * np.pi)
+#                         * np.sin((grid.Y[j] - 3*block_size/Ny) 
+#                                  * Ny/block_size * np.pi)
+#                     )
         
 
 ### Plot source
