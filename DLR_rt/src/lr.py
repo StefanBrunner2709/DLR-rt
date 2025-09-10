@@ -639,7 +639,7 @@ def computeC(lr, grid, dimensions="1x1d"):
     if dimensions == "1x1d":
         C1 = (lr.V.T @ np.diag(grid.MU) @ lr.V) * grid.dmu
 
-        C2 = (lr.V.T @ np.ones((grid.Nmu, grid.Nmu))).T * grid.dmu
+        C2 = (lr.V.T @ np.ones((grid.Nmu, 1))).T * grid.dmu
 
         ### Alternative option, faster but harder to understand
         # muV = grid.MU[:, None] * lr.V
@@ -651,8 +651,7 @@ def computeC(lr, grid, dimensions="1x1d"):
         C1_2 = (lr.V.T @ np.diag(np.sin(grid.PHI)) @ lr.V) * grid.dphi
         C1 = [C1_1, C1_2]
 
-        C2 = (lr.V.T @ np.ones((grid.Nphi, grid.Nphi))).T * grid.dphi
-
+        C2 = (lr.V.T @ np.ones((grid.Nphi, 1))).T * grid.dphi
     return C1, C2
 
 
@@ -663,10 +662,10 @@ def computeB(L, grid, dimensions="1x1d"):
     For higher dimensional simulations set i.e. dimensions = "2x1d"
     """
     if dimensions == "1x1d":
-        B1 = (L.T @ np.ones((grid.Nmu, grid.Nmu))).T * grid.dmu
+        B1 = (L.T @ np.ones((grid.Nmu, 1))).T * grid.dmu
 
     elif dimensions == "2x1d":
-        B1 = (L.T @ np.ones((grid.Nphi, grid.Nphi))).T * grid.dphi
+        B1 = (L.T @ np.ones((grid.Nphi, 1))).T * grid.dphi
 
     return B1
 
@@ -949,13 +948,13 @@ def Lstep(L, D1, B1, grid, lr=None, inflow=False,
         if inflow:
             rhs = (
                 -(grid.coeff) * np.diag(grid.MU) @ lr.V @ D1.T
-                + 0.5 * (grid.coeff) ** 2 * B1
+                + 0.5 * (grid.coeff) ** 2 * np.ones((grid.Nmu, 1)) @ B1
                 - (grid.coeff) ** 2 * L
             )
         else:
             rhs = (
                 -(grid.coeff) * np.diag(grid.MU) @ L @ D1.T
-                + 0.5 * (grid.coeff) ** 2 * B1
+                + 0.5 * (grid.coeff) ** 2 * np.ones((grid.Nmu, 1)) @ B1
                 - (grid.coeff) ** 2 * L
             )
 
@@ -964,7 +963,7 @@ def Lstep(L, D1, B1, grid, lr=None, inflow=False,
             rhs = (
                 -(grid.coeff[0]) * np.diag(np.cos(grid.PHI)) @ L @ D1[0].T
                 - (grid.coeff[0]) * np.diag(np.sin(grid.PHI)) @ L @ D1[1].T
-                + 0.5 / (np.pi) * (grid.coeff[1]) * B1
+                + 0.5 / (np.pi) * (grid.coeff[1]) * np.ones((grid.Nphi, 1)) @ B1
                 - (grid.coeff[2]) * L
             )
         
@@ -975,7 +974,7 @@ def Lstep(L, D1, B1, grid, lr=None, inflow=False,
             rhs = (
                 -np.diag(np.cos(grid.PHI)) @ L @ D1[0].T
                 - np.diag(np.sin(grid.PHI)) @ L @ D1[1].T
-                + 0.5 / (np.pi) * B1 @ E1[0]
+                + 0.5 / (np.pi) * np.ones((grid.Nphi, 1)) @ B1 @ E1[0]
                 - L @ E1[1]
                 + 0.5 / (np.pi) * ((lr.U.T @ source) @ M).T * grid.dx * grid.dy
             )
@@ -1161,10 +1160,12 @@ def Lstep3(L, B1, grid, lr, source=None):
     """
 
     if source is None:
-        rhs = 0.5 / (np.pi) * (grid.coeff[1]) * B1 - (grid.coeff[2]) * L
+        rhs = (0.5 / (np.pi) * (grid.coeff[1]) * np.ones((grid.Nphi, 1)) @ B1 
+               - (grid.coeff[2]) * L)
     else:
         M = np.ones((1, grid.Nphi))
-        rhs = (0.5 / (np.pi) * (grid.coeff[1]) * B1 - (grid.coeff[2]) * L 
+        rhs = (0.5 / (np.pi) * (grid.coeff[1]) * np.ones((grid.Nphi, 1)) @ B1 
+               - (grid.coeff[2]) * L 
                + 0.5 / (np.pi) * ((lr.U.T @ source) @ M).T * grid.dx * grid.dy)
 
     return rhs
