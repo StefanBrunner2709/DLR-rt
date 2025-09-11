@@ -11,7 +11,8 @@ from DLR_rt.src.util import computeD_cendiff_2x1d, computeD_upwind_2x1d
 
 
 def integrate(lr0: LR, grid: Grid_2x1d, t_f: float, dt: float, 
-              option: str = "lie", source = None, option_scheme : str = "cendiff"):
+              option: str = "lie", source = None, 
+              option_scheme : str = "cendiff", option_timescheme : str = "RK4"):
     lr = lr0
     t = 0
     time = []
@@ -38,7 +39,8 @@ def integrate(lr0: LR, grid: Grid_2x1d, t_f: float, dt: float,
                 lr, grid = PSI_lie(lr, grid, dt, DX=DX, DY=DY, 
                                    dimensions="2x1d", option_coeff="space_dep", 
                                    source=source, option_scheme=option_scheme,
-                                   DX_0=DX_0, DX_1=DX_1, DY_0=DY_0, DY_1=DY_1)
+                                   DX_0=DX_0, DX_1=DX_1, DY_0=DY_0, DY_1=DY_1,
+                                   option_timescheme=option_timescheme)
 
             t += dt
             time.append(t)
@@ -51,14 +53,15 @@ def integrate(lr0: LR, grid: Grid_2x1d, t_f: float, dt: float,
 Nx = 252
 Ny = 252
 Nphi = 252
-dt = 0.95 / Nx
-r = 20
+dt = 0.02
+r = 50
 t_f = 0.7
 fs = 16
 savepath = "plots/"
 method = "lie"
 option_grid = "dd"      # Just changes how gridpoints are chosen
 option_scheme = "upwind"
+option_timescheme = "impl_Euler"
 
 
 # ### To compare with constant coefficient results
@@ -202,7 +205,8 @@ source = source.flatten()[:, None]
 
 
 ### Run code and do the plotting
-lr, time = integrate(lr0, grid, t_f, dt, source=source, option_scheme=option_scheme)
+lr, time = integrate(lr0, grid, t_f, dt, source=source, 
+                     option_scheme=option_scheme, option_timescheme=option_timescheme)
 f = lr.U @ lr.S @ lr.V.T
 
 rho0 = (
