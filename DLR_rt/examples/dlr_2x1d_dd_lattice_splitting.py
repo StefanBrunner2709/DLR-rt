@@ -15,7 +15,7 @@ from DLR_rt.src.util import (
 
 def integrate(lr0_on_subgrids: LR, subgrids: Grid_2x1d, t_f: float, dt: float,
                tol_sing_val: float = 1e-3, drop_tol: float = 1e-7, method="lie", 
-               option_scheme: str = "cendiff"):
+               option_scheme: str = "cendiff", option_timescheme : str = "RK4"):
     
     lr_on_subgrids = lr0_on_subgrids
     t = 0
@@ -154,7 +154,8 @@ def integrate(lr0_on_subgrids: LR, subgrids: Grid_2x1d, t_f: float, dt: float,
                         rank_dropped=rank_on_subgrids_dropped[j][i],
                         source=source,
                         option_scheme=option_scheme, 
-                        DX_0=DX_0, DX_1=DX_1, DY_0=DY_0, DY_1=DY_1
+                        DX_0=DX_0, DX_1=DX_1, DY_0=DY_0, DY_1=DY_1,
+                        option_timescheme=option_timescheme
                     )
 
             ### Update time
@@ -169,13 +170,14 @@ def integrate(lr0_on_subgrids: LR, subgrids: Grid_2x1d, t_f: float, dt: float,
 Nx = 252
 Ny = 252
 Nphi = 252
-dt = 0.95 / Nx
+dt = 0.002
 r = 5
 t_f = 0.7
 fs = 16
 savepath = "plots/"
 method = "lie"
 option_scheme = "upwind"
+option_timescheme = "impl_Euler"
 
 
 ### Initial configuration
@@ -196,8 +198,9 @@ plot_rho_subgrids(subgrids, lr0_on_subgrids, plot_option="log")
 
 ### Final configuration
 lr_on_subgrids, time, rank_on_subgrids_adapted, rank_on_subgrids_dropped = integrate(
-    lr0_on_subgrids, subgrids, t_f, dt, option_scheme=option_scheme,
-    tol_sing_val=1e-3, drop_tol=1e-7
+    lr0_on_subgrids, subgrids, t_f, dt, 
+    option_scheme=option_scheme, option_timescheme=option_timescheme,
+    tol_sing_val=1e-2, drop_tol=1e-5
     )
 
 plot_rho_subgrids(subgrids, lr_on_subgrids, t=t_f, plot_option="log")
