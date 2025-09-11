@@ -282,7 +282,8 @@ def PSI_splitting_lie(
     DX_0=None, 
     DX_1=None, 
     DY_0=None, 
-    DY_1=None
+    DY_1=None,
+    option_timescheme="RK4"
 ):
     """
     Projector splitting integrator with equation splitting and lie splitting.
@@ -313,9 +314,14 @@ def PSI_splitting_lie(
     # K step
     C1, C2 = computeC(lr, grid, dimensions="2x1d")
     K = lr.U @ lr.S
-    K += dt * RK4(K, lambda K: Kstep1(C1, grid, lr, F_b, F_b_top_bottom, DX, DY, 
-                                      option_scheme=option_scheme, 
-                                      DX_0=DX_0, DX_1=DX_1, DY_0=DY_0, DY_1=DY_1), dt)
+    if option_timescheme == "RK4":
+        K += dt * RK4(K, lambda K: Kstep1(C1, grid, lr, F_b, F_b_top_bottom, DX, DY, 
+                                        option_scheme=option_scheme, 
+                                        DX_0=DX_0, DX_1=DX_1, DY_0=DY_0, DY_1=DY_1), dt)
+    elif option_timescheme == "impl_Euler":
+        K = impl_Euler(K, lambda K: Kstep1(C1, grid, lr, F_b, F_b_top_bottom, DX, DY, 
+                                        option_scheme=option_scheme, 
+                                        DX_0=DX_0, DX_1=DX_1, DY_0=DY_0, DY_1=DY_1), dt)
     lr.U, lr.S = np.linalg.qr(K, mode="reduced")
     lr.U /= (np.sqrt(grid.dx) * np.sqrt(grid.dy))
     lr.S *= (np.sqrt(grid.dx) * np.sqrt(grid.dy))
@@ -324,12 +330,18 @@ def PSI_splitting_lie(
     D1 = computeD(
         lr, grid, F_b, F_b_top_bottom, DX=DX, DY=DY, dimensions="2x1d", option_dd="dd"
     )
-    lr.S += dt * RK4(lr.S, lambda S: Sstep1(C1, D1, grid), dt)
+    if option_timescheme == "RK4":
+        lr.S += dt * RK4(lr.S, lambda S: Sstep1(C1, D1, grid), dt)
+    elif option_timescheme == "impl_Euler":
+        lr.S = impl_Euler(lr.S, lambda S: Sstep1(C1, D1, grid), dt)
 
     # L step
     L = lr.V @ lr.S.T
     B1 = computeB(L, grid, dimensions="2x1d")
-    L += dt * RK4(L, lambda L: Lstep1(lr, D1, grid), dt)
+    if option_timescheme == "RK4":
+        L += dt * RK4(L, lambda L: Lstep1(lr, D1, grid), dt)
+    elif option_timescheme == "impl_Euler":
+        L = impl_Euler(L, lambda L: Lstep1(lr, D1, grid), dt)
     lr.V, St = np.linalg.qr(L, mode="reduced")
     lr.S = St.T
     lr.V /= np.sqrt(grid.dphi)
@@ -350,9 +362,14 @@ def PSI_splitting_lie(
     # K step
     C1, C2 = computeC(lr, grid, dimensions="2x1d")
     K = lr.U @ lr.S
-    K += dt * RK4(K, lambda K: Kstep2(C1, grid, lr, F_b, F_b_top_bottom, DX, DY, 
-                                      option_scheme=option_scheme, 
-                                      DX_0=DX_0, DX_1=DX_1, DY_0=DY_0, DY_1=DY_1), dt)
+    if option_timescheme == "RK4":
+        K += dt * RK4(K, lambda K: Kstep2(C1, grid, lr, F_b, F_b_top_bottom, DX, DY, 
+                                        option_scheme=option_scheme, 
+                                        DX_0=DX_0, DX_1=DX_1, DY_0=DY_0, DY_1=DY_1), dt)
+    elif option_timescheme == "impl_Euler":
+        K = impl_Euler(K, lambda K: Kstep2(C1, grid, lr, F_b, F_b_top_bottom, DX, DY, 
+                                        option_scheme=option_scheme, 
+                                        DX_0=DX_0, DX_1=DX_1, DY_0=DY_0, DY_1=DY_1), dt)
     lr.U, lr.S = np.linalg.qr(K, mode="reduced")
     lr.U /= (np.sqrt(grid.dx) * np.sqrt(grid.dy))
     lr.S *= (np.sqrt(grid.dx) * np.sqrt(grid.dy))
@@ -361,11 +378,17 @@ def PSI_splitting_lie(
     D1 = computeD(
         lr, grid, F_b, F_b_top_bottom, DX=DX, DY=DY, dimensions="2x1d", option_dd="dd"
     )
-    lr.S += dt * RK4(lr.S, lambda S: Sstep2(C1, D1, grid), dt)
+    if option_timescheme == "RK4":
+        lr.S += dt * RK4(lr.S, lambda S: Sstep2(C1, D1, grid), dt)
+    elif option_timescheme == "impl_Euler":
+        lr.S = impl_Euler(lr.S, lambda S: Sstep2(C1, D1, grid), dt)
 
     # L step
     L = lr.V @ lr.S.T
-    L += dt * RK4(L, lambda L: Lstep2(lr, D1, grid), dt)
+    if option_timescheme == "RK4":
+        L += dt * RK4(L, lambda L: Lstep2(lr, D1, grid), dt)
+    elif option_timescheme == "impl_Euler":
+        L = impl_Euler(L, lambda L: Lstep2(lr, D1, grid), dt)
     lr.V, St = np.linalg.qr(L, mode="reduced")
     lr.S = St.T
     lr.V /= np.sqrt(grid.dphi)
@@ -381,18 +404,27 @@ def PSI_splitting_lie(
     # K step
     C1, C2 = computeC(lr, grid, dimensions="2x1d")
     K = lr.U @ lr.S
-    K += dt * RK4(K, lambda K: Kstep3(K, C2, grid, lr, source=source), dt)
+    if option_timescheme == "RK4":
+        K += dt * RK4(K, lambda K: Kstep3(K, C2, grid, lr, source=source), dt)
+    elif option_timescheme == "impl_Euler":
+        K = impl_Euler(K, lambda K: Kstep3(K, C2, grid, lr, source=source), dt)
     lr.U, lr.S = np.linalg.qr(K, mode="reduced")
     lr.U /= (np.sqrt(grid.dx) * np.sqrt(grid.dy))
     lr.S *= (np.sqrt(grid.dx) * np.sqrt(grid.dy))
 
     # S step
-    lr.S += dt * RK4(lr.S, lambda S: Sstep3(S, C2, grid, lr, source=source), dt)
+    if option_timescheme == "RK4":
+        lr.S += dt * RK4(lr.S, lambda S: Sstep3(S, C2, grid, lr, source=source), dt)
+    elif option_timescheme == "impl_Euler":
+        lr.S = impl_Euler(lr.S, lambda S: Sstep3(S, C2, grid, lr, source=source), dt)
 
     # L step
     L = lr.V @ lr.S.T
     B1 = computeB(L, grid, dimensions="2x1d")
-    L += dt * RK4(L, lambda L: Lstep3(L, B1, grid, lr, source=source), dt)
+    if option_timescheme == "RK4":
+        L += dt * RK4(L, lambda L: Lstep3(L, B1, grid, lr, source=source), dt)
+    elif option_timescheme == "impl_Euler":
+        L = impl_Euler(L, lambda L: Lstep3(L, B1, grid, lr, source=source), dt)
     lr.V, St = np.linalg.qr(L, mode="reduced")
     lr.S = St.T
     lr.V /= np.sqrt(grid.dphi)
