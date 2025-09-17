@@ -18,10 +18,10 @@ def integrate(lr0: LR, grid: Grid_2x1d, t_f: float, dt: float,
     time = []
     time.append(t)
 
-    DX, DY = computeD_cendiff_2x1d(grid, "dd")
+    DX, DY = computeD_cendiff_2x1d(grid, "outflow")
 
     if option_scheme == "upwind":
-        DX_0, DX_1, DY_0, DY_1 = computeD_upwind_2x1d(grid, "dd")
+        DX_0, DX_1, DY_0, DY_1 = computeD_upwind_2x1d(grid, "outflow")
     else:
         DX_0 = None
         DX_1 = None
@@ -53,7 +53,7 @@ def integrate(lr0: LR, grid: Grid_2x1d, t_f: float, dt: float,
 Nx = 200
 Ny = 200
 Nphi = 200
-dt = 0.95 / Nx
+dt = 0.5 / Nx
 r = 30
 t_f = 0.4
 fs = 16
@@ -134,12 +134,15 @@ for i in range(Nx):
     for j in range(Ny):
 
         if j <= 0.05*Ny or j >= 0.95*Ny:    # upper and lower blocks
-            c_t_matrix[j,i] = 1
+            c_t_matrix[j,i] = 100
 
         else:
             if (i >= 0.95*Nx or i<=0.05*Nx and (0.25*Ny <= j <= 0.75*Ny)
                 or (0.25*Nx <= i <= 0.75*Nx) and (0.25*Ny <= j <= 0.75*Ny)):
-                c_t_matrix[j,i] = 1
+                c_t_matrix[j,i] = 100
+
+c_t_matrix[:,0] = 0
+c_t_matrix[:,1] = 0
 
 # Change to vector
 c_s_vec = c_s_matrix.flatten()
