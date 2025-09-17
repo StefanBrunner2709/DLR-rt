@@ -738,7 +738,6 @@ def computeD(
 def computeE(lr, grid):
 
     E1_1 = lr.U.T @ grid.coeff[1] @ lr.U * grid.dx * grid.dy
-    #multiply with grid.dy as well?
     E1_2 = lr.U.T @ grid.coeff[2] @ lr.U * grid.dx * grid.dy
     E1 = [E1_1, E1_2]
 
@@ -1146,7 +1145,7 @@ def Lstep3(L, B1, grid, lr, source=None):
 
 
 def add_basis_functions(
-    lr, grid, F_b, tol_sing_val, dimensions="1x1d", option="x_advection"
+    lr, grid, F_b, tol_sing_val, dimensions="1x1d"
 ):
     """
     Add basis functions.
@@ -1154,7 +1153,6 @@ def add_basis_functions(
     Add basis functions according to the inflow condition of current subdomain 
     and a tolarance for singular values.
     For higher dimensional simulations set i.e. dimensions = "2x1d".
-    When adding basis for y advection set option = "y_advection".
     """
     # Compute SVD and drop singular values
     X, sing_val, QT = np.linalg.svd(F_b)

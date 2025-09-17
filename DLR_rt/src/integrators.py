@@ -351,7 +351,7 @@ def PSI_splitting_lie(
 
     ### Add basis for adaptive rank strategy:
     lr, grid = add_basis_functions(
-        lr, grid, F_b, tol_sing_val, dimensions="2x1d", option="x_advection"
+        lr, grid, F_b, tol_sing_val, dimensions="2x1d"
     )
 
     # K step
@@ -397,7 +397,7 @@ def PSI_splitting_lie(
 
     ### Add basis for adaptive rank strategy:
     lr, grid = add_basis_functions(
-        lr, grid, F_b_top_bottom, tol_sing_val, dimensions="2x1d", option="y_advection"
+        lr, grid, F_b_top_bottom, tol_sing_val, dimensions="2x1d"
     )
     if rank_adapted is not None:
         rank_adapted.append(grid.r)
@@ -517,7 +517,7 @@ def PSI_splitting_strang(
 
     ### Add basis for adaptive rank strategy:
     lr, grid = add_basis_functions(
-        lr, grid, F_b, tol_sing_val, dimensions="2x1d", option="x_advection"
+        lr, grid, F_b, tol_sing_val, dimensions="2x1d"
     )
 
     # 1/2 K step
@@ -583,7 +583,7 @@ def PSI_splitting_strang(
 
     ### Add basis for adaptive rank strategy:
     lr, grid = add_basis_functions(
-        lr, grid, F_b_top_bottom, tol_sing_val, dimensions="2x1d", option="y_advection"
+        lr, grid, F_b_top_bottom, tol_sing_val, dimensions="2x1d"
     )
     if rank_adapted is not None:
         rank_adapted.append(grid.r)
