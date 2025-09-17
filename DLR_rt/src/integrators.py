@@ -98,10 +98,28 @@ def PSI_lie(lr, grid, dt, F_b=None, DX=None, DY=None, dimensions="1x1d",
         Time step size.
     F_b
         Boundary condition matrix for inflow conditions.
+    DX
+        Centered difference matrix in x.
+    DY
+        Centered difference matrix in y.
     dimensions
         Number of dimensions, given as a string.
     option_coeff
-        Possible values are "constant" and "space_dep"
+        Possible values are "constant" and "space_dep".
+    source
+        Source term in rt equation, if given.
+    option_scheme
+        Possible options are "cendiff" or "upwind".
+    DX_0
+        Upwind difference matrix in x (DX-).
+    DX_1
+        Upwind difference matrix in x (DX+).
+    DY_0
+        Upwind difference matrix in y (DY-).
+    DY_1
+        Upwind difference matrix in y (DY+).
+    option_timescheme
+        Possible options are "RK4" or "impl_Euler".
     """
     inflow = F_b is not None
 
@@ -271,8 +289,6 @@ def PSI_splitting_lie(
     F_b_top_bottom,
     DX=None,
     DY=None,
-    lr_periodic=None,
-    location="left",
     tol_sing_val=1e-6,
     drop_tol=1e-6,
     rank_adapted=None,
@@ -302,6 +318,33 @@ def PSI_splitting_lie(
         Boundary condition matrix for inflow conditions.
     F_b_top_bottom
         Boundary condition matrix for inflow conditions.
+    DX
+        Centered difference matrix in x of subdomain.
+    DY
+        Centered difference matrix in y of subdomain.
+    tol_sing_val
+        Tolerance when adding basis functions.
+    drop_tol
+        Tolerance when removing basis functions.
+    rank_adapted
+        Array of adapted ranks until this time.
+    rank_dropped
+        Array of dropped ranks until this time.
+    source
+        Source term in rt equation, if given.
+    option_scheme
+        Possible options are "cendiff" or "upwind".
+    DX_0
+        Upwind difference matrix in x (DX-) of subdomain.
+    DX_1
+        Upwind difference matrix in x (DX+) of subdomain.
+    DY_0
+        Upwind difference matrix in y (DY-) of subdomain.
+    DY_1
+        Upwind difference matrix in y (DY+) of subdomain.
+    option_timescheme
+        Possible options are "RK4" or "impl_Euler".
+
     """
 
     # Step 1: advection in x
