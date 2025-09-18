@@ -4,6 +4,7 @@ Contains different time integrators.
 
 import numpy as np
 from scipy.optimize import root
+from scipy.sparse.linalg import LinearOperator, gmres
 
 from DLR_rt.src.lr import (
     Kstep,
@@ -66,16 +67,35 @@ def help_func_impl_Euler(x, f, rhs, dt):
 
     return res.ravel()
 
-def impl_Euler(f, rhs, dt):
+def impl_Euler(f, rhs, dt, option = "impl_Euler"):
     """
     Implicit Euler.
 
     Time integration method.
     """
+    
+    if option == "impl_Euler":
+        sol = root(help_func_impl_Euler, f.ravel(), args=(f, rhs, dt), method="krylov")
+        x = sol.x
 
-    sol = root(help_func_impl_Euler, f.ravel(), args=(f, rhs, dt), method="krylov")
+    elif option == "impl_Euler_gmres":
+        n = f.size
 
-    return sol.x.reshape(f.shape)
+        def mv(v):
+
+            v = v.reshape(f.shape)
+            res = v-dt*rhs(v)
+
+            return res.ravel()
+
+        A = LinearOperator((n, n), matvec=mv)
+
+        x, exitCode = gmres(A, f.ravel())
+
+        if exitCode != 0:
+            print("GMRES did not fully converge, info =", exitCode)
+
+    return x.reshape(f.shape)
 
 
 def PSI_lie(lr, grid, dt, F_b=None, DX=None, DY=None, dimensions="1x1d", 
@@ -119,7 +139,7 @@ def PSI_lie(lr, grid, dt, F_b=None, DX=None, DY=None, dimensions="1x1d",
     DY_1
         Upwind difference matrix in y (DY+).
     option_timescheme
-        Possible options are "RK4" or "impl_Euler".
+        Possible options are "RK4", "impl_Euler" or "impl_Euler_gmres".
     """
     inflow = F_b is not None
 
@@ -136,7 +156,7 @@ def PSI_lie(lr, grid, dt, F_b=None, DX=None, DY=None, dimensions="1x1d",
             ),
             dt,
         )   # we use RK4 for both cendiff and upwind
-    elif option_timescheme == "impl_Euler":
+    elif option_timescheme == "impl_Euler" or option_timescheme == "impl_Euler_gmres":
         K = impl_Euler(
             K,
             lambda K: Kstep(
@@ -145,6 +165,7 @@ def PSI_lie(lr, grid, dt, F_b=None, DX=None, DY=None, dimensions="1x1d",
                 option_scheme=option_scheme, DX_0=DX_0, DX_1=DX_1, DY_0=DY_0, DY_1=DY_1
             ),
             dt,
+            option = option_timescheme,
         )
     lr.U, lr.S = np.linalg.qr(K, mode="reduced")
     if dimensions == "1x1d":
@@ -168,7 +189,7 @@ def PSI_lie(lr, grid, dt, F_b=None, DX=None, DY=None, dimensions="1x1d",
                                 option_coeff=option_coeff, E1=E1, source=source, 
                                 lr=lr), dt
         )   # we use RK4 for both cendiff and upwind
-    elif option_timescheme == "impl_Euler":
+    elif option_timescheme == "impl_Euler" or option_timescheme == "impl_Euler_gmres":
         lr.S = impl_Euler(
                 lr.S,
                 lambda S: Sstep(S, C1, C2, D1, grid, 
@@ -176,6 +197,7 @@ def PSI_lie(lr, grid, dt, F_b=None, DX=None, DY=None, dimensions="1x1d",
                                 option_coeff=option_coeff, E1=E1, source=source, 
                                 lr=lr),
                 dt,
+                option = option_timescheme,
         )
 
     # L step
@@ -186,12 +208,13 @@ def PSI_lie(lr, grid, dt, F_b=None, DX=None, DY=None, dimensions="1x1d",
             L, lambda L: Lstep(L, D1, B1, grid, lr, inflow, dimensions=dimensions, 
                                 option_coeff=option_coeff, E1=E1, source=source), dt
         )   # we use RK4 for both cendiff and upwind
-    elif option_timescheme == "impl_Euler":
+    elif option_timescheme == "impl_Euler" or option_timescheme == "impl_Euler_gmres":
         L = impl_Euler(
             L,
             lambda L: Lstep(L, D1, B1, grid, lr, inflow, dimensions=dimensions, 
                                 option_coeff=option_coeff, E1=E1, source=source),
             dt,
+            option = option_timescheme,
         )
     lr.V, St = np.linalg.qr(L, mode="reduced")
     lr.S = St.T
@@ -343,7 +366,7 @@ def PSI_splitting_lie(
     DY_1
         Upwind difference matrix in y (DY+) of subdomain.
     option_timescheme
-        Possible options are "RK4" or "impl_Euler".
+        Possible options are "RK4", "impl_Euler" or "impl_Euler_gmres".
 
     """
 
@@ -361,10 +384,11 @@ def PSI_splitting_lie(
         K += dt * RK4(K, lambda K: Kstep1(C1, grid, lr, F_b, F_b_top_bottom, DX, DY, 
                                         option_scheme=option_scheme, 
                                         DX_0=DX_0, DX_1=DX_1, DY_0=DY_0, DY_1=DY_1), dt)
-    elif option_timescheme == "impl_Euler":
+    elif option_timescheme == "impl_Euler" or option_timescheme == "impl_Euler_gmres":
         K = impl_Euler(K, lambda K: Kstep1(C1, grid, lr, F_b, F_b_top_bottom, DX, DY, 
                                         option_scheme=option_scheme, 
-                                        DX_0=DX_0, DX_1=DX_1, DY_0=DY_0, DY_1=DY_1), dt)
+                                        DX_0=DX_0, DX_1=DX_1, DY_0=DY_0, DY_1=DY_1), dt,
+                                        option = option_timescheme)
     lr.U, lr.S = np.linalg.qr(K, mode="reduced")
     lr.U /= (np.sqrt(grid.dx) * np.sqrt(grid.dy))
     lr.S *= (np.sqrt(grid.dx) * np.sqrt(grid.dy))
@@ -375,16 +399,18 @@ def PSI_splitting_lie(
     )
     if option_timescheme == "RK4":
         lr.S += dt * RK4(lr.S, lambda S: Sstep1(C1, D1, grid), dt)
-    elif option_timescheme == "impl_Euler":
-        lr.S = impl_Euler(lr.S, lambda S: Sstep1(C1, D1, grid), dt)
+    elif option_timescheme == "impl_Euler" or option_timescheme == "impl_Euler_gmres":
+        lr.S = impl_Euler(lr.S, lambda S: Sstep1(C1, D1, grid), dt,
+                          option = option_timescheme)
 
     # L step
     L = lr.V @ lr.S.T
     B1 = computeB(L, grid, dimensions="2x1d")
     if option_timescheme == "RK4":
         L += dt * RK4(L, lambda L: Lstep1(lr, D1, grid), dt)
-    elif option_timescheme == "impl_Euler":
-        L = impl_Euler(L, lambda L: Lstep1(lr, D1, grid), dt)
+    elif option_timescheme == "impl_Euler" or option_timescheme == "impl_Euler_gmres":
+        L = impl_Euler(L, lambda L: Lstep1(lr, D1, grid), dt,
+                          option = option_timescheme)
     lr.V, St = np.linalg.qr(L, mode="reduced")
     lr.S = St.T
     lr.V /= np.sqrt(grid.dphi)
@@ -409,10 +435,11 @@ def PSI_splitting_lie(
         K += dt * RK4(K, lambda K: Kstep2(C1, grid, lr, F_b, F_b_top_bottom, DX, DY, 
                                         option_scheme=option_scheme, 
                                         DX_0=DX_0, DX_1=DX_1, DY_0=DY_0, DY_1=DY_1), dt)
-    elif option_timescheme == "impl_Euler":
+    elif option_timescheme == "impl_Euler" or option_timescheme == "impl_Euler_gmres":
         K = impl_Euler(K, lambda K: Kstep2(C1, grid, lr, F_b, F_b_top_bottom, DX, DY, 
                                         option_scheme=option_scheme, 
-                                        DX_0=DX_0, DX_1=DX_1, DY_0=DY_0, DY_1=DY_1), dt)
+                                        DX_0=DX_0, DX_1=DX_1, DY_0=DY_0, DY_1=DY_1), dt,
+                          option = option_timescheme)
     lr.U, lr.S = np.linalg.qr(K, mode="reduced")
     lr.U /= (np.sqrt(grid.dx) * np.sqrt(grid.dy))
     lr.S *= (np.sqrt(grid.dx) * np.sqrt(grid.dy))
@@ -423,15 +450,17 @@ def PSI_splitting_lie(
     )
     if option_timescheme == "RK4":
         lr.S += dt * RK4(lr.S, lambda S: Sstep2(C1, D1, grid), dt)
-    elif option_timescheme == "impl_Euler":
-        lr.S = impl_Euler(lr.S, lambda S: Sstep2(C1, D1, grid), dt)
+    elif option_timescheme == "impl_Euler" or option_timescheme == "impl_Euler_gmres":
+        lr.S = impl_Euler(lr.S, lambda S: Sstep2(C1, D1, grid), dt,
+                          option = option_timescheme)
 
     # L step
     L = lr.V @ lr.S.T
     if option_timescheme == "RK4":
         L += dt * RK4(L, lambda L: Lstep2(lr, D1, grid), dt)
-    elif option_timescheme == "impl_Euler":
-        L = impl_Euler(L, lambda L: Lstep2(lr, D1, grid), dt)
+    elif option_timescheme == "impl_Euler" or option_timescheme == "impl_Euler_gmres":
+        L = impl_Euler(L, lambda L: Lstep2(lr, D1, grid), dt,
+                          option = option_timescheme)
     lr.V, St = np.linalg.qr(L, mode="reduced")
     lr.S = St.T
     lr.V /= np.sqrt(grid.dphi)
@@ -449,8 +478,9 @@ def PSI_splitting_lie(
     K = lr.U @ lr.S
     if option_timescheme == "RK4":
         K += dt * RK4(K, lambda K: Kstep3(K, C2, grid, lr, source=source), dt)
-    elif option_timescheme == "impl_Euler":
-        K = impl_Euler(K, lambda K: Kstep3(K, C2, grid, lr, source=source), dt)
+    elif option_timescheme == "impl_Euler" or option_timescheme == "impl_Euler_gmres":
+        K = impl_Euler(K, lambda K: Kstep3(K, C2, grid, lr, source=source), dt,
+                          option = option_timescheme)
     lr.U, lr.S = np.linalg.qr(K, mode="reduced")
     lr.U /= (np.sqrt(grid.dx) * np.sqrt(grid.dy))
     lr.S *= (np.sqrt(grid.dx) * np.sqrt(grid.dy))
@@ -458,16 +488,18 @@ def PSI_splitting_lie(
     # S step
     if option_timescheme == "RK4":
         lr.S += dt * RK4(lr.S, lambda S: Sstep3(S, C2, grid, lr, source=source), dt)
-    elif option_timescheme == "impl_Euler":
-        lr.S = impl_Euler(lr.S, lambda S: Sstep3(S, C2, grid, lr, source=source), dt)
+    elif option_timescheme == "impl_Euler" or option_timescheme == "impl_Euler_gmres":
+        lr.S = impl_Euler(lr.S, lambda S: Sstep3(S, C2, grid, lr, source=source), dt,
+                          option = option_timescheme)
 
     # L step
     L = lr.V @ lr.S.T
     B1 = computeB(L, grid, dimensions="2x1d")
     if option_timescheme == "RK4":
         L += dt * RK4(L, lambda L: Lstep3(L, B1, grid, lr, source=source), dt)
-    elif option_timescheme == "impl_Euler":
-        L = impl_Euler(L, lambda L: Lstep3(L, B1, grid, lr, source=source), dt)
+    elif option_timescheme == "impl_Euler" or option_timescheme == "impl_Euler_gmres":
+        L = impl_Euler(L, lambda L: Lstep3(L, B1, grid, lr, source=source), dt,
+                          option = option_timescheme)
     lr.V, St = np.linalg.qr(L, mode="reduced")
     lr.S = St.T
     lr.V /= np.sqrt(grid.dphi)
