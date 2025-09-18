@@ -13,7 +13,10 @@ from DLR_rt.src.util import computeD_cendiff_2x1d, computeD_upwind_2x1d
 def integrate(lr0: LR, grid: Grid_2x1d, t_f: float, dt: float, 
               option: str = "lie", source = None, 
               option_scheme : str = "cendiff", option_timescheme : str = "RK4",
-              option_bc : str = "standard"):
+              option_bc : str = "standard", tol_sing_val = 1e-3, drop_tol = 1e-10):
+    
+    min_rank = grid.r
+
     lr = lr0
     t = 0
     time = []
@@ -50,7 +53,9 @@ def integrate(lr0: LR, grid: Grid_2x1d, t_f: float, dt: float,
                                    source=source, option_scheme=option_scheme,
                                    DX_0=DX_0, DX_1=DX_1, DY_0=DY_0, DY_1=DY_1,
                                    option_timescheme=option_timescheme,
-                                   option_bc = option_bc)
+                                   option_bc = option_bc, F_b_X = F_b_X, F_b_Y = F_b_Y,
+                                   tol_sing_val=tol_sing_val, drop_tol=drop_tol, 
+                                   min_rank=min_rank)
 
             t += dt
             time.append(t)
