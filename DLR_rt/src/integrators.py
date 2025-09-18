@@ -100,7 +100,8 @@ def impl_Euler(f, rhs, dt, option = "impl_Euler"):
 
 def PSI_lie(lr, grid, dt, F_b=None, DX=None, DY=None, dimensions="1x1d", 
             option_coeff="constant", source=None, option_scheme="cendiff",
-            DX_0=None, DX_1=None, DY_0=None, DY_1=None, option_timescheme="RK4"):
+            DX_0=None, DX_1=None, DY_0=None, DY_1=None, option_timescheme="RK4",
+            option_bc="standard"):
     """
     Projector splitting integrator with lie splitting.
 
@@ -140,6 +141,8 @@ def PSI_lie(lr, grid, dt, F_b=None, DX=None, DY=None, dimensions="1x1d",
         Upwind difference matrix in y (DY+).
     option_timescheme
         Possible options are "RK4", "impl_Euler" or "impl_Euler_gmres".
+    option_bc
+        Set "lattice" or "hohlraum" for 1 domain simulations of those examples.
     """
     inflow = F_b is not None
 

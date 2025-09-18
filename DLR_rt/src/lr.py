@@ -84,7 +84,7 @@ def computeF_b(t: float, f, grid, f_left=None, f_right=None):
 
 
 def computeF_b_2x1d_X(f, grid, f_left=None, f_right=None, f_periodic=None, 
-                      grid_left=None, grid_right=None):
+                      grid_left=None, grid_right=None, option_bc="standard"):
     """
     Generate discretization of 2x1d full X boundary.
 
@@ -220,13 +220,57 @@ def computeF_b_2x1d_X(f, grid, f_left=None, f_right=None, f_periodic=None,
                     )  # outflow to left side
 
     else:  # only one domain
-        print("ToDo")
+        for i in range(len(grid.PHI)):
+            if grid.PHI[i] < np.pi / 2 or grid.PHI[i] > 3 / 2 * np.pi:
+
+                if option_bc == "standard":
+                    indices_left = list(
+                        range(grid.Nx - 1, grid.Nx * (grid.Ny + 1) - 1, grid.Nx)
+                    )  # pick every Nxth row
+                    F_b_X[: len(grid.Y), i] = f[
+                        indices_left, i
+                    ]  # This is inflow from left
+
+                elif option_bc == "lattice":
+                    F_b_X[: len(grid.Y), i] = 0  # This is inflow from left
+
+                elif option_bc == "hohlraum":
+                    F_b_X[: len(grid.Y), i] = 1  # inflow = 1
+
+
+                indices_outflow_1 = list(
+                    range(grid.Nx - 1, grid.Nx * (grid.Ny + 1) - 1, grid.Nx)
+                )
+                indices_outflow_2 = list(
+                    range(grid.Nx - 2, grid.Nx * (grid.Ny + 1) - 2, grid.Nx)
+                )
+                F_b_X[len(grid.Y) :, i] = f[indices_outflow_1, i] + (
+                    f[indices_outflow_1, i] - f[indices_outflow_2, i]
+                )  # outflow to right side
+
+            else:
+
+                if option_bc == "standard":
+                    indices_right = list(range(0, grid.Nx * (grid.Ny), grid.Nx))
+                    F_b_X[len(grid.Y) :, i] = f[
+                        indices_right, i
+                    ]  # This is inflow from right
+
+                elif option_bc == "lattice" or option_bc == "hohlraum":
+                    F_b_X[len(grid.Y) :, i] = 0  # This is inflow from right
+
+
+                indices_outflow_0 = list(range(0, grid.Nx * (grid.Ny), grid.Nx))
+                indices_outflow_1 = list(range(1, grid.Nx * (grid.Ny) + 1, grid.Nx))
+                F_b_X[: len(grid.Y), i] = f[indices_outflow_0, i] - (
+                    f[indices_outflow_1, i] - f[indices_outflow_0, i]
+                )  # outflow to left side
 
     return F_b_X
 
 
 def computeF_b_2x1d_Y(f, grid, f_bottom=None, f_top=None, f_periodic=None, 
-                      grid_bottom=None, grid_top=None):
+                      grid_bottom=None, grid_top=None, option_bc="standard"):
     """
     Generate discretization of 2x1d full Y boundary.
 
@@ -335,9 +379,14 @@ def computeF_b_2x1d_Y(f, grid, f_bottom=None, f_top=None, f_periodic=None,
     else:  # only one domain
         for i in range(len(grid.PHI)):
             if grid.PHI[i] < np.pi:
-                F_b_Y[: len(grid.X), i] = f[
-                    grid.Nx * (grid.Ny - 1) : grid.Nx * grid.Ny, i
-                ]  # This is inflow from bottom
+
+                if option_bc == "standard":
+                    F_b_Y[: len(grid.X), i] = f[
+                        grid.Nx * (grid.Ny - 1) : grid.Nx * grid.Ny, i
+                    ]  # This is inflow from bottom
+
+                elif option_bc == "lattice" or option_bc == "hohlraum":
+                    F_b_Y[: len(grid.X), i] = 0  # This is inflow from bottom
 
                 F_b_Y[len(grid.X) :, i] = f[
                     grid.Nx * (grid.Ny - 1) : grid.Nx * grid.Ny, i
@@ -346,7 +395,12 @@ def computeF_b_2x1d_Y(f, grid, f_bottom=None, f_top=None, f_periodic=None,
                     - f[grid.Nx * (grid.Ny - 2) : grid.Nx * (grid.Ny - 1), i]
                 )  # outflow to top
             else:
-                F_b_Y[len(grid.X) :, i] = f[: grid.Nx, i]  # This is inflow from top
+
+                if option_bc == "standard":
+                    F_b_Y[len(grid.X) :, i] = f[: grid.Nx, i]  # This is inflow from top
+
+                elif option_bc == "lattice" or option_bc == "hohlraum":
+                    F_b_Y[len(grid.X) :, i] = 0  # This is inflow from top
 
                 F_b_Y[: len(grid.X), i] = f[: grid.Nx, i] - (
                     f[grid.Nx : grid.Nx * 2, i] - f[: grid.Nx, i]
