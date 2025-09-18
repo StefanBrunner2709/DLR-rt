@@ -101,7 +101,8 @@ def impl_Euler(f, rhs, dt, option = "impl_Euler"):
 def PSI_lie(lr, grid, dt, F_b=None, DX=None, DY=None, dimensions="1x1d", 
             option_coeff="constant", source=None, option_scheme="cendiff",
             DX_0=None, DX_1=None, DY_0=None, DY_1=None, option_timescheme="RK4",
-            option_bc="standard"):
+            option_bc="standard", F_b_X=None, F_b_Y=None,
+            tol_sing_val=None, drop_tol=None, min_rank=5):
     """
     Projector splitting integrator with lie splitting.
 
@@ -143,8 +144,23 @@ def PSI_lie(lr, grid, dt, F_b=None, DX=None, DY=None, dimensions="1x1d",
         Possible options are "RK4", "impl_Euler" or "impl_Euler_gmres".
     option_bc
         Set "lattice" or "hohlraum" for 1 domain simulations of those examples.
+    F_b_X
+        Boundary condition matrix for in X for 1 domain simulations.
+    F_b_Y
+        Boundary condition matrix for in X for 1 domain simulations.
     """
     inflow = F_b is not None
+
+    # Add basis functions
+    if option_bc == "lattice" or option_bc == "hohlraum":
+        lr, grid = add_basis_functions(
+            lr, grid, F_b_X, tol_sing_val, dimensions="2x1d"
+        )   # Add basis functions for F_b_X
+        lr, grid = add_basis_functions(
+            lr, grid, F_b_Y, tol_sing_val, dimensions="2x1d"
+        )   # Add basis functions for F_b_Y
+
+    print("rank adapted: ", grid.r)
 
     # K step
     C1, C2 = computeC(lr, grid, dimensions=dimensions)
@@ -227,6 +243,12 @@ def PSI_lie(lr, grid, dt, F_b=None, DX=None, DY=None, dimensions="1x1d",
     elif dimensions == "2x1d":
         lr.V /= np.sqrt(grid.dphi)
         lr.S *= np.sqrt(grid.dphi)
+
+    # Drop basis for adaptive rank strategy:
+    if option_bc == "lattice" or option_bc == "hohlraum":
+        lr, grid = drop_basis_functions(lr, grid, drop_tol, min_rank=min_rank)
+
+    print("rank dropped: ", grid.r)
 
     return lr, grid
 
