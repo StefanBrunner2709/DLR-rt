@@ -1256,7 +1256,7 @@ def add_basis_functions(
     return lr, grid
 
 
-def drop_basis_functions(lr, grid, drop_tol):
+def drop_basis_functions(lr, grid, drop_tol, min_rank : int = 5):
     """
     Drop basis functions.
 
@@ -1265,8 +1265,8 @@ def drop_basis_functions(lr, grid, drop_tol):
     """
     U, sing_val, QT = np.linalg.svd(lr.S)
     r_prime = np.sum(sing_val > drop_tol)
-    if r_prime < 5:
-        r_prime = 5
+    if r_prime < min_rank:
+        r_prime = min_rank
     lr.S = np.zeros((r_prime, r_prime))
     np.fill_diagonal(lr.S, sing_val[:r_prime])
     U = U[:, :r_prime]
