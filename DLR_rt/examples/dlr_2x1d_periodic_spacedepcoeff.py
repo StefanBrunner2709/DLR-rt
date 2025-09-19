@@ -17,6 +17,13 @@ def integrate(lr0: LR, grid: Grid_2x1d, t_f: float, dt: float,
     
     min_rank = grid.r
 
+    if option_bc == "lattice" or option_bc == "hohlraum":
+        rank_adapted = [grid.r]
+        rank_dropped = [grid.r]
+    else:
+        rank_adapted = None
+        rank_dropped = None
+
     lr = lr0
     t = 0
     time = []
@@ -51,19 +58,21 @@ def integrate(lr0: LR, grid: Grid_2x1d, t_f: float, dt: float,
                 F_b_Y = None
 
             if option == "lie":
-                lr, grid = PSI_lie(lr, grid, dt, DX=DX, DY=DY, 
+                (lr, grid, 
+                 rank_adapted, rank_dropped) = PSI_lie(lr, grid, dt, DX=DX, DY=DY, 
                                    dimensions="2x1d", option_coeff="space_dep", 
                                    source=source, option_scheme=option_scheme,
                                    DX_0=DX_0, DX_1=DX_1, DY_0=DY_0, DY_1=DY_1,
                                    option_timescheme=option_timescheme,
                                    option_bc = option_bc, F_b_X = F_b_X, F_b_Y = F_b_Y,
                                    tol_sing_val=tol_sing_val, drop_tol=drop_tol, 
-                                   min_rank=min_rank)
+                                   min_rank=min_rank, 
+                                   rank_adapted=rank_adapted, rank_dropped=rank_dropped)
 
             t += dt
             time.append(t)
 
-    return lr, time
+    return lr, time, rank_adapted, rank_dropped
 
 
 ### Plotting
@@ -73,7 +82,7 @@ Ny = 200
 Nphi = 200
 dt = 0.5 / Nx
 r = 30
-t_f = 0.7
+t_f = 0.1
 fs = 16
 savepath = "plots/"
 method = "lie"
@@ -256,7 +265,7 @@ source = source.flatten()[:, None]
 
 
 ### Run code and do the plotting
-lr, time = integrate(lr0, grid, t_f, dt, source=source, 
+lr, time, rank_adapted, rank_dropped = integrate(lr0, grid, t_f, dt, source=source, 
                      option_scheme=option_scheme, option_timescheme=option_timescheme,
                      option_bc=option_bc)
 f = lr.U @ lr.S @ lr.V.T
@@ -310,3 +319,20 @@ cbar_fixed.ax.tick_params(labelsize=fs)
 
 plt.tight_layout()
 plt.savefig(savepath + "2x1d_rho_final_spacedepcoeff.pdf")
+
+
+### Plot for rank over time
+
+fig, axes = plt.subplots(1, 1, figsize=(10, 8))
+plt.plot(time, rank_adapted)
+plt.title("rank adapted (1 domain simulation)")
+axes.set_xlabel("$t$", fontsize=fs)
+axes.set_ylabel("$r(t)$", fontsize=fs)
+plt.savefig(savepath + "1domainsim_rank_adapted.pdf")
+
+fig, axes = plt.subplots(1, 1, figsize=(10, 8))
+plt.plot(time, rank_dropped)
+plt.title("rank dropped (1 domain simulation))")
+axes.set_xlabel("$t$", fontsize=fs)
+axes.set_ylabel("$r(t)$", fontsize=fs)
+plt.savefig(savepath + "1domainsim_rank_dropped.pdf")
