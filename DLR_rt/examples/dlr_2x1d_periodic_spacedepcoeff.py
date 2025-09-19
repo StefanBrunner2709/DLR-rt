@@ -13,7 +13,7 @@ from DLR_rt.src.util import computeD_cendiff_2x1d, computeD_upwind_2x1d
 def integrate(lr0: LR, grid: Grid_2x1d, t_f: float, dt: float, 
               option: str = "lie", source = None, 
               option_scheme : str = "cendiff", option_timescheme : str = "RK4",
-              option_bc : str = "standard", tol_sing_val = 1e-3, drop_tol = 1e-7):
+              option_bc : str = "standard", tol_sing_val = 1e-2, drop_tol = 1e-3):
     
     min_rank = grid.r
 
@@ -68,19 +68,19 @@ def integrate(lr0: LR, grid: Grid_2x1d, t_f: float, dt: float,
 
 ### Plotting
 
-Nx = 252
-Ny = 252
-Nphi = 252
+Nx = 200
+Ny = 200
+Nphi = 200
 dt = 0.5 / Nx
 r = 30
-t_f = 0.1
+t_f = 0.7
 fs = 16
 savepath = "plots/"
 method = "lie"
 option_grid = "dd"      # Just changes how gridpoints are chosen
 option_scheme = "upwind"
 option_timescheme = "RK4"
-option_bc = "lattice"
+option_bc = "hohlraum"
 
 
 # ### To compare with constant coefficient results
@@ -89,79 +89,47 @@ option_bc = "lattice"
 # c_t = diags(np.zeros(Nx*Ny))
 
 
-### Full lattice setup
-c_adv_vec = np.ones(Nx*Ny)
-c_adv = diags(c_adv_vec)
-
-# Parameters
-num_blocks = 7        # number of blocks in each row/col
-block_size = int(Nx/num_blocks)        # size of each block
-
-# Pattern of blocks
-block_pattern_s = np.array([[1,1,1,1,1,1,1],
-                            [1,0,1,0,1,0,1],
-                            [1,1,0,1,0,1,1],
-                            [1,0,1,1,1,0,1],
-                            [1,1,0,1,0,1,1],
-                            [1,0,1,1,1,0,1],
-                            [1,1,1,1,1,1,1]])
-block_pattern_t = np.array([[1,1,1,1,1,1,1],
-                            [1,10,1,10,1,10,1],
-                            [1,1,10,1,10,1,1],
-                            [1,10,1,1,1,10,1],
-                            [1,1,10,1,10,1,1],
-                            [1,10,1,1,1,10,1],
-                            [1,1,1,1,1,1,1]])
-# block_pattern_s = np.array([[1,0,1,1,1,0,1],
-#                             [1,0,1,1,1,0,1],
-#                             [1,0,1,1,1,0,1],
-#                             [1,0,1,1,1,0,1],
-#                             [1,0,1,1,1,0,1],
-#                             [1,0,1,1,1,0,1],
-#                             [1,0,1,1,1,0,1]])
-# block_pattern_t = np.array([[1,10,1,1,1,10,1],
-#                             [1,10,1,1,1,10,1],
-#                             [1,10,1,1,1,10,1],
-#                             [1,10,1,1,1,10,1],
-#                             [1,10,1,1,1,10,1],
-#                             [1,10,1,1,1,10,1],
-#                             [1,10,1,1,1,10,1]])
-
-# Expand each block into block_size x block_size
-c_s_matrix = np.kron(block_pattern_s, np.ones((block_size, block_size), dtype=int))
-c_t_matrix = np.kron(block_pattern_t, np.ones((block_size, block_size), dtype=int))
-
-# Change to vector
-c_s_vec = c_s_matrix.flatten()
-c_t_vec = c_t_matrix.flatten()
-
-# Change to diag matrix
-c_s = diags(c_s_vec)
-c_t = diags(c_t_vec)
-
-
-# ### Full hohlraum setup
-
+# ### Full lattice setup
 # c_adv_vec = np.ones(Nx*Ny)
 # c_adv = diags(c_adv_vec)
 
-# c_s_matrix = np.zeros((Nx,Ny))
-# c_t_matrix = np.zeros((Nx,Ny))
+# # Parameters
+# num_blocks = 7        # number of blocks in each row/col
+# block_size = int(Nx/num_blocks)        # size of each block
 
-# # Set c_t for absorbing parts
-# for i in range(Nx):
-#     for j in range(Ny):
+# # Pattern of blocks
+# block_pattern_s = np.array([[1,1,1,1,1,1,1],
+#                             [1,0,1,0,1,0,1],
+#                             [1,1,0,1,0,1,1],
+#                             [1,0,1,1,1,0,1],
+#                             [1,1,0,1,0,1,1],
+#                             [1,0,1,1,1,0,1],
+#                             [1,1,1,1,1,1,1]])
+# block_pattern_t = np.array([[1,1,1,1,1,1,1],
+#                             [1,10,1,10,1,10,1],
+#                             [1,1,10,1,10,1,1],
+#                             [1,10,1,1,1,10,1],
+#                             [1,1,10,1,10,1,1],
+#                             [1,10,1,1,1,10,1],
+#                             [1,1,1,1,1,1,1]])
+# # block_pattern_s = np.array([[1,0,1,1,1,0,1],
+# #                             [1,0,1,1,1,0,1],
+# #                             [1,0,1,1,1,0,1],
+# #                             [1,0,1,1,1,0,1],
+# #                             [1,0,1,1,1,0,1],
+# #                             [1,0,1,1,1,0,1],
+# #                             [1,0,1,1,1,0,1]])
+# # block_pattern_t = np.array([[1,10,1,1,1,10,1],
+# #                             [1,10,1,1,1,10,1],
+# #                             [1,10,1,1,1,10,1],
+# #                             [1,10,1,1,1,10,1],
+# #                             [1,10,1,1,1,10,1],
+# #                             [1,10,1,1,1,10,1],
+# #                             [1,10,1,1,1,10,1]])
 
-#         if j <= 0.05*Ny or j >= 0.95*Ny:    # upper and lower blocks
-#             c_t_matrix[j,i] = 100
-
-#         else:
-#             if (i >= 0.95*Nx or i<=0.05*Nx and (0.25*Ny <= j <= 0.75*Ny)
-#                 or (0.25*Nx <= i <= 0.75*Nx) and (0.25*Ny <= j <= 0.75*Ny)):
-#                 c_t_matrix[j,i] = 100
-
-# c_t_matrix[:,0] = 0
-# c_t_matrix[:,1] = 0
+# # Expand each block into block_size x block_size
+# c_s_matrix = np.kron(block_pattern_s, np.ones((block_size, block_size), dtype=int))
+# c_t_matrix = np.kron(block_pattern_t, np.ones((block_size, block_size), dtype=int))
 
 # # Change to vector
 # c_s_vec = c_s_matrix.flatten()
@@ -170,6 +138,35 @@ c_t = diags(c_t_vec)
 # # Change to diag matrix
 # c_s = diags(c_s_vec)
 # c_t = diags(c_t_vec)
+
+
+### Full hohlraum setup
+
+c_adv_vec = np.ones(Nx*Ny)
+c_adv = diags(c_adv_vec)
+
+c_s_matrix = np.zeros((Nx,Ny))
+c_t_matrix = np.zeros((Nx,Ny))
+
+# Set c_t for absorbing parts
+for i in range(Nx):
+    for j in range(Ny):
+
+        if j <= 0.05*Ny or j >= 0.95*Ny:    # upper and lower blocks
+            c_t_matrix[j,i] = 100
+
+        else:
+            if (i >= 0.95*Nx or i<=0.05*Nx and (0.25*Ny <= j <= 0.75*Ny)
+                or (0.25*Nx <= i <= 0.75*Nx) and (0.25*Ny <= j <= 0.75*Ny)):
+                c_t_matrix[j,i] = 100
+
+# Change to vector
+c_s_vec = c_s_matrix.flatten()
+c_t_vec = c_t_matrix.flatten()
+
+# Change to diag matrix
+c_s = diags(c_s_vec)
+c_t = diags(c_t_vec)
 
 
 ### Setup grid and initial condition
@@ -197,17 +194,17 @@ plt.tight_layout()
 plt.savefig(savepath + "lattice1.pdf")
 
 
-### Do normal 1 source
-# Start with all zeros
-block_matrix = np.zeros((num_blocks, num_blocks))
+# ### Do normal 1 source
+# # Start with all zeros
+# block_matrix = np.zeros((num_blocks, num_blocks))
 
-# Set block (4,4) to 1
-block_row = 3
-block_col = 3
-block_matrix[block_row, block_col] = 1
+# # Set block (4,4) to 1
+# block_row = 3
+# block_col = 3
+# block_matrix[block_row, block_col] = 1
 
-# Expand to full matrix
-source = np.kron(block_matrix, np.ones((block_size, block_size)))
+# # Expand to full matrix
+# source = np.kron(block_matrix, np.ones((block_size, block_size)))
 
 
 # ### Do Gaussian source
@@ -233,9 +230,8 @@ source = np.kron(block_matrix, np.ones((block_size, block_size)))
 #                     )
 
 
-# ### Do hohlraum source (technically it should be inflow, not source at gridpoints)
-# source = np.zeros((Nx,Ny))
-# source[:,0] = 1
+### Hohlraum already has inflow source
+source = np.zeros((Nx,Ny))
 
 ### Plot source
 extent = [grid.X[0], grid.X[-1], grid.Y[0], grid.Y[-1]]
