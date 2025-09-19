@@ -153,13 +153,14 @@ def PSI_lie(lr, grid, dt, F_b=None, DX=None, DY=None, dimensions="1x1d",
     inflow = F_b is not None
 
     # Add basis functions
-    if option_bc == "lattice" or option_bc == "hohlraum":
+    if option_bc == "hohlraum":
         lr, grid = add_basis_functions(
             lr, grid, F_b_X, tol_sing_val, dimensions="2x1d"
         )   # Add basis functions for F_b_X
         lr, grid = add_basis_functions(
             lr, grid, F_b_Y, tol_sing_val, dimensions="2x1d"
         )   # Add basis functions for F_b_Y
+    if option_bc == "lattice" or option_bc == "hohlraum":
         rank_adapted.append(grid.r)
 
     # K step
@@ -254,8 +255,9 @@ def PSI_lie(lr, grid, dt, F_b=None, DX=None, DY=None, dimensions="1x1d",
         lr.S *= np.sqrt(grid.dphi)
 
     # Drop basis for adaptive rank strategy:
-    if option_bc == "lattice" or option_bc == "hohlraum":
+    if option_bc == "hohlraum":
         lr, grid = drop_basis_functions(lr, grid, drop_tol, min_rank=min_rank)
+    if option_bc == "lattice" or option_bc == "hohlraum":
         rank_dropped.append(grid.r)
 
     return lr, grid, rank_adapted, rank_dropped
