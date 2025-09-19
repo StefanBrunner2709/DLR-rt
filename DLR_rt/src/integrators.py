@@ -171,7 +171,8 @@ def PSI_lie(lr, grid, dt, F_b=None, DX=None, DY=None, dimensions="1x1d",
             lambda K: Kstep(
                 K, C1, C2, grid, lr, F_b, DX=DX, DY=DY, inflow=inflow, 
                 dimensions=dimensions, option_coeff=option_coeff, source=source,
-                option_scheme=option_scheme, DX_0=DX_0, DX_1=DX_1, DY_0=DY_0, DY_1=DY_1
+                option_scheme=option_scheme, DX_0=DX_0, DX_1=DX_1, DY_0=DY_0, DY_1=DY_1,
+                option_bc=option_bc, F_b_X=F_b_X, F_b_Y=F_b_Y
             ),
             dt,
         )   # we use RK4 for both cendiff and upwind
@@ -181,7 +182,8 @@ def PSI_lie(lr, grid, dt, F_b=None, DX=None, DY=None, dimensions="1x1d",
             lambda K: Kstep(
                 K, C1, C2, grid, lr, F_b, DX=DX, DY=DY, inflow=inflow, 
                 dimensions=dimensions, option_coeff=option_coeff, source=source,
-                option_scheme=option_scheme, DX_0=DX_0, DX_1=DX_1, DY_0=DY_0, DY_1=DY_1
+                option_scheme=option_scheme, DX_0=DX_0, DX_1=DX_1, DY_0=DY_0, DY_1=DY_1,
+                option_bc=option_bc, F_b_X=F_b_X, F_b_Y=F_b_Y
             ),
             dt,
             option = option_timescheme,
@@ -195,8 +197,13 @@ def PSI_lie(lr, grid, dt, F_b=None, DX=None, DY=None, dimensions="1x1d",
         lr.S *= (np.sqrt(grid.dx) * np.sqrt(grid.dy))
 
     # S step
-    D1 = computeD(lr, grid, F_b, DX=DX, DY=DY, 
-                  dimensions=dimensions, option_coeff=option_coeff)
+    if option_bc == "standard":
+        D1 = computeD(lr, grid, F_b, DX=DX, DY=DY, 
+                    dimensions=dimensions, option_coeff=option_coeff)
+    elif option_bc == "lattice" or option_bc == "hohlraum":
+        D1 = computeD(lr, grid, F_b_X, F_b_Y, DX=DX, DY=DY, 
+                    dimensions=dimensions, option_dd = "dd", option_coeff=option_coeff)
+        
     if option_coeff == "constant":
         E1 = None
     elif option_coeff == "space_dep":
@@ -206,7 +213,7 @@ def PSI_lie(lr, grid, dt, F_b=None, DX=None, DY=None, dimensions="1x1d",
             lr.S, lambda S: Sstep(S, C1, C2, D1, grid, 
                                 inflow, dimensions=dimensions, 
                                 option_coeff=option_coeff, E1=E1, source=source, 
-                                lr=lr), dt
+                                lr=lr, option_bc=option_bc), dt
         )   # we use RK4 for both cendiff and upwind
     elif option_timescheme == "impl_Euler" or option_timescheme == "impl_Euler_gmres":
         lr.S = impl_Euler(
@@ -214,7 +221,7 @@ def PSI_lie(lr, grid, dt, F_b=None, DX=None, DY=None, dimensions="1x1d",
                 lambda S: Sstep(S, C1, C2, D1, grid, 
                                 inflow, dimensions=dimensions, 
                                 option_coeff=option_coeff, E1=E1, source=source, 
-                                lr=lr),
+                                lr=lr, option_bc=option_bc),
                 dt,
                 option = option_timescheme,
         )
@@ -225,13 +232,15 @@ def PSI_lie(lr, grid, dt, F_b=None, DX=None, DY=None, dimensions="1x1d",
     if option_timescheme == "RK4":
         L += dt * RK4(
             L, lambda L: Lstep(L, D1, B1, grid, lr, inflow, dimensions=dimensions, 
-                                option_coeff=option_coeff, E1=E1, source=source), dt
+                                option_coeff=option_coeff, E1=E1, source=source, 
+                                option_bc=option_bc), dt
         )   # we use RK4 for both cendiff and upwind
     elif option_timescheme == "impl_Euler" or option_timescheme == "impl_Euler_gmres":
         L = impl_Euler(
             L,
             lambda L: Lstep(L, D1, B1, grid, lr, inflow, dimensions=dimensions, 
-                                option_coeff=option_coeff, E1=E1, source=source),
+                                option_coeff=option_coeff, E1=E1, source=source, 
+                                option_bc=option_bc),
             dt,
             option = option_timescheme,
         )

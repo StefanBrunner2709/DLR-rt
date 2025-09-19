@@ -13,7 +13,7 @@ from DLR_rt.src.util import computeD_cendiff_2x1d, computeD_upwind_2x1d
 def integrate(lr0: LR, grid: Grid_2x1d, t_f: float, dt: float, 
               option: str = "lie", source = None, 
               option_scheme : str = "cendiff", option_timescheme : str = "RK4",
-              option_bc : str = "standard", tol_sing_val = 1e-3, drop_tol = 1e-10):
+              option_bc : str = "standard", tol_sing_val = 1e-3, drop_tol = 1e-7):
     
     min_rank = grid.r
 
@@ -46,6 +46,9 @@ def integrate(lr0: LR, grid: Grid_2x1d, t_f: float, dt: float,
                 F_b_X = computeF_b_2x1d_X(f, grid, option_bc = option_bc)
                 F_b_Y = computeF_b_2x1d_Y(f, grid, option_bc = option_bc)
 
+            else:
+                F_b_X = None
+                F_b_Y = None
 
             if option == "lie":
                 lr, grid = PSI_lie(lr, grid, dt, DX=DX, DY=DY, 

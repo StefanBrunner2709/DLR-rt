@@ -815,7 +815,10 @@ def Kstep(
     DX_0=None,
     DX_1=None,
     DY_0=None,
-    DY_1=None
+    DY_1=None,
+    option_bc="standard", 
+    F_b_X=None, 
+    F_b_Y=None
 ):
     """
     K step of radiative transfer equation.
@@ -864,6 +867,7 @@ def Kstep(
                 )
         
         elif option_scheme=="upwind":
+
             ### Diagonalize matrix C
             # Eigen-decomposition
             eigvals_0, P_0 = np.linalg.eigh(C1[0])  # matrix C1 is symmetric
@@ -873,31 +877,44 @@ def Kstep(
             T1_0 = np.diag(eigvals_0)
             T1_1 = np.diag(eigvals_1)
 
-            ### Obtain matrices from upwind
-            # Project into eigenbasis
-            KP_0 = K @ P_0
-            KP_1 = K @ P_1
+            if option_bc == "lattice" or option_bc == "hohlraum":
+                K_bdry_left, K_bdry_right = computeK_bdry_2x1d_X(lr, grid, F_b_X)
+                K_bdry_bottom, K_bdry_top = computeK_bdry_2x1d_Y(lr, grid, F_b_Y)
 
-            # Set up upwind matrices
-            DXK_0 = DX_0 @ KP_0
-            DXK_1 = DX_1 @ KP_0
-            DYK_0 = DY_0 @ KP_1
-            DYK_1 = DY_1 @ KP_1
+            if option_bc == "standard":
 
-            # calculate DXK and DYK
-            DXK = np.zeros((grid.Nx*grid.Ny,grid.r))
-            DYK = np.zeros((grid.Nx*grid.Ny,grid.r))
-            for i in range(grid.r):
+                ### Obtain matrices from upwind
+                # Project into eigenbasis
+                KP_0 = K @ P_0
+                KP_1 = K @ P_1
 
-                if eigvals_0[i] > 0:
-                    DXK[:,i] = DXK_0[:,i]
-                else:
-                    DXK[:,i] = DXK_1[:,i]
+                # Set up upwind matrices
+                DXK_0 = DX_0 @ KP_0
+                DXK_1 = DX_1 @ KP_0
+                DYK_0 = DY_0 @ KP_1
+                DYK_1 = DY_1 @ KP_1
 
-                if eigvals_1[i] > 0:
-                    DYK[:,i] = DYK_0[:,i]
-                else:
-                    DYK[:,i] = DYK_1[:,i]
+                # calculate DXK and DYK
+                DXK = np.zeros((grid.Nx*grid.Ny,grid.r))
+                DYK = np.zeros((grid.Nx*grid.Ny,grid.r))
+                for i in range(grid.r):
+
+                    if eigvals_0[i] > 0:
+                        DXK[:,i] = DXK_0[:,i]
+                    else:
+                        DXK[:,i] = DXK_1[:,i]
+
+                    if eigvals_1[i] > 0:
+                        DYK[:,i] = DYK_0[:,i]
+                    else:
+                        DYK[:,i] = DYK_1[:,i]
+
+            elif option_bc == "lattice" or option_bc == "hohlraum":
+                
+                DXK, DYK = computedxK_2x1d_upwind(
+                    lr, K_bdry_left, K_bdry_right, K_bdry_bottom, K_bdry_top, grid, 
+                    DX_0, DX_1, DY_0, DY_1, eigvals_0, P_0, eigvals_1, P_1
+                )
 
             if option_coeff == "constant":
                 rhs = (
@@ -921,7 +938,8 @@ def Kstep(
 
 
 def Sstep(S, C1, C2, D1, grid, inflow=False, 
-          dimensions="1x1d", option_coeff="constant", E1=None, source=None, lr=None):
+          dimensions="1x1d", option_coeff="constant", E1=None, source=None, lr=None, 
+          option_bc="standard"):
     """
     S step of radiative transfer equation.
 
@@ -955,19 +973,31 @@ def Sstep(S, C1, C2, D1, grid, inflow=False,
 
         elif option_coeff == "space_dep":
 
-            rhs = (
-                D1[0] @ S @ C1[0]
-                + D1[1] @ S @ C1[1]
-                - 0.5 / (np.pi) * E1[0] @ S @ C2.T @ C2
-                + E1[1] @ S
-                - 0.5 / (np.pi) * lr.U.T @ source @ C2 * grid.dx * grid.dy
-            )
+            if option_bc == "standard":
 
+                rhs = (
+                    D1[0] @ S @ C1[0]
+                    + D1[1] @ S @ C1[1]
+                    - 0.5 / (np.pi) * E1[0] @ S @ C2.T @ C2
+                    + E1[1] @ S
+                    - 0.5 / (np.pi) * lr.U.T @ source @ C2 * grid.dx * grid.dy
+                )
+            
+            elif option_bc == "lattice" or option_bc == "hohlraum":
+
+                rhs = (
+                    D1[0] @ C1[0]
+                    + D1[1] @ C1[1]
+                    - 0.5 / (np.pi) * E1[0] @ S @ C2.T @ C2
+                    + E1[1] @ S
+                    - 0.5 / (np.pi) * lr.U.T @ source @ C2 * grid.dx * grid.dy
+                )
     return rhs
 
 
 def Lstep(L, D1, B1, grid, lr=None, inflow=False, 
-          dimensions="1x1d", option_coeff="constant", E1=None, source=None):
+          dimensions="1x1d", option_coeff="constant", E1=None, source=None, 
+          option_bc="standard"):
     """
     L step of radiative transfer equation.
 
@@ -1002,13 +1032,25 @@ def Lstep(L, D1, B1, grid, lr=None, inflow=False,
 
             M = np.ones((1, grid.Nphi))
 
-            rhs = (
-                -np.diag(np.cos(grid.PHI)) @ L @ D1[0].T
-                - np.diag(np.sin(grid.PHI)) @ L @ D1[1].T
-                + 0.5 / (np.pi) * np.ones((grid.Nphi, 1)) @ B1 @ E1[0]
-                - L @ E1[1]
-                + 0.5 / (np.pi) * ((lr.U.T @ source) @ M).T * grid.dx * grid.dy
-            )
+            if option_bc == "standard":
+
+                rhs = (
+                    -np.diag(np.cos(grid.PHI)) @ L @ D1[0].T
+                    - np.diag(np.sin(grid.PHI)) @ L @ D1[1].T
+                    + 0.5 / (np.pi) * np.ones((grid.Nphi, 1)) @ B1 @ E1[0]
+                    - L @ E1[1]
+                    + 0.5 / (np.pi) * ((lr.U.T @ source) @ M).T * grid.dx * grid.dy
+                )
+
+            elif option_bc == "lattice" or option_bc == "hohlraum":
+
+                rhs = (
+                    -np.diag(np.cos(grid.PHI)) @ lr.V @ D1[0].T
+                    - np.diag(np.sin(grid.PHI)) @ lr.V @ D1[1].T
+                    + 0.5 / (np.pi) * np.ones((grid.Nphi, 1)) @ B1 @ E1[0]
+                    - L @ E1[1]
+                    + 0.5 / (np.pi) * ((lr.U.T @ source) @ M).T * grid.dx * grid.dy
+                )
 
     return rhs
 
