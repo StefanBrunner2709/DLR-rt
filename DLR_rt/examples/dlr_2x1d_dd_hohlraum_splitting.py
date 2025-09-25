@@ -15,7 +15,7 @@ from DLR_rt.src.util import (
 
 def integrate(lr0_on_subgrids: LR, subgrids: Grid_2x1d, t_f: float, dt: float,
                tol_sing_val: float = 1e-3, drop_tol: float = 1e-7, method="lie", 
-               option_scheme: str = "cendiff"):
+               option_scheme: str = "cendiff", option_problem : str = "hohlraum"):
     
     lr_on_subgrids = lr0_on_subgrids
     t = 0
@@ -98,10 +98,18 @@ def integrate(lr0_on_subgrids: LR, subgrids: Grid_2x1d, t_f: float, dt: float,
                                                   f_right=f_on_subgrids[j][i+1],
                                                   grid_left=subgrids[j][n_split_x-1],
                                                   grid_right=subgrids[j][i+1])     
-                        for k in range(len(subgrids[j][i].PHI)):  # inflow on left is 1
-                            if (subgrids[j][i].PHI[k] < np.pi / 2 
-                                or subgrids[j][i].PHI[k] > 3 / 2 * np.pi):
-                                F_b_X[: len(subgrids[j][i].Y), k] = 1
+                        if option_problem == "hohlraum":
+                            for k in range(len(subgrids[j][i].PHI)):  # inflow left is 1
+                                if (subgrids[j][i].PHI[k] < np.pi / 2 
+                                    or subgrids[j][i].PHI[k] > 3 / 2 * np.pi):
+                                    F_b_X[: len(subgrids[j][i].Y), k] = 1
+                        elif option_problem == "pointsource":
+                            for k in range(len(subgrids[j][i].PHI)):
+                                if (subgrids[j][i].PHI[k] < np.pi / 2 
+                                    or subgrids[j][i].PHI[k] > 3 / 2 * np.pi):
+                                    F_b_X[: len(subgrids[j][i].Y), k] = 0
+                                    if j == n_split_y-2:
+                                        F_b_X[int(len(subgrids[j][i].Y)*3/4), k] = 1
                     elif i==n_split_x-1:
                         F_b_X = computeF_b_2x1d_X(f_on_subgrids[j][i],subgrids[j][i],
                                                   f_left=f_on_subgrids[j][i-1],
@@ -202,6 +210,7 @@ fs = 16
 savepath = "plots/"
 method = "lie"
 option_scheme = "upwind"
+option_problem = "pointsource"
 
 
 ### Initial configuration
@@ -223,10 +232,10 @@ plot_rho_subgrids(subgrids, lr0_on_subgrids)
 ### Final configuration
 lr_on_subgrids, time, rank_on_subgrids_adapted, rank_on_subgrids_dropped = integrate(
     lr0_on_subgrids, subgrids, t_f, dt, option_scheme=option_scheme, 
-    tol_sing_val=1e-2, drop_tol=1e-3
+    tol_sing_val=1e-3, drop_tol=1e-5, option_problem=option_problem
     )
 
-plot_rho_subgrids(subgrids, lr_on_subgrids, t=t_f)
+# plot_rho_subgrids(subgrids, lr_on_subgrids, t=t_f)
 
 plot_rho_subgrids(subgrids, lr_on_subgrids, t=t_f, plot_option="log")
 
