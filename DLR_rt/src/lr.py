@@ -237,6 +237,10 @@ def computeF_b_2x1d_X(f, grid, f_left=None, f_right=None, f_periodic=None,
                 elif option_bc == "hohlraum":
                     F_b_X[: len(grid.Y), i] = 1  # inflow = 1
 
+                elif option_bc == "pointsource":
+                    F_b_X[: len(grid.Y), i] = 0
+                    F_b_X[int(grid.Ny*9/10), i] = 1  # inflow = 1 at only 1 point
+
 
                 indices_outflow_1 = list(
                     range(grid.Nx - 1, grid.Nx * (grid.Ny + 1) - 1, grid.Nx)
@@ -256,7 +260,8 @@ def computeF_b_2x1d_X(f, grid, f_left=None, f_right=None, f_periodic=None,
                         indices_right, i
                     ]  # This is inflow from right
 
-                elif option_bc == "lattice" or option_bc == "hohlraum":
+                elif (option_bc == "lattice" or option_bc == "hohlraum" 
+                      or option_bc == "pointsource"):
                     F_b_X[len(grid.Y) :, i] = 0  # This is inflow from right
 
 
@@ -385,7 +390,8 @@ def computeF_b_2x1d_Y(f, grid, f_bottom=None, f_top=None, f_periodic=None,
                         grid.Nx * (grid.Ny - 1) : grid.Nx * grid.Ny, i
                     ]  # This is inflow from bottom
 
-                elif option_bc == "lattice" or option_bc == "hohlraum":
+                elif (option_bc == "lattice" or option_bc == "hohlraum" 
+                      or option_bc == "pointsource"):
                     F_b_Y[: len(grid.X), i] = 0  # This is inflow from bottom
 
                 F_b_Y[len(grid.X) :, i] = f[
@@ -399,7 +405,8 @@ def computeF_b_2x1d_Y(f, grid, f_bottom=None, f_top=None, f_periodic=None,
                 if option_bc == "standard":
                     F_b_Y[len(grid.X) :, i] = f[: grid.Nx, i]  # This is inflow from top
 
-                elif option_bc == "lattice" or option_bc == "hohlraum":
+                elif (option_bc == "lattice" or option_bc == "hohlraum" 
+                      or option_bc == "pointsource"):
                     F_b_Y[len(grid.X) :, i] = 0  # This is inflow from top
 
                 F_b_Y[: len(grid.X), i] = f[: grid.Nx, i] - (
@@ -877,7 +884,8 @@ def Kstep(
             T1_0 = np.diag(eigvals_0)
             T1_1 = np.diag(eigvals_1)
 
-            if option_bc == "lattice" or option_bc == "hohlraum":
+            if (option_bc == "lattice" or option_bc == "hohlraum" 
+                or option_bc == "pointsource"):
                 K_bdry_left, K_bdry_right = computeK_bdry_2x1d_X(lr, grid, F_b_X)
                 K_bdry_bottom, K_bdry_top = computeK_bdry_2x1d_Y(lr, grid, F_b_Y)
 
@@ -909,7 +917,8 @@ def Kstep(
                     else:
                         DYK[:,i] = DYK_1[:,i]
 
-            elif option_bc == "lattice" or option_bc == "hohlraum":
+            elif (option_bc == "lattice" or option_bc == "hohlraum" 
+                  or option_bc == "pointsource"):
                 
                 DXK, DYK = computedxK_2x1d_upwind(
                     lr, K_bdry_left, K_bdry_right, K_bdry_bottom, K_bdry_top, grid, 
@@ -983,7 +992,8 @@ def Sstep(S, C1, C2, D1, grid, inflow=False,
                     - 0.5 / (np.pi) * lr.U.T @ source @ C2 * grid.dx * grid.dy
                 )
             
-            elif option_bc == "lattice" or option_bc == "hohlraum":
+            elif (option_bc == "lattice" or option_bc == "hohlraum" 
+                  or option_bc == "pointsource"):
 
                 rhs = (
                     D1[0] @ C1[0]
@@ -1042,7 +1052,8 @@ def Lstep(L, D1, B1, grid, lr=None, inflow=False,
                     + 0.5 / (np.pi) * ((lr.U.T @ source) @ M).T * grid.dx * grid.dy
                 )
 
-            elif option_bc == "lattice" or option_bc == "hohlraum":
+            elif (option_bc == "lattice" or option_bc == "hohlraum" 
+                  or option_bc == "pointsource"):
 
                 rhs = (
                     -np.diag(np.cos(grid.PHI)) @ lr.V @ D1[0].T

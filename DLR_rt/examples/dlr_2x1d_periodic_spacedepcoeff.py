@@ -17,7 +17,7 @@ def integrate(lr0: LR, grid: Grid_2x1d, t_f: float, dt: float,
     
     min_rank = grid.r
 
-    if option_bc == "lattice" or option_bc == "hohlraum":
+    if option_bc == "lattice" or option_bc == "hohlraum" or option_bc == "pointsource":
         rank_adapted = [grid.r]
         rank_dropped = [grid.r]
     else:
@@ -46,7 +46,8 @@ def integrate(lr0: LR, grid: Grid_2x1d, t_f: float, dt: float,
             if t + dt > t_f:
                 dt = t_f - t
 
-            if option_bc == "lattice" or option_bc == "hohlraum":
+            if (option_bc == "lattice" or option_bc == "hohlraum" 
+                or option_bc == "pointsource"):
 
                 f = lr.U @ lr.S @ lr.V.T
 
@@ -89,7 +90,7 @@ method = "lie"
 option_grid = "dd"      # Just changes how gridpoints are chosen
 option_scheme = "upwind"
 option_timescheme = "RK4"
-option_bc = "hohlraum"
+option_bc = "pointsource"
 
 
 # ### To compare with constant coefficient results
