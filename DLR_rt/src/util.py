@@ -4,6 +4,7 @@ Contains functions like mass computation.
 
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.colors import LogNorm
 from scipy import sparse
 
 from DLR_rt.src.grid import Grid_2x1d
@@ -240,8 +241,8 @@ def plot_rho_subgrids(subgrids, lr_on_subgrids, fs = 16, savepath = "plots/", t 
     if plot_option == "normal":
         im = axes.imshow(rho_matrix_full.T, extent=extent, origin="lower", cmap="jet")
     elif plot_option == "log":
-        im = axes.imshow(np.log(rho_matrix_full.T), extent=extent, origin="lower", 
-                         vmin=np.log(1e-3), vmax=np.log(np.max(rho_matrix_full)), 
+        im = axes.imshow(rho_matrix_full.T, extent=extent, origin="lower", 
+                         norm=LogNorm(vmin=np.exp(-7), vmax=np.max(rho_matrix_full)), 
                          cmap="jet")
     axes.set_xlabel("$x$", fontsize=fs)
     axes.set_ylabel("$y$", fontsize=fs)
@@ -253,7 +254,10 @@ def plot_rho_subgrids(subgrids, lr_on_subgrids, fs = 16, savepath = "plots/", t 
     if plot_option == "normal":
         cbar_fixed.set_ticks([np.min(rho_matrix_full), np.max(rho_matrix_full)])
     elif plot_option == "log":
-        cbar_fixed.set_ticks([np.log(1e-3), np.log(np.max(rho_matrix_full))])
+        ticks = [np.exp(-7), np.max(rho_matrix_full)]
+        cbar_fixed.set_ticks(ticks)
+        cbar_fixed.ax.set_yticklabels([f"{np.log(t):.2f}" for t in ticks])
+        cbar_fixed.ax.minorticks_off()
     cbar_fixed.ax.tick_params(labelsize=fs)
 
     plt.tight_layout()
@@ -261,27 +265,6 @@ def plot_rho_subgrids(subgrids, lr_on_subgrids, fs = 16, savepath = "plots/", t 
         plt.savefig(savepath + "dd_splitting_2x1d_subgrids_rho_t" + str(t) + ".pdf")
     elif plot_option == "log":
         plt.savefig(savepath + "dd_splitting_2x1d_subgrids_rho_t" + str(t) + "_log.pdf")
-
-    if plot_option=="log":
-        fig, axes = plt.subplots(1, 1, figsize=(10, 8))
-        rho_safe = np.clip(rho_matrix_full, 1e-3, None)  # avoid log(0) or negative
-        im = axes.imshow(np.log(rho_safe.T), extent=extent, origin="lower", 
-                         vmin=np.log(1e-3), vmax=np.log(np.max(rho_matrix_full)), 
-                         cmap="jet")
-        axes.set_xlabel("$x$", fontsize=fs)
-        axes.set_ylabel("$y$", fontsize=fs)
-        axes.set_xticks([0, 0.5, 1])
-        axes.set_yticks([0, 0.5, 1])
-        axes.tick_params(axis="both", labelsize=fs, pad=10)
-
-        cbar_fixed = fig.colorbar(im, ax=axes)
-        cbar_fixed.set_ticks([np.log(1e-3), np.log(np.max(rho_matrix_full))])
-        cbar_fixed.ax.tick_params(labelsize=fs)
-
-        plt.tight_layout()
-        plt.savefig(savepath + "dd_splitting_2x1d_subgrids_rho_t" + str(t) + 
-                    "_log_nozero.pdf")
-
 
     return
 
