@@ -170,14 +170,14 @@ def integrate(lr0_on_subgrids: LR, subgrids: Grid_2x1d, t_f: float, dt: float,
 Nx = 252
 Ny = 252
 Nphi = 252
-dt = 0.002
+dt = 0.5 / Nx
 r = 5
 t_f = 0.7
 fs = 16
 savepath = "plots/"
 method = "lie"
 option_scheme = "upwind"
-option_timescheme = "impl_Euler"
+option_timescheme = "RK4"
 
 
 ### Initial configuration
