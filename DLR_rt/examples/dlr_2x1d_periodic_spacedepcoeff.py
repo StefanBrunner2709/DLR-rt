@@ -286,6 +286,7 @@ extent = [grid.X[0], grid.X[-1], grid.Y[0], grid.Y[-1]]
 
 fig, axes = plt.subplots(1, 1, figsize=(10, 8))
 
+rho0_matrix = np.clip(rho0_matrix, np.exp(-7), None)
 im = axes.imshow(rho0_matrix.T, extent=extent, origin="lower", 
                  norm=LogNorm(vmin=np.exp(-7), vmax=np.max(rho0_matrix)), 
                  cmap="jet")
@@ -307,7 +308,7 @@ plt.savefig(savepath + "2x1d_rho_initial_spacedepcoeff.pdf")
 
 fig, axes = plt.subplots(1, 1, figsize=(10, 8))
 
-# im = axes.imshow(rho_matrix.T, extent=extent, origin="lower")
+rho_matrix = np.clip(rho_matrix, np.exp(-7), None)
 im = axes.imshow(rho_matrix.T, extent=extent, origin="lower", 
                  norm=LogNorm(vmin=np.exp(-7), vmax=np.max(rho_matrix)), 
                  cmap="jet")

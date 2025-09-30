@@ -241,6 +241,7 @@ def plot_rho_subgrids(subgrids, lr_on_subgrids, fs = 16, savepath = "plots/", t 
     if plot_option == "normal":
         im = axes.imshow(rho_matrix_full.T, extent=extent, origin="lower", cmap="jet")
     elif plot_option == "log":
+        rho_matrix_full = np.clip(rho_matrix_full, np.exp(-7), None)
         im = axes.imshow(rho_matrix_full.T, extent=extent, origin="lower", 
                          norm=LogNorm(vmin=np.exp(-7), vmax=np.max(rho_matrix_full)), 
                          cmap="jet")
