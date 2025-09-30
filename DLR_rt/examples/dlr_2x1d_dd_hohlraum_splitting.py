@@ -210,7 +210,7 @@ fs = 16
 savepath = "plots/"
 method = "lie"
 option_scheme = "upwind"
-option_problem = "pointsource"
+option_problem = "hohlraum"
 
 
 ### Initial configuration
@@ -239,4 +239,5 @@ lr_on_subgrids, time, rank_on_subgrids_adapted, rank_on_subgrids_dropped = integ
 
 plot_rho_subgrids(subgrids, lr_on_subgrids, t=t_f, plot_option="log")
 
-plot_ranks_subgrids(subgrids, time, rank_on_subgrids_adapted, rank_on_subgrids_dropped)
+plot_ranks_subgrids(subgrids, time, rank_on_subgrids_adapted, rank_on_subgrids_dropped,
+                    option="hohlraum")

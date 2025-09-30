@@ -2,6 +2,8 @@
 Contains functions like mass computation.
 """
 
+import matplotlib.colors as colors
+import matplotlib.patches as patches
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.colors import LogNorm
@@ -271,7 +273,7 @@ def plot_rho_subgrids(subgrids, lr_on_subgrids, fs = 16, savepath = "plots/", t 
 
 def plot_ranks_subgrids(subgrids, time, 
                         rank_on_subgrids_adapted, rank_on_subgrids_dropped, 
-                        fs = 16, savepath = "plots/"):
+                        fs = 16, savepath = "plots/", option = "lattice"):
     
     ### Plot for rank over time
 
@@ -310,26 +312,61 @@ def plot_ranks_subgrids(subgrids, time,
         for i in range(n_split_x):
             data[i,n_split_y-j-1] = rank_on_subgrids_adapted[j][i][-1]
 
-    # Create the plot
-    fig, ax = plt.subplots()
-    ax.imshow(data.T, cmap='viridis')  # You can change colormap
+    if option == "lattice":
+        # Create the plot
+        fig, ax = plt.subplots()
+        ax.imshow(data.T, cmap='viridis')  # You can change colormap
 
-    # Show numbers in each cell
-    for i in range(n_split_x):
+        # Show numbers in each cell
+        for i in range(n_split_x):
+            for j in range(n_split_y):
+                ax.text(i, j, str(int(data[i, j])), ha='center', va='center', color='w')
+
+        # Optional: Add grid lines
+        ax.set_xticks([])
+        ax.set_yticks([])
+        ax.set_xticklabels([])
+        ax.set_yticklabels([])
+
+        ax.set_xticks(np.arange(-0.5, n_split_x, 1), minor=True)
+        ax.set_yticks(np.arange(-0.5, n_split_y, 1), minor=True)
+        ax.grid(which='minor', color='black', linewidth=1)
+        ax.tick_params(which='minor', length=0)
+        ax.set_title("Final adapted ranks for subdomains")
+
+    else:
+
+        norm = colors.Normalize(vmin=np.min(data), vmax=np.max(data))
+        cmap = plt.get_cmap('viridis')
+
+        fig, ax = plt.subplots()
+
         for j in range(n_split_y):
-            ax.text(i, j, str(int(data[i, j])), ha='center', va='center', color='w')
+            for i in range(n_split_x):
+                x, y = subgrids[j][i].X[0], subgrids[j][i].Y[0]
+                width = subgrids[j][i].X[-1] - x + subgrids[j][i].dx
+                height = subgrids[j][i].Y[-1] - y + subgrids[j][i].dy
+                rank = rank_on_subgrids_adapted[j][i][-1]
 
-    # Optional: Add grid lines
-    ax.set_xticks([])
-    ax.set_yticks([])
-    ax.set_xticklabels([])
-    ax.set_yticklabels([])
+                # Get color from colormap
+                color = cmap(norm(rank))
 
-    ax.set_xticks(np.arange(-0.5, n_split_x, 1), minor=True)
-    ax.set_yticks(np.arange(-0.5, n_split_y, 1), minor=True)
-    ax.grid(which='minor', color='black', linewidth=1)
-    ax.tick_params(which='minor', length=0)
-    ax.set_title("Final adapted ranks for subdomains")
+                # Draw rectangle with color
+                rect = patches.Rectangle((x, y), width, height, linewidth=1, 
+                                         edgecolor='black', facecolor=color)
+                ax.add_patch(rect)
+
+                # Add rank label
+                ax.text(x + width/2, y + height/2, str(rank), 
+                        ha='center', va='center', color='white')
+        
+        # Clean up axes
+        ax.set_xlim(0, 1)
+        ax.set_ylim(0, 1)
+        ax.set_xticks([])
+        ax.set_yticks([])
+        ax.set_title("Final adapted ranks for subdomains")
+        ax.set_aspect('equal')
 
     plt.savefig(savepath + "dd_splitting_2x1d_subgrids_rank_adapted_final.pdf")
 
@@ -339,26 +376,61 @@ def plot_ranks_subgrids(subgrids, time,
         for i in range(n_split_x):
             data[i,n_split_y-j-1] = rank_on_subgrids_dropped[j][i][-1]
 
-    # Create the plot
-    fig, ax = plt.subplots()
-    ax.imshow(data.T, cmap='viridis')  # You can change colormap
+    if option == "lattice":
+        # Create the plot
+        fig, ax = plt.subplots()
+        ax.imshow(data.T, cmap='viridis')  # You can change colormap
 
-    # Show numbers in each cell
-    for i in range(n_split_x):
+        # Show numbers in each cell
+        for i in range(n_split_x):
+            for j in range(n_split_y):
+                ax.text(i, j, str(int(data[i, j])), ha='center', va='center', color='w')
+
+        # Optional: Add grid lines
+        ax.set_xticks([])
+        ax.set_yticks([])
+        ax.set_xticklabels([])
+        ax.set_yticklabels([])
+
+        ax.set_xticks(np.arange(-0.5, n_split_x, 1), minor=True)
+        ax.set_yticks(np.arange(-0.5, n_split_y, 1), minor=True)
+        ax.grid(which='minor', color='black', linewidth=1)
+        ax.tick_params(which='minor', length=0)
+        ax.set_title("Final dropped ranks for subdomains")
+
+    else:
+
+        norm = colors.Normalize(vmin=np.min(data), vmax=np.max(data))
+        cmap = plt.get_cmap('viridis')
+
+        fig, ax = plt.subplots()
+
         for j in range(n_split_y):
-            ax.text(i, j, str(int(data[i, j])), ha='center', va='center', color='w')
+            for i in range(n_split_x):
+                x, y = subgrids[j][i].X[0], subgrids[j][i].Y[0]
+                width = subgrids[j][i].X[-1] - x + subgrids[j][i].dx
+                height = subgrids[j][i].Y[-1] - y + subgrids[j][i].dy
+                rank = rank_on_subgrids_dropped[j][i][-1]
 
-    # Optional: Add grid lines
-    ax.set_xticks([])
-    ax.set_yticks([])
-    ax.set_xticklabels([])
-    ax.set_yticklabels([])
+                # Get color from colormap
+                color = cmap(norm(rank))
 
-    ax.set_xticks(np.arange(-0.5, n_split_x, 1), minor=True)
-    ax.set_yticks(np.arange(-0.5, n_split_y, 1), minor=True)
-    ax.grid(which='minor', color='black', linewidth=1)
-    ax.tick_params(which='minor', length=0)
-    ax.set_title("Final dropped ranks for subdomains")
+                # Draw rectangle with color
+                rect = patches.Rectangle((x, y), width, height, linewidth=1, 
+                                         edgecolor='black', facecolor=color)
+                ax.add_patch(rect)
+
+                # Add rank label
+                ax.text(x + width/2, y + height/2, str(rank), 
+                        ha='center', va='center', color='white')
+        
+        # Clean up axes
+        ax.set_xlim(0, 1)
+        ax.set_ylim(0, 1)
+        ax.set_xticks([])
+        ax.set_yticks([])
+        ax.set_title("Final dropped ranks for subdomains")
+        ax.set_aspect('equal')
 
     plt.savefig(savepath + "dd_splitting_2x1d_subgrids_rank_dropped_final.pdf")
 
