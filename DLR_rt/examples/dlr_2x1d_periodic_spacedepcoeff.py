@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.colors import LogNorm
 from scipy.sparse import diags
 from tqdm import tqdm
 
@@ -194,16 +195,13 @@ f0 = lr0.U @ lr0.S @ lr0.V.T
 extent = [grid.X[0], grid.X[-1], grid.Y[0], grid.Y[-1]]
 fig, axes = plt.subplots(1, 1, figsize=(10, 8))
 
-im = axes.imshow(c_t_matrix, extent=extent, origin="lower", cmap="jet")
+im = axes.imshow(c_t_matrix, extent=extent, origin="lower", cmap="jet", 
+                 interpolation="none")
 axes.set_xlabel("$x$", fontsize=fs)
-axes.set_ylabel("y", fontsize=fs, labelpad=-5)
+axes.set_ylabel("$y$", fontsize=fs)
 axes.set_xticks([0, 0.5, 1])
 axes.set_yticks([0, 0.5, 1])
 axes.tick_params(axis="both", labelsize=fs, pad=10)
-
-cbar_fixed = fig.colorbar(im, ax=axes)
-cbar_fixed.set_ticks([np.min(c_t_matrix), np.max(c_t_matrix)])
-cbar_fixed.ax.tick_params(labelsize=fs)
 
 plt.tight_layout()
 plt.savefig(savepath + "lattice1.pdf")
@@ -252,16 +250,13 @@ source = np.kron(block_matrix, np.ones((block_size, block_size)))
 extent = [grid.X[0], grid.X[-1], grid.Y[0], grid.Y[-1]]
 fig, axes = plt.subplots(1, 1, figsize=(10, 8))
 
-im = axes.imshow(source, extent=extent, origin="lower", cmap="jet")
+im = axes.imshow(source, extent=extent, origin="lower", cmap="viridis", 
+                 interpolation="none")
 axes.set_xlabel("$x$", fontsize=fs)
-axes.set_ylabel("y", fontsize=fs, labelpad=-5)
+axes.set_ylabel("$y$", fontsize=fs)
 axes.set_xticks([0, 0.5, 1])
 axes.set_yticks([0, 0.5, 1])
 axes.tick_params(axis="both", labelsize=fs, pad=10)
-
-cbar_fixed = fig.colorbar(im, ax=axes)
-cbar_fixed.set_ticks([np.min(source), np.max(source)])
-cbar_fixed.ax.tick_params(labelsize=fs)
 
 plt.tight_layout()
 plt.savefig(savepath + "source.pdf")
@@ -291,17 +286,20 @@ extent = [grid.X[0], grid.X[-1], grid.Y[0], grid.Y[-1]]
 
 fig, axes = plt.subplots(1, 1, figsize=(10, 8))
 
-im = axes.imshow(np.log(rho0_matrix.T), extent=extent, origin="lower", 
-                 vmin=np.log(1e-3), vmax=np.log(np.max(rho0_matrix)), 
+im = axes.imshow(rho0_matrix.T, extent=extent, origin="lower", 
+                 norm=LogNorm(vmin=np.exp(-7), vmax=np.max(rho0_matrix)), 
                  cmap="jet")
 axes.set_xlabel("$x$", fontsize=fs)
-axes.set_ylabel("y", fontsize=fs, labelpad=-5)
+axes.set_ylabel("$y$", fontsize=fs)
 axes.set_xticks([0, 0.5, 1])
 axes.set_yticks([0, 0.5, 1])
 axes.tick_params(axis="both", labelsize=fs, pad=10)
 
 cbar_fixed = fig.colorbar(im, ax=axes)
-cbar_fixed.set_ticks([np.log(1e-3), np.log(np.max(rho0_matrix))])
+ticks = [np.exp(-7), np.max(rho0_matrix)]
+cbar_fixed.set_ticks(ticks)
+cbar_fixed.ax.set_yticklabels([f"{np.log(t):.2f}" for t in ticks])
+cbar_fixed.ax.minorticks_off()
 cbar_fixed.ax.tick_params(labelsize=fs)
 
 plt.tight_layout()
@@ -310,18 +308,20 @@ plt.savefig(savepath + "2x1d_rho_initial_spacedepcoeff.pdf")
 fig, axes = plt.subplots(1, 1, figsize=(10, 8))
 
 # im = axes.imshow(rho_matrix.T, extent=extent, origin="lower")
-im = axes.imshow(np.log(rho_matrix.T), extent=extent, origin="lower", 
-                 vmin=np.log(1e-3), vmax=np.log(np.max(rho_matrix)), 
+im = axes.imshow(rho_matrix.T, extent=extent, origin="lower", 
+                 norm=LogNorm(vmin=np.exp(-7), vmax=np.max(rho_matrix)), 
                  cmap="jet")
 axes.set_xlabel("$x$", fontsize=fs)
-axes.set_ylabel("y", fontsize=fs, labelpad=-5)
+axes.set_ylabel("$y$", fontsize=fs)
 axes.set_xticks([0, 0.5, 1])
 axes.set_yticks([0, 0.5, 1])
 axes.tick_params(axis="both", labelsize=fs, pad=10)
 
 cbar_fixed = fig.colorbar(im, ax=axes)
-# cbar_fixed.set_ticks([np.min(rho_matrix), np.max(rho_matrix)])
-cbar_fixed.set_ticks([np.log(1e-3), np.log(np.max(rho_matrix))])
+ticks = [np.exp(-7), np.max(rho_matrix)]
+cbar_fixed.set_ticks(ticks)
+cbar_fixed.ax.set_yticklabels([f"{np.log(t):.2f}" for t in ticks])
+cbar_fixed.ax.minorticks_off()
 cbar_fixed.ax.tick_params(labelsize=fs)
 
 plt.tight_layout()
@@ -332,14 +332,16 @@ plt.savefig(savepath + "2x1d_rho_final_spacedepcoeff.pdf")
 
 fig, axes = plt.subplots(1, 1, figsize=(10, 8))
 plt.plot(time, rank_adapted)
-plt.title("rank adapted (1 domain simulation)")
+plt.title("adapted rank " + option_bc + " simulation")
 axes.set_xlabel("$t$", fontsize=fs)
 axes.set_ylabel("$r(t)$", fontsize=fs)
+axes.set_xlim(time[0], time[-1]) # Remove extra padding: set x-limits to data range  
 plt.savefig(savepath + "1domainsim_rank_adapted.pdf")
 
 fig, axes = plt.subplots(1, 1, figsize=(10, 8))
 plt.plot(time, rank_dropped)
-plt.title("rank dropped (1 domain simulation))")
+plt.title("dropped rank " + option_bc + " simulation")
 axes.set_xlabel("$t$", fontsize=fs)
 axes.set_ylabel("$r(t)$", fontsize=fs)
+axes.set_xlim(time[0], time[-1]) # Remove extra padding: set x-limits to data range  
 plt.savefig(savepath + "1domainsim_rank_dropped.pdf")
