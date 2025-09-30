@@ -284,9 +284,10 @@ def plot_ranks_subgrids(subgrids, time,
 
             plt.plot(time,  rank_on_subgrids_adapted[j][i])
 
-    plt.title("rank adapted (before y advection)")
+    plt.title("adapted ranks")
     axes.set_xlabel("$t$", fontsize=fs)
     axes.set_ylabel("$r(t)$", fontsize=fs)
+    axes.set_xlim(time[0], time[-1]) # Remove extra padding: set x-limits to data range
     plt.savefig(savepath + "dd_splitting_2x1d_subgrids_rank_adapted.pdf")
 
     fig, axes = plt.subplots(1, 1, figsize=(10, 8))
@@ -295,9 +296,10 @@ def plot_ranks_subgrids(subgrids, time,
 
             plt.plot(time,  rank_on_subgrids_dropped[j][i])
 
-    plt.title("rank dropped (after y advection)")
+    plt.title("dropped ranks")
     axes.set_xlabel("$t$", fontsize=fs)
     axes.set_ylabel("$r(t)$", fontsize=fs)
+    axes.set_xlim(time[0], time[-1]) # Remove extra padding: set x-limits to data range
     plt.savefig(savepath + "dd_splitting_2x1d_subgrids_rank_dropped.pdf")
 
     ### Plot for final rank
@@ -318,15 +320,16 @@ def plot_ranks_subgrids(subgrids, time,
             ax.text(i, j, str(int(data[i, j])), ha='center', va='center', color='w')
 
     # Optional: Add grid lines
-    ax.set_xticks(np.arange(n_split_x))
-    ax.set_yticks(np.arange(n_split_y))
-    ax.set_xticklabels(np.arange(n_split_x))
-    ax.set_yticklabels(np.arange(n_split_y-1, -1, -1))
+    ax.set_xticks([])
+    ax.set_yticks([])
+    ax.set_xticklabels([])
+    ax.set_yticklabels([])
 
     ax.set_xticks(np.arange(-0.5, n_split_x, 1), minor=True)
     ax.set_yticks(np.arange(-0.5, n_split_y, 1), minor=True)
     ax.grid(which='minor', color='black', linewidth=1)
-    ax.set_title("Final adapted ranks (before y advection) for subdomains")
+    ax.tick_params(which='minor', length=0)
+    ax.set_title("Final adapted ranks for subdomains")
 
     plt.savefig(savepath + "dd_splitting_2x1d_subgrids_rank_adapted_final.pdf")
 
@@ -346,15 +349,16 @@ def plot_ranks_subgrids(subgrids, time,
             ax.text(i, j, str(int(data[i, j])), ha='center', va='center', color='w')
 
     # Optional: Add grid lines
-    ax.set_xticks(np.arange(n_split_x))
-    ax.set_yticks(np.arange(n_split_y))
-    ax.set_xticklabels(np.arange(n_split_x))
-    ax.set_yticklabels(np.arange(n_split_y-1, -1, -1))
+    ax.set_xticks([])
+    ax.set_yticks([])
+    ax.set_xticklabels([])
+    ax.set_yticklabels([])
 
     ax.set_xticks(np.arange(-0.5, n_split_x, 1), minor=True)
     ax.set_yticks(np.arange(-0.5, n_split_y, 1), minor=True)
     ax.grid(which='minor', color='black', linewidth=1)
-    ax.set_title("Final dropped ranks (after y advection) for subdomains")
+    ax.tick_params(which='minor', length=0)
+    ax.set_title("Final dropped ranks for subdomains")
 
     plt.savefig(savepath + "dd_splitting_2x1d_subgrids_rank_dropped_final.pdf")
 
