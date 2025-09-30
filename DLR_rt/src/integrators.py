@@ -27,6 +27,7 @@ from DLR_rt.src.lr import (
     computeF_b,
     computeF_b_2x1d_X,
     drop_basis_functions,
+    rank_adaptivity_PSI,
 )
 
 
@@ -103,7 +104,7 @@ def PSI_lie(lr, grid, dt, F_b=None, DX=None, DY=None, dimensions="1x1d",
             DX_0=None, DX_1=None, DY_0=None, DY_1=None, option_timescheme="RK4",
             option_bc="standard", F_b_X=None, F_b_Y=None,
             tol_sing_val=None, drop_tol=None, min_rank=5,
-            rank_adapted=None, rank_dropped=None):
+            rank_adapted=None, rank_dropped=None, tol_lattice=None):
     """
     Projector splitting integrator with lie splitting.
 
@@ -157,6 +158,8 @@ def PSI_lie(lr, grid, dt, F_b=None, DX=None, DY=None, dimensions="1x1d",
         lr, grid = add_basis_functions(
             lr, grid, F_b_X, tol_sing_val, dimensions="2x1d"
         )   # Add basis functions for F_b_X
+    if option_bc == "lattice":
+        lr, grid = rank_adaptivity_PSI(lr, grid, tol=tol_lattice, min_rank=min_rank)
     if (option_bc == "lattice" or option_bc == "hohlraum" 
         or option_bc == "pointsource"):
         rank_adapted.append(grid.r)
