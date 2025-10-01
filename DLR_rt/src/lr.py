@@ -1352,23 +1352,24 @@ def rank_adaptivity_PSI(lr, grid, tol, min_rank : int = 5):
         grid.r = r_prime
 
     else:
-        r_prime += 1
+        if r_prime < grid.Nphi:
+            r_prime += 1
 
-        S_extended = np.zeros((r_prime, r_prime))
-        S_extended[: grid.r, : grid.r] = lr.S
-        lr.S = S_extended
+            S_extended = np.zeros((r_prime, r_prime))
+            S_extended[: grid.r, : grid.r] = lr.S
+            lr.S = S_extended
 
-        lr.U = np.concatenate((lr.U, np.random.rand(grid.Nx * grid.Ny, 1)), axis=1)
-        lr.V = np.concatenate((lr.V, np.random.rand(grid.Nphi, 1)), axis=1)
+            lr.U = np.concatenate((lr.U, np.random.rand(grid.Nx * grid.Ny, 1)), axis=1)
+            lr.V = np.concatenate((lr.V, np.random.rand(grid.Nphi, 1)), axis=1)
 
-        lr.U, R_U = np.linalg.qr(lr.U, mode="reduced")
-        lr.U /= (np.sqrt(grid.dx) * np.sqrt(grid.dy))
-        R_U *= (np.sqrt(grid.dx) * np.sqrt(grid.dy))
-        lr.V, R_V = np.linalg.qr(lr.V, mode="reduced")
-        lr.V /= np.sqrt(grid.dphi)
-        R_V *= np.sqrt(grid.dphi)
-        lr.S = R_U @ lr.S @ R_V.T
+            lr.U, R_U = np.linalg.qr(lr.U, mode="reduced")
+            lr.U /= (np.sqrt(grid.dx) * np.sqrt(grid.dy))
+            R_U *= (np.sqrt(grid.dx) * np.sqrt(grid.dy))
+            lr.V, R_V = np.linalg.qr(lr.V, mode="reduced")
+            lr.V /= np.sqrt(grid.dphi)
+            R_V *= np.sqrt(grid.dphi)
+            lr.S = R_U @ lr.S @ R_V.T
 
-        grid.r = r_prime
+            grid.r = r_prime
 
     return lr, grid
