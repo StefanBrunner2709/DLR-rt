@@ -1336,40 +1336,44 @@ def rank_adaptivity_PSI(lr, grid, tol, min_rank : int = 5):
 
     Rank adaptivity for PSI, when no inflow condition is given.
     """
+    tol_drop = 0.1*tol
 
     U, sing_val, QT = np.linalg.svd(lr.S)
-    r_prime = np.sum(sing_val > tol)
-    if r_prime < min_rank:
-        r_prime = min_rank
+    r_prime_drop = np.sum(sing_val > tol_drop)
+    r_prime_add = np.sum(sing_val > tol)
 
-    if r_prime < grid.r:
-        lr.S = np.zeros((r_prime, r_prime))
-        np.fill_diagonal(lr.S, sing_val[:r_prime])
-        U = U[:, :r_prime]
-        Q = QT.T[:, :r_prime]
+    if r_prime_drop < min_rank:
+        r_prime_drop = min_rank
+
+    if r_prime_drop < grid.r:   # Remove basis functions
+        lr.S = np.zeros((r_prime_drop, r_prime_drop))
+        np.fill_diagonal(lr.S, sing_val[:r_prime_drop])
+        U = U[:, :r_prime_drop]
+        Q = QT.T[:, :r_prime_drop]
         lr.U = lr.U @ U
         lr.V = lr.V @ Q
-        grid.r = r_prime
+        grid.r = r_prime_drop
 
-    else:
-        if r_prime < grid.Nphi:
-            r_prime += 1
+    elif r_prime_add == grid.r and r_prime_add < grid.Nphi: # Add basis functions
+        r_prime_add += 1
 
-            S_extended = np.zeros((r_prime, r_prime))
-            S_extended[: grid.r, : grid.r] = lr.S
-            lr.S = S_extended
+        S_extended = np.zeros((r_prime_add, r_prime_add))
+        S_extended[: grid.r, : grid.r] = lr.S
+        lr.S = S_extended
 
-            lr.U = np.concatenate((lr.U, np.random.rand(grid.Nx * grid.Ny, 1)), axis=1)
-            lr.V = np.concatenate((lr.V, np.random.rand(grid.Nphi, 1)), axis=1)
+        lr.U = np.concatenate((lr.U, np.random.rand(grid.Nx * grid.Ny, 1)), axis=1)
+        lr.V = np.concatenate((lr.V, np.random.rand(grid.Nphi, 1)), axis=1)
 
-            lr.U, R_U = np.linalg.qr(lr.U, mode="reduced")
-            lr.U /= (np.sqrt(grid.dx) * np.sqrt(grid.dy))
-            R_U *= (np.sqrt(grid.dx) * np.sqrt(grid.dy))
-            lr.V, R_V = np.linalg.qr(lr.V, mode="reduced")
-            lr.V /= np.sqrt(grid.dphi)
-            R_V *= np.sqrt(grid.dphi)
-            lr.S = R_U @ lr.S @ R_V.T
+        lr.U, R_U = np.linalg.qr(lr.U, mode="reduced")
+        lr.U /= (np.sqrt(grid.dx) * np.sqrt(grid.dy))
+        R_U *= (np.sqrt(grid.dx) * np.sqrt(grid.dy))
+        lr.V, R_V = np.linalg.qr(lr.V, mode="reduced")
+        lr.V /= np.sqrt(grid.dphi)
+        R_V *= np.sqrt(grid.dphi)
+        lr.S = R_U @ lr.S @ R_V.T
 
-            grid.r = r_prime
+        grid.r = r_prime_add
+
+    # If both conditions are not satisfied, we leave basis as it was
 
     return lr, grid
