@@ -435,3 +435,44 @@ def plot_ranks_subgrids(subgrids, time,
     plt.savefig(savepath + "dd_splitting_2x1d_subgrids_rank_dropped_final.pdf")
 
     return
+
+def plot_rho_onedomain(grid, lr, fs = 16, savepath = "plots/", t = 0.0, 
+                      plot_option = "log"):
+    """
+    Plot rho over x and y.
+
+    Generate a colorplot of rho for simulation done on one domain.
+    """
+
+    f = lr.U @ lr.S @ lr.V.T
+
+    rho = (
+        f @ np.ones(grid.Nphi)
+    ) * grid.dphi  # This is now a vector, only depends on x and y
+
+    rho_matrix = rho.reshape((grid.Nx, grid.Ny), order="F")
+
+    extent = [grid.X[0], grid.X[-1], grid.Y[0], grid.Y[-1]]
+    fig, axes = plt.subplots(1, 1, figsize=(10, 8))
+
+    rho_matrix = np.clip(rho_matrix, np.exp(-7), None)
+    im = axes.imshow(rho_matrix.T, extent=extent, origin="lower", 
+                    norm=LogNorm(vmin=np.exp(-7), vmax=np.max(rho_matrix)), 
+                    cmap="jet")
+    axes.set_xlabel("$x$", fontsize=fs)
+    axes.set_ylabel("$y$", fontsize=fs)
+    axes.set_xticks([0, 0.5, 1])
+    axes.set_yticks([0, 0.5, 1])
+    axes.tick_params(axis="both", labelsize=fs, pad=10)
+
+    cbar_fixed = fig.colorbar(im, ax=axes)
+    ticks = [np.exp(-7), np.max(rho_matrix)]
+    cbar_fixed.set_ticks(ticks)
+    cbar_fixed.ax.set_yticklabels([f"{np.log(t):.2f}" for t in ticks])
+    cbar_fixed.ax.minorticks_off()
+    cbar_fixed.ax.tick_params(labelsize=fs)
+
+    plt.tight_layout()
+    plt.savefig(savepath + "2x1d_rho_t" + str(t) + "_spacedepcoeff.pdf")
+
+    return

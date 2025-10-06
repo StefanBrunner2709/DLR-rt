@@ -1,6 +1,5 @@
 import matplotlib.pyplot as plt
 import numpy as np
-from matplotlib.colors import LogNorm
 from scipy.sparse import diags
 from tqdm import tqdm
 
@@ -8,7 +7,11 @@ from DLR_rt.src.grid import Grid_2x1d
 from DLR_rt.src.initial_condition import setInitialCondition_2x1d_lr
 from DLR_rt.src.integrators import PSI_lie
 from DLR_rt.src.lr import LR, computeF_b_2x1d_X, computeF_b_2x1d_Y
-from DLR_rt.src.util import computeD_cendiff_2x1d, computeD_upwind_2x1d
+from DLR_rt.src.util import (
+    computeD_cendiff_2x1d,
+    computeD_upwind_2x1d,
+    plot_rho_onedomain,
+)
 
 
 def integrate(lr0: LR, grid: Grid_2x1d, t_f: float, dt: float, 
@@ -265,68 +268,15 @@ plt.savefig(savepath + "source.pdf")
 source = source.flatten()[:, None]
 
 
+plot_rho_onedomain(grid, lr0)
+
 ### Run code and do the plotting
 lr, time, rank_adapted, rank_dropped = integrate(lr0, grid, t_f, dt, source=source, 
                      option_scheme=option_scheme, option_timescheme=option_timescheme,
                      option_bc=option_bc, tol_sing_val=tol_sing_val, drop_tol=drop_tol, 
                      tol_lattice=tol_lattice)
-f = lr.U @ lr.S @ lr.V.T
 
-rho0 = (
-    f0 @ np.ones(grid.Nphi)
-) * grid.dphi  # This is now a vector, only depends on x and y
-rho = (
-    f @ np.ones(grid.Nphi)
-) * grid.dphi  # This is now a vector, only depends on x and y
-
-rho0_matrix = rho0.reshape((grid.Nx, grid.Ny), order="F")
-rho_matrix = rho.reshape((grid.Nx, grid.Ny), order="F")
-
-extent = [grid.X[0], grid.X[-1], grid.Y[0], grid.Y[-1]]
-
-fig, axes = plt.subplots(1, 1, figsize=(10, 8))
-
-rho0_matrix = np.clip(rho0_matrix, np.exp(-7), None)
-im = axes.imshow(rho0_matrix.T, extent=extent, origin="lower", 
-                 norm=LogNorm(vmin=np.exp(-7), vmax=np.max(rho0_matrix)), 
-                 cmap="jet")
-axes.set_xlabel("$x$", fontsize=fs)
-axes.set_ylabel("$y$", fontsize=fs)
-axes.set_xticks([0, 0.5, 1])
-axes.set_yticks([0, 0.5, 1])
-axes.tick_params(axis="both", labelsize=fs, pad=10)
-
-cbar_fixed = fig.colorbar(im, ax=axes)
-ticks = [np.exp(-7), np.max(rho0_matrix)]
-cbar_fixed.set_ticks(ticks)
-cbar_fixed.ax.set_yticklabels([f"{np.log(t):.2f}" for t in ticks])
-cbar_fixed.ax.minorticks_off()
-cbar_fixed.ax.tick_params(labelsize=fs)
-
-plt.tight_layout()
-plt.savefig(savepath + "2x1d_rho_initial_spacedepcoeff.pdf")
-
-fig, axes = plt.subplots(1, 1, figsize=(10, 8))
-
-rho_matrix = np.clip(rho_matrix, np.exp(-7), None)
-im = axes.imshow(rho_matrix.T, extent=extent, origin="lower", 
-                 norm=LogNorm(vmin=np.exp(-7), vmax=np.max(rho_matrix)), 
-                 cmap="jet")
-axes.set_xlabel("$x$", fontsize=fs)
-axes.set_ylabel("$y$", fontsize=fs)
-axes.set_xticks([0, 0.5, 1])
-axes.set_yticks([0, 0.5, 1])
-axes.tick_params(axis="both", labelsize=fs, pad=10)
-
-cbar_fixed = fig.colorbar(im, ax=axes)
-ticks = [np.exp(-7), np.max(rho_matrix)]
-cbar_fixed.set_ticks(ticks)
-cbar_fixed.ax.set_yticklabels([f"{np.log(t):.2f}" for t in ticks])
-cbar_fixed.ax.minorticks_off()
-cbar_fixed.ax.tick_params(labelsize=fs)
-
-plt.tight_layout()
-plt.savefig(savepath + "2x1d_rho_final_spacedepcoeff.pdf")
+plot_rho_onedomain(grid, lr, t=t_f)
 
 
 ### Plot for rank over time
