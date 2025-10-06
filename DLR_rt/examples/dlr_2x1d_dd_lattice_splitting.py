@@ -15,7 +15,8 @@ from DLR_rt.src.util import (
 
 def integrate(lr0_on_subgrids: LR, subgrids: Grid_2x1d, t_f: float, dt: float,
                tol_sing_val: float = 1e-3, drop_tol: float = 1e-7, method="lie", 
-               option_scheme: str = "cendiff", option_timescheme : str = "RK4"):
+               option_scheme: str = "cendiff", option_timescheme : str = "RK4", 
+               snapshots: int = 2):
     
     lr_on_subgrids = lr0_on_subgrids
     t = 0
@@ -51,6 +52,16 @@ def integrate(lr0_on_subgrids: LR, subgrids: Grid_2x1d, t_f: float, dt: float,
             row_dropped.append(rank_dropped)
         rank_on_subgrids_adapted.append(row_adapted)
         rank_on_subgrids_dropped.append(row_dropped)
+
+    # --- SNAPSHOT setup ---
+    if snapshots < 2:
+        snapshots = 2  # At least initial and final
+    snapshot_times = [i * t_f / (snapshots - 1) for i in range(snapshots)]
+    next_snapshot_idx = 1  # first snapshot after t=0
+
+    # --- Initial snapshot ---
+    print(f"📸 Snapshot 1/{snapshots} at t = {t:.4f}")
+    plot_rho_subgrids(subgrids, lr_on_subgrids, t=t, plot_option="log")
         
     with tqdm(total=t_f / dt, desc="Running Simulation") as pbar:
         while t < t_f:
@@ -162,6 +173,12 @@ def integrate(lr0_on_subgrids: LR, subgrids: Grid_2x1d, t_f: float, dt: float,
             t += dt
             time.append(t)
 
+            # --- Check for snapshot condition ---
+            if next_snapshot_idx < snapshots and t >= snapshot_times[next_snapshot_idx]:
+                print(f"📸 Snapshot {next_snapshot_idx+1}/{snapshots} at t = {t:.4f}")
+                plot_rho_subgrids(subgrids, lr_on_subgrids, t=t, plot_option="log")
+                next_snapshot_idx += 1
+
     return lr_on_subgrids, time, rank_on_subgrids_adapted, rank_on_subgrids_dropped
 
 
@@ -173,6 +190,7 @@ Nphi = 252
 dt = 0.5 / Nx
 r = 5
 t_f = 0.7
+snapshots = 8
 fs = 16
 savepath = "plots/"
 method = "lie"
@@ -185,24 +203,14 @@ grid = Grid_2x1d(Nx, Ny, Nphi, r, _option_dd="dd", _coeff=[1.0, 1.0, 1.0])
 subgrids = grid.split_grid_into_subgrids(option_coeff="lattice", 
                                          n_split_y=7, n_split_x=7)
 
-# # Print subgrids as a test:
-# for j in range(8):
-#     for i in range(8):
-#         print("At subgrid position ", (j,i), " we have: ", 
-#               subgrids[j][i].X, subgrids[j][i].Y, " with coefficients: ", 
-#               subgrids[j][i].coeff)
-        
-lr0_on_subgrids = setInitialCondition_2x1d_lr_subgrids(subgrids, option_cond="lattice")
 
-plot_rho_subgrids(subgrids, lr0_on_subgrids, plot_option="log")
+lr0_on_subgrids = setInitialCondition_2x1d_lr_subgrids(subgrids, option_cond="lattice")
 
 ### Final configuration
 lr_on_subgrids, time, rank_on_subgrids_adapted, rank_on_subgrids_dropped = integrate(
     lr0_on_subgrids, subgrids, t_f, dt, 
     option_scheme=option_scheme, option_timescheme=option_timescheme,
-    tol_sing_val=1e-2, drop_tol=1e-5
+    tol_sing_val=1e-2, drop_tol=1e-5, snapshots=snapshots
     )
-
-plot_rho_subgrids(subgrids, lr_on_subgrids, t=t_f, plot_option="log")
 
 plot_ranks_subgrids(subgrids, time, rank_on_subgrids_adapted, rank_on_subgrids_dropped)
