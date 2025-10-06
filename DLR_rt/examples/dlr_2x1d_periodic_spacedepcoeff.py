@@ -18,7 +18,7 @@ def integrate(lr0: LR, grid: Grid_2x1d, t_f: float, dt: float,
               option: str = "lie", source = None, 
               option_scheme : str = "cendiff", option_timescheme : str = "RK4",
               option_bc : str = "standard", tol_sing_val = 1e-2, drop_tol = 1e-3, 
-              tol_lattice = 1e-5):
+              tol_lattice = 1e-5, snapshots: int = 2):
     
     min_rank = grid.r
 
@@ -43,6 +43,16 @@ def integrate(lr0: LR, grid: Grid_2x1d, t_f: float, dt: float,
         DX_1 = None
         DY_0 = None
         DY_1 = None
+
+    # --- SNAPSHOT setup ---
+    if snapshots < 2:
+        snapshots = 2  # At least initial and final
+    snapshot_times = [i * t_f / (snapshots - 1) for i in range(snapshots)]
+    next_snapshot_idx = 1  # first snapshot after t=0
+
+    # --- Initial snapshot ---
+    print(f"📸 Snapshot 1/{snapshots} at t = {t:.4f}")
+    plot_rho_onedomain(grid, lr, t=t)
 
     with tqdm(total=t_f / dt, desc="Running Simulation") as pbar:
         while t < t_f:
@@ -79,17 +89,23 @@ def integrate(lr0: LR, grid: Grid_2x1d, t_f: float, dt: float,
             t += dt
             time.append(t)
 
+            # --- Check for snapshot condition ---
+            if next_snapshot_idx < snapshots and t >= snapshot_times[next_snapshot_idx]:
+                print(f"📸 Snapshot {next_snapshot_idx+1}/{snapshots} at t = {t:.4f}")
+                plot_rho_onedomain(grid, lr, t=t)
+                next_snapshot_idx += 1
+
     return lr, time, rank_adapted, rank_dropped
 
 
 ### Plotting
 
-Nx = 252
-Ny = 252
-Nphi = 252
+Nx = 49
+Ny = 49
+Nphi = 49
 dt = 0.5 / Nx
 r = 5
-t_f = 0.1
+t_f = 0.5
 fs = 16
 savepath = "plots/"
 method = "lie"
@@ -100,6 +116,7 @@ option_bc = "lattice"
 tol_sing_val = 1e-3 
 drop_tol = 1e-4
 tol_lattice = 1e-5
+snapshots = 2
 
 
 # ### To compare with constant coefficient results
@@ -268,15 +285,11 @@ plt.savefig(savepath + "source.pdf")
 source = source.flatten()[:, None]
 
 
-plot_rho_onedomain(grid, lr0)
-
 ### Run code and do the plotting
 lr, time, rank_adapted, rank_dropped = integrate(lr0, grid, t_f, dt, source=source, 
                      option_scheme=option_scheme, option_timescheme=option_timescheme,
                      option_bc=option_bc, tol_sing_val=tol_sing_val, drop_tol=drop_tol, 
-                     tol_lattice=tol_lattice)
-
-plot_rho_onedomain(grid, lr, t=t_f)
+                     tol_lattice=tol_lattice, snapshots=snapshots)
 
 
 ### Plot for rank over time
