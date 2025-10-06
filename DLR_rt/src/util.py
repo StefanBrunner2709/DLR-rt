@@ -268,6 +268,8 @@ def plot_rho_subgrids(subgrids, lr_on_subgrids, fs = 16, savepath = "plots/", t 
         plt.savefig(savepath + "dd_splitting_2x1d_subgrids_rho_t" + str(t) + ".pdf")
     elif plot_option == "log":
         plt.savefig(savepath + "dd_splitting_2x1d_subgrids_rho_t" + str(t) + "_log.pdf")
+    
+    plt.close()
 
     return
 
@@ -433,6 +435,7 @@ def plot_ranks_subgrids(subgrids, time,
         ax.set_aspect('equal')
 
     plt.savefig(savepath + "dd_splitting_2x1d_subgrids_rank_dropped_final.pdf")
+    plt.close()
 
     return
 
@@ -474,5 +477,6 @@ def plot_rho_onedomain(grid, lr, fs = 16, savepath = "plots/", t = 0.0,
 
     plt.tight_layout()
     plt.savefig(savepath + "2x1d_rho_t" + str(t) + "_spacedepcoeff.pdf")
+    plt.close()
 
     return
