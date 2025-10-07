@@ -109,7 +109,13 @@ def integrate(lr0_on_subgrids: LR, subgrids: Grid_2x1d, t_f: float, dt: float,
                                     or subgrids[j][i].PHI[k] > 3 / 2 * np.pi):
                                     F_b_X[: len(subgrids[j][i].Y), k] = 0
                                     if j == n_split_y-2:
-                                        F_b_X[int(len(subgrids[j][i].Y)*3/4), k] = 1
+                                        F_b_X[: len(subgrids[j][i].Y), k] = (
+                                            1
+                                            / (2 * np.pi)
+                                            * np.exp(-((subgrids[j][i].Y - 0.85
+                                                        -subgrids[j][i].dy/2) ** 2) 
+                                                     / (1e-5))
+                                        )
                     elif i==n_split_x-1:
                         F_b_X = computeF_b_2x1d_X(f_on_subgrids[j][i],subgrids[j][i],
                                                   f_left=f_on_subgrids[j][i-1],
