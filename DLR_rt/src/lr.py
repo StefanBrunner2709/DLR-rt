@@ -1263,7 +1263,8 @@ def add_basis_functions(
     """
     # Compute SVD and drop singular values
     X, sing_val, QT = np.linalg.svd(F_b)
-    r_b = np.sum(sing_val > tol_sing_val)
+    r_b = np.sum(sing_val > tol_sing_val * np.sqrt(grid.Nx*grid.Ny*grid.Nphi/
+                                                   (grid.dx*grid.dy*grid.dphi)))
     if dimensions == "1x1d" and (
         grid.r + r_b
     ) > grid.Nmu:  # because rank cannot be bigger than our amount of gridpoints
@@ -1317,7 +1318,8 @@ def drop_basis_functions(lr, grid, drop_tol, min_rank : int = 5):
     such that the rank does not grow drastically.
     """
     U, sing_val, QT = np.linalg.svd(lr.S)
-    r_prime = np.sum(sing_val > drop_tol)
+    r_prime = np.sum(sing_val > drop_tol * np.sqrt(grid.Nx*grid.Ny*grid.Nphi/
+                                                   (grid.dx*grid.dy*grid.dphi)))
     if r_prime < min_rank:
         r_prime = min_rank
     lr.S = np.zeros((r_prime, r_prime))
@@ -1336,6 +1338,7 @@ def rank_adaptivity_PSI(lr, grid, tol, min_rank : int = 5):
 
     Rank adaptivity for PSI, when no inflow condition is given.
     """
+    tol =  tol * np.sqrt(grid.Nx*grid.Ny*grid.Nphi/(grid.dx*grid.dy*grid.dphi))
     tol_drop = 0.1*tol
 
     U, sing_val, QT = np.linalg.svd(lr.S)
