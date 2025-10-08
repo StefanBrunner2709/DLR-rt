@@ -114,162 +114,99 @@ def computeF_b_2x1d_X(f, grid, f_left=None, f_right=None, f_periodic=None,
 
     if grid_left is None:
         grid_left = grid
-
     if grid_right is None:
         grid_right = grid
 
-    F_b_X = np.zeros((2 * len(grid.Y), len(grid.PHI)))
+    ny, nphi = len(grid.Y), len(grid.PHI)
+    F_b_X = np.zeros((2 * ny, nphi))
 
-    if f_periodic is not None:  # left or right sided domain
-        if f_right is not None:  # left sided domain
-            for i in range(len(grid.PHI)):
-                if grid.PHI[i] < np.pi / 2 or grid.PHI[i] > 3 / 2 * np.pi:
-                    indices_left = list(
-                        range(grid.Nx - 1, grid.Nx * (grid.Ny + 1) - 1, grid.Nx)
-                    )  # pick every Nxth row
-                    F_b_X[: len(grid.Y), i] = f_periodic[
-                        indices_left, i
-                    ]  # This is inflow from left
+    # --- Masks for angular regions ---
+    mask_left = (np.pi / 2 > grid.PHI) | (3 * np.pi / 2 < grid.PHI)
+    mask_right = ~mask_left
 
-                    indices_outflow_1 = list(
-                        range(grid.Nx - 1, grid.Nx * (grid.Ny + 1) - 1, grid.Nx)
-                    )
-                    indices_outflow_2 = list(
-                        range(grid.Nx - 2, grid.Nx * (grid.Ny + 1) - 2, grid.Nx)
-                    )
-                    F_b_X[len(grid.Y) :, i] = f[indices_outflow_1, i] + (
-                        f[indices_outflow_1, i] - f[indices_outflow_2, i]
-                    )  # outflow to right side
+    # --- Precompute reusable index arrays (as numpy arrays, not Python lists) ---
+    idx_left_inflow = np.arange(grid.Nx - 1, grid.Nx * (grid.Ny + 1) - 1, grid.Nx)
+    idx_right_inflow = np.arange(0, grid.Nx * grid.Ny, grid.Nx)
 
-                else:
-                    indices_right = list(range(0, grid.Nx * (grid.Ny), grid.Nx))
-                    F_b_X[len(grid.Y) :, i] = f_right[
-                        indices_right, i
-                    ]  # This is inflow from right
+    idx_outflow_right_1 = np.arange(grid.Nx - 1, grid.Nx * (grid.Ny + 1) - 1, grid.Nx)
+    idx_outflow_right_2 = np.arange(grid.Nx - 2, grid.Nx * (grid.Ny + 1) - 2, grid.Nx)
+    idx_outflow_left_0 = np.arange(0, grid.Nx * grid.Ny, grid.Nx)
+    idx_outflow_left_1 = np.arange(1, grid.Nx * grid.Ny + 1, grid.Nx)
 
-                    indices_outflow_0 = list(range(0, grid.Nx * (grid.Ny), grid.Nx))
-                    indices_outflow_1 = list(range(1, grid.Nx * (grid.Ny) + 1, grid.Nx))
-                    F_b_X[: len(grid.Y), i] = f[indices_outflow_0, i] - (
-                        f[indices_outflow_1, i] - f[indices_outflow_0, i]
-                    )  # outflow to left side
+    # --- Define reusable helper functions ---
+    def outflow_right(f):
+        return (f[idx_outflow_right_1, :] + (f[idx_outflow_right_1, :] 
+                                            - f[idx_outflow_right_2, :]))
 
-        elif f_left is not None:  # right sided domain
-            for i in range(len(grid.PHI)):
-                if grid.PHI[i] < np.pi / 2 or grid.PHI[i] > 3 / 2 * np.pi:
-                    indices_left = list(
-                        range(grid.Nx - 1, grid.Nx * (grid.Ny + 1) - 1, grid.Nx)
-                    )  # pick every Nxth row
-                    F_b_X[: len(grid.Y), i] = f_left[
-                        indices_left, i
-                    ]  # This is inflow from left
+    def outflow_left(f):
+        return (f[idx_outflow_left_0, :] - (f[idx_outflow_left_1, :] 
+                                           - f[idx_outflow_left_0, :]))
 
-                    indices_outflow_1 = list(
-                        range(grid.Nx - 1, grid.Nx * (grid.Ny + 1) - 1, grid.Nx)
-                    )
-                    indices_outflow_2 = list(
-                        range(grid.Nx - 2, grid.Nx * (grid.Ny + 1) - 2, grid.Nx)
-                    )
-                    F_b_X[len(grid.Y) :, i] = f[indices_outflow_1, i] + (
-                        f[indices_outflow_1, i] - f[indices_outflow_2, i]
-                    )  # outflow to right side
+    # =====================================================================
+    # CASE 1: Periodic boundary domains
+    # =====================================================================
+    if f_periodic is not None:
+        # Leftmost domain
+        if f_right is not None:
+            if np.any(mask_left):
+                F_b_X[:ny, mask_left] = f_periodic[idx_left_inflow[:, None], mask_left]
+                F_b_X[ny:, mask_left] = outflow_right(f)[:, mask_left]
+            if np.any(mask_right):
+                F_b_X[ny:, mask_right] = f_right[idx_right_inflow[:, None], mask_right]
+                F_b_X[:ny, mask_right] = outflow_left(f)[:, mask_right]
 
-                else:
-                    indices_right = list(range(0, grid.Nx * (grid.Ny), grid.Nx))
-                    F_b_X[len(grid.Y) :, i] = f_periodic[
-                        indices_right, i
-                    ]  # This is inflow from right
+        # Rightmost domain
+        elif f_left is not None:
+            if np.any(mask_left):
+                F_b_X[:ny, mask_left] = f_left[idx_left_inflow[:, None], mask_left]
+                F_b_X[ny:, mask_left] = outflow_right(f)[:, mask_left]
+            if np.any(mask_right):
+                F_b_X[ny:, mask_right] = f_periodic[idx_right_inflow[:, None],
+                                                     mask_right]
+                F_b_X[:ny, mask_right] = outflow_left(f)[:, mask_right]
 
-                    indices_outflow_0 = list(range(0, grid.Nx * (grid.Ny), grid.Nx))
-                    indices_outflow_1 = list(range(1, grid.Nx * (grid.Ny) + 1, grid.Nx))
-                    F_b_X[: len(grid.Y), i] = f[indices_outflow_0, i] - (
-                        f[indices_outflow_1, i] - f[indices_outflow_0, i]
-                    )  # outflow to left side
+    # =====================================================================
+    # CASE 2: Middle domain
+    # =====================================================================
+    elif f_left is not None and f_right is not None:
+        if np.any(mask_left):
+            idx_left_mid = np.arange(
+                grid_left.Nx - 1,
+                grid_left.Nx * (grid_left.Ny + 1) - 1,
+                grid_left.Nx,
+            )
+            F_b_X[:ny, mask_left] = f_left[idx_left_mid[:, None], mask_left]
+            F_b_X[ny:, mask_left] = outflow_right(f)[:, mask_left]
 
-    elif f_left is not None and f_right is not None:  # middle domain
-        for i in range(len(grid.PHI)):
-                if grid.PHI[i] < np.pi / 2 or grid.PHI[i] > 3 / 2 * np.pi:
-                    indices_left = list(
-                        range(grid_left.Nx - 1, grid_left.Nx * (grid_left.Ny + 1) - 1, 
-                              grid_left.Nx)
-                    )  # pick every Nxth row
-                    F_b_X[: len(grid.Y), i] = f_left[
-                        indices_left, i
-                    ]  # This is inflow from left
+        if np.any(mask_right):
+            idx_right_mid = np.arange(0, grid_right.Nx * grid_right.Ny, grid_right.Nx)
+            F_b_X[ny:, mask_right] = f_right[idx_right_mid[:, None], mask_right]
+            F_b_X[:ny, mask_right] = outflow_left(f)[:, mask_right]
 
-                    indices_outflow_1 = list(
-                        range(grid.Nx - 1, grid.Nx * (grid.Ny + 1) - 1, grid.Nx)
-                    )
-                    indices_outflow_2 = list(
-                        range(grid.Nx - 2, grid.Nx * (grid.Ny + 1) - 2, grid.Nx)
-                    )
-                    F_b_X[len(grid.Y) :, i] = f[indices_outflow_1, i] + (
-                        f[indices_outflow_1, i] - f[indices_outflow_2, i]
-                    )  # outflow to right side
+    # =====================================================================
+    # CASE 3: Single domain (no neighbors)
+    # =====================================================================
+    else:
+        if np.any(mask_left):
+            if option_bc == "standard":
+                F_b_X[:ny, mask_left] = f[idx_left_inflow[:, None], mask_left]
+            elif option_bc == "lattice":
+                F_b_X[:ny, mask_left] = 0.0
+            elif option_bc == "hohlraum":
+                F_b_X[:ny, mask_left] = 1.0
+            elif option_bc == "pointsource":
+                F_b_X[:ny, mask_left] = 0.0
+                F_b_X[int(grid.Ny * 9 / 10), mask_left] = 1.0
 
-                else:
-                    indices_right = list(range(0, grid_right.Nx * (grid_right.Ny), 
-                                               grid_right.Nx))
-                    F_b_X[len(grid.Y) :, i] = f_right[
-                        indices_right, i
-                    ]  # This is inflow from right
+            F_b_X[ny:, mask_left] = outflow_right(f)[:, mask_left]
 
-                    indices_outflow_0 = list(range(0, grid.Nx * (grid.Ny), grid.Nx))
-                    indices_outflow_1 = list(range(1, grid.Nx * (grid.Ny) + 1, grid.Nx))
-                    F_b_X[: len(grid.Y), i] = f[indices_outflow_0, i] - (
-                        f[indices_outflow_1, i] - f[indices_outflow_0, i]
-                    )  # outflow to left side
+        if np.any(mask_right):
+            if option_bc == "standard":
+                F_b_X[ny:, mask_right] = f[idx_right_inflow[:, None], mask_right]
+            elif option_bc in ("lattice", "hohlraum", "pointsource"):
+                F_b_X[ny:, mask_right] = 0.0
 
-    else:  # only one domain
-        for i in range(len(grid.PHI)):
-            if grid.PHI[i] < np.pi / 2 or grid.PHI[i] > 3 / 2 * np.pi:
-
-                if option_bc == "standard":
-                    indices_left = list(
-                        range(grid.Nx - 1, grid.Nx * (grid.Ny + 1) - 1, grid.Nx)
-                    )  # pick every Nxth row
-                    F_b_X[: len(grid.Y), i] = f[
-                        indices_left, i
-                    ]  # This is inflow from left
-
-                elif option_bc == "lattice":
-                    F_b_X[: len(grid.Y), i] = 0  # This is inflow from left
-
-                elif option_bc == "hohlraum":
-                    F_b_X[: len(grid.Y), i] = 1  # inflow = 1
-
-                elif option_bc == "pointsource":
-                    F_b_X[: len(grid.Y), i] = 0
-                    F_b_X[int(grid.Ny*9/10), i] = 1  # inflow = 1 at only 1 point
-
-
-                indices_outflow_1 = list(
-                    range(grid.Nx - 1, grid.Nx * (grid.Ny + 1) - 1, grid.Nx)
-                )
-                indices_outflow_2 = list(
-                    range(grid.Nx - 2, grid.Nx * (grid.Ny + 1) - 2, grid.Nx)
-                )
-                F_b_X[len(grid.Y) :, i] = f[indices_outflow_1, i] + (
-                    f[indices_outflow_1, i] - f[indices_outflow_2, i]
-                )  # outflow to right side
-
-            else:
-
-                if option_bc == "standard":
-                    indices_right = list(range(0, grid.Nx * (grid.Ny), grid.Nx))
-                    F_b_X[len(grid.Y) :, i] = f[
-                        indices_right, i
-                    ]  # This is inflow from right
-
-                elif (option_bc == "lattice" or option_bc == "hohlraum" 
-                      or option_bc == "pointsource"):
-                    F_b_X[len(grid.Y) :, i] = 0  # This is inflow from right
-
-
-                indices_outflow_0 = list(range(0, grid.Nx * (grid.Ny), grid.Nx))
-                indices_outflow_1 = list(range(1, grid.Nx * (grid.Ny) + 1, grid.Nx))
-                F_b_X[: len(grid.Y), i] = f[indices_outflow_0, i] - (
-                    f[indices_outflow_1, i] - f[indices_outflow_0, i]
-                )  # outflow to left side
+            F_b_X[:ny, mask_right] = outflow_left(f)[:, mask_right]
 
     return F_b_X
 
@@ -305,113 +242,85 @@ def computeF_b_2x1d_Y(f, grid, f_bottom=None, f_top=None, f_periodic=None,
 
     if grid_bottom is None:
         grid_bottom = grid
-
     if grid_top is None:
         grid_top = grid
 
-    F_b_Y = np.zeros((2 * len(grid.X), len(grid.PHI)))
+    nx, nphi = len(grid.X), len(grid.PHI)
+    F_b_Y = np.zeros((2 * nx, nphi))
 
-    if f_periodic is not None:  # lowest or highest domain
-        if f_top is not None:  # lowest domain
-            for i in range(len(grid.PHI)):
-                if grid.PHI[i] < np.pi:
-                    F_b_Y[: len(grid.X), i] = f_periodic[
-                        grid.Nx * (grid.Ny - 1) : grid.Nx * grid.Ny, i
-                    ]  # This is inflow from bottom
+    # --- Define masks for phi direction ---
+    mask_bottom = np.pi > grid.PHI
+    mask_top = ~mask_bottom  # opposite
 
-                    F_b_Y[len(grid.X) :, i] = f[
-                        grid.Nx * (grid.Ny - 1) : grid.Nx * grid.Ny, i
-                    ] + (
-                        f[grid.Nx * (grid.Ny - 1) : grid.Nx * grid.Ny, i]
-                        - f[grid.Nx * (grid.Ny - 2) : grid.Nx * (grid.Ny - 1), i]
-                    )  # outflow to top
-                else:
-                    F_b_Y[len(grid.X) :, i] = f_top[
-                        : grid.Nx, i
-                    ]  # This is inflow from top
+    # --- Common index slices (rows of f) ---
+    # bottom row of current subdomain
+    idx_bottom = slice(grid.Nx * (grid.Ny - 1), grid.Nx * grid.Ny)
+    # second-from-bottom
+    idx_bottom_prev = slice(grid.Nx * (grid.Ny - 2), grid.Nx * (grid.Ny - 1))
+    # top row of current subdomain
+    idx_top = slice(0, grid.Nx)
+    # next-to-top
+    idx_top_next = slice(grid.Nx, grid.Nx * 2)
 
-                    F_b_Y[: len(grid.X), i] = f[: grid.Nx, i] - (
-                        f[grid.Nx : grid.Nx * 2, i] - f[: grid.Nx, i]
-                    )  # outflow to bottom
+    # --- Helper: outflow and inflow vectorized formulas ---
+    def outflow_top(f):
+        return f[idx_bottom, :] + (f[idx_bottom, :] - f[idx_bottom_prev, :])
 
-        elif f_bottom is not None:  # highest domain
-            for i in range(len(grid.PHI)):
-                if grid.PHI[i] < np.pi:
-                    F_b_Y[: len(grid.X), i] = f_bottom[
-                        grid.Nx * (grid.Ny - 1) : grid.Nx * grid.Ny, i
-                    ]  # This is inflow from bottom
+    def outflow_bottom(f):
+        return f[idx_top, :] - (f[idx_top_next, :] - f[idx_top, :])
 
-                    F_b_Y[len(grid.X) :, i] = f[
-                        grid.Nx * (grid.Ny - 1) : grid.Nx * grid.Ny, i
-                    ] + (
-                        f[grid.Nx * (grid.Ny - 1) : grid.Nx * grid.Ny, i]
-                        - f[grid.Nx * (grid.Ny - 2) : grid.Nx * (grid.Ny - 1), i]
-                    )  # outflow to top
+    # =====================================================================
+    # CASE 1: Periodic domains (lowest or highest)
+    # =====================================================================
+    if f_periodic is not None:
+        # Lowest domain
+        if f_top is not None:
+            if np.any(mask_bottom):
+                F_b_Y[:nx, mask_bottom] = f_periodic[idx_bottom, :][:, mask_bottom]
+                F_b_Y[nx:, mask_bottom] = outflow_top(f)[:, mask_bottom]
+            if np.any(mask_top):
+                F_b_Y[nx:, mask_top] = f_top[idx_top, :][:, mask_top]
+                F_b_Y[:nx, mask_top] = outflow_bottom(f)[:, mask_top]
 
-                else:
-                    F_b_Y[len(grid.X) :, i] = f_periodic[
-                        : grid.Nx, i
-                    ]  # This is inflow from top
+        # Highest domain
+        elif f_bottom is not None:
+            if np.any(mask_bottom):
+                F_b_Y[:nx, mask_bottom] = f_bottom[idx_bottom, :][:, mask_bottom]
+                F_b_Y[nx:, mask_bottom] = outflow_top(f)[:, mask_bottom]
+            if np.any(mask_top):
+                F_b_Y[nx:, mask_top] = f_periodic[idx_top, :][:, mask_top]
+                F_b_Y[:nx, mask_top] = outflow_bottom(f)[:, mask_top]
 
-                    F_b_Y[: len(grid.X), i] = f[: grid.Nx, i] - (
-                        f[grid.Nx : grid.Nx * 2, i] - f[: grid.Nx, i]
-                    )  # outflow to bottom
+    # =====================================================================
+    # CASE 2: Middle domain
+    # =====================================================================
+    elif f_bottom is not None and f_top is not None:
+        if np.any(mask_bottom):
+            F_b_Y[:nx, mask_bottom] = f_bottom[
+                grid_bottom.Nx * (grid_bottom.Ny - 1) : grid_bottom.Nx * grid_bottom.Ny,
+                :][:, mask_bottom]
+            F_b_Y[nx:, mask_bottom] = outflow_top(f)[:, mask_bottom]
+        if np.any(mask_top):
+            F_b_Y[nx:, mask_top] = f_top[:grid_top.Nx, :][:, mask_top]
+            F_b_Y[:nx, mask_top] = outflow_bottom(f)[:, mask_top]
 
-    elif f_bottom is not None and f_top is not None:  # middle domain
-        for i in range(len(grid.PHI)):
-                if grid.PHI[i] < np.pi:
-                    F_b_Y[: len(grid.X), i] = f_bottom[
-                        grid_bottom.Nx * (grid_bottom.Ny - 1) : 
-                        grid_bottom.Nx * grid_bottom.Ny, i
-                    ]  # This is inflow from bottom
+    # =====================================================================
+    # CASE 3: Single domain (no neighbors)
+    # =====================================================================
+    else:
+        if np.any(mask_bottom):
+            if option_bc == "standard":
+                F_b_Y[:nx, mask_bottom] = f[idx_bottom, :][:, mask_bottom]
+            elif option_bc in ("lattice", "hohlraum", "pointsource"):
+                F_b_Y[:nx, mask_bottom] = 0.0
+            F_b_Y[nx:, mask_bottom] = outflow_top(f)[:, mask_bottom]
 
-                    F_b_Y[len(grid.X) :, i] = f[
-                        grid.Nx * (grid.Ny - 1) : grid.Nx * grid.Ny, i
-                    ] + (
-                        f[grid.Nx * (grid.Ny - 1) : grid.Nx * grid.Ny, i]
-                        - f[grid.Nx * (grid.Ny - 2) : grid.Nx * (grid.Ny - 1), i]
-                    )  # outflow to top
-
-                else:
-                    F_b_Y[len(grid.X) :, i] = f_top[
-                        : grid_top.Nx, i
-                    ]  # This is inflow from top
-
-                    F_b_Y[: len(grid.X), i] = f[: grid.Nx, i] - (
-                        f[grid.Nx : grid.Nx * 2, i] - f[: grid.Nx, i]
-                    )  # outflow to bottom
-
-    else:  # only one domain
-        for i in range(len(grid.PHI)):
-            if grid.PHI[i] < np.pi:
-
-                if option_bc == "standard":
-                    F_b_Y[: len(grid.X), i] = f[
-                        grid.Nx * (grid.Ny - 1) : grid.Nx * grid.Ny, i
-                    ]  # This is inflow from bottom
-
-                elif (option_bc == "lattice" or option_bc == "hohlraum" 
-                      or option_bc == "pointsource"):
-                    F_b_Y[: len(grid.X), i] = 0  # This is inflow from bottom
-
-                F_b_Y[len(grid.X) :, i] = f[
-                    grid.Nx * (grid.Ny - 1) : grid.Nx * grid.Ny, i
-                ] + (
-                    f[grid.Nx * (grid.Ny - 1) : grid.Nx * grid.Ny, i]
-                    - f[grid.Nx * (grid.Ny - 2) : grid.Nx * (grid.Ny - 1), i]
-                )  # outflow to top
-            else:
-
-                if option_bc == "standard":
-                    F_b_Y[len(grid.X) :, i] = f[: grid.Nx, i]  # This is inflow from top
-
-                elif (option_bc == "lattice" or option_bc == "hohlraum" 
-                      or option_bc == "pointsource"):
-                    F_b_Y[len(grid.X) :, i] = 0  # This is inflow from top
-
-                F_b_Y[: len(grid.X), i] = f[: grid.Nx, i] - (
-                    f[grid.Nx : grid.Nx * 2, i] - f[: grid.Nx, i]
-                )  # outflow to bottom
+        if np.any(mask_top):
+            if option_bc == "standard":
+                F_b_Y[nx:, mask_top] = f[idx_top, :][:, mask_top]
+            elif option_bc in ("lattice", "hohlraum", "pointsource"):
+                F_b_Y[nx:, mask_top] = 0.0
+            F_b_Y[:nx, mask_top] = outflow_bottom(f)[:, mask_top]
 
     return F_b_Y
 
@@ -1262,7 +1171,7 @@ def add_basis_functions(
     For higher dimensional simulations set i.e. dimensions = "2x1d".
     """
     # Compute SVD and drop singular values
-    X, sing_val, QT = np.linalg.svd(F_b)
+    X, sing_val, QT = np.linalg.svd(F_b, full_matrices=False)
     r_b = np.sum(sing_val > tol_sing_val * np.sqrt(grid.Nx*grid.Ny*grid.Nphi/
                                                    (grid.dx*grid.dy*grid.dphi)))
     if dimensions == "1x1d" and (
@@ -1317,7 +1226,7 @@ def drop_basis_functions(lr, grid, drop_tol, min_rank : int = 5):
     Drop basis functions according to some drop tolerance, 
     such that the rank does not grow drastically.
     """
-    U, sing_val, QT = np.linalg.svd(lr.S)
+    U, sing_val, QT = np.linalg.svd(lr.S, full_matrices=False)
     r_prime = np.sum(sing_val > drop_tol * np.sqrt(grid.Nx*grid.Ny*grid.Nphi/
                                                    (grid.dx*grid.dy*grid.dphi)))
     if r_prime < min_rank:
@@ -1341,7 +1250,7 @@ def rank_adaptivity_PSI(lr, grid, tol, min_rank : int = 5):
     tol =  tol * np.sqrt(grid.Nx*grid.Ny*grid.Nphi/(grid.dx*grid.dy*grid.dphi))
     tol_drop = 0.1*tol
 
-    U, sing_val, QT = np.linalg.svd(lr.S)
+    U, sing_val, QT = np.linalg.svd(lr.S, full_matrices=False)
     r_prime_drop = np.sum(sing_val > tol_drop)
     r_prime_add = np.sum(sing_val > tol)
 
