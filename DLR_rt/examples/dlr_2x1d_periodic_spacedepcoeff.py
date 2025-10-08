@@ -100,13 +100,13 @@ def integrate(lr0: LR, grid: Grid_2x1d, t_f: float, dt: float,
 
 ### Plotting
 
-option_bc = "pointsource"
+option_bc = "hohlraum"
 r = 5
-t_f = 0.5
+t_f = 0.1
 snapshots = 2
-tol_sing_val = 1e-3 
-drop_tol = 1e-4
-tol_lattice = 1e-5
+tol_sing_val = 1e-6
+drop_tol = 5e-10
+tol_lattice = 2e-11
 
 method = "lie"
 option_grid = "dd"      # Just changes how gridpoints are chosen
@@ -119,17 +119,17 @@ savepath = "plots/"
 
 # Set amount of gridpoints according to problem
 if option_bc == "lattice":
-    Nx = 49
-    Ny = 49
-    Nphi = 49
+    Nx = 252
+    Ny = 252
+    Nphi = 252
 elif option_bc == "hohlraum":
-    Nx = 80
-    Ny = 80
-    Nphi = 80
+    Nx = 200
+    Ny = 200
+    Nphi = 200
 elif option_bc == "pointsource":
-    Nx = 800
-    Ny = 800
-    Nphi = 800
+    Nx = 600
+    Ny = 600
+    Nphi = 600
 
 # Timestepsize
 dt = 0.5 / Nx
@@ -285,3 +285,48 @@ axes.set_xlabel("$t$", fontsize=fs)
 axes.set_ylabel("$r(t)$", fontsize=fs)
 axes.set_xlim(time[0], time[-1]) # Remove extra padding: set x-limits to data range  
 plt.savefig(savepath + "1domainsim_rank_dropped.pdf")
+
+
+
+### Compare to higher rank solution
+
+### Setup grid and initial condition
+grid_2 = Grid_2x1d(Nx, Ny, Nphi, r, _option_dd=option_grid, _coeff=[c_adv, c_s, c_t])
+lr0_2 = setInitialCondition_2x1d_lr(grid_2, option_cond="lattice")
+f0_2 = lr0_2.U @ lr0_2.S @ lr0_2.V.T
+
+### Run code and do the plotting
+lr_2, time_2, rank_adapted_2, rank_dropped_2 = integrate(
+                     lr0_2, grid_2, t_f, dt, source=source, 
+                     option_scheme=option_scheme, option_timescheme=option_timescheme,
+                     option_bc=option_bc, tol_sing_val=tol_sing_val*0.001, 
+                     drop_tol=drop_tol*0.001, 
+                     tol_lattice=tol_lattice*0.001, snapshots=snapshots)
+
+
+f = lr.U @ lr.S @ lr.V.T
+
+f_2 = lr_2.U @ lr_2.S @ lr_2.V.T
+
+
+Frob = np.linalg.norm(f - f_2, ord='fro')
+
+TwoNorm = np.linalg.norm(f - f_2, ord=2)
+
+print("Frobenius: ", Frob)
+
+fig, axes = plt.subplots(1, 1, figsize=(10, 8))
+plt.plot(time_2, rank_adapted_2)
+plt.title("adapted rank " + option_bc + " simulation")
+axes.set_xlabel("$t$", fontsize=fs)
+axes.set_ylabel("$r(t)$", fontsize=fs)
+axes.set_xlim(time[0], time[-1]) # Remove extra padding: set x-limits to data range  
+plt.savefig(savepath + "1domainsim_rank_adapted_2.pdf")
+
+fig, axes = plt.subplots(1, 1, figsize=(10, 8))
+plt.plot(time_2, rank_dropped_2)
+plt.title("dropped rank " + option_bc + " simulation")
+axes.set_xlabel("$t$", fontsize=fs)
+axes.set_ylabel("$r(t)$", fontsize=fs)
+axes.set_xlim(time[0], time[-1]) # Remove extra padding: set x-limits to data range  
+plt.savefig(savepath + "1domainsim_rank_dropped_2.pdf")

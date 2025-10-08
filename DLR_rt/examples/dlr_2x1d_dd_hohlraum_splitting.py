@@ -228,7 +228,7 @@ Ny = 200
 Nphi = 200
 dt = 0.5 / Nx
 r = 5
-t_f = 1.5
+t_f = 0.1
 snapshots = 2
 fs = 16
 savepath = "plots/"
@@ -247,8 +247,59 @@ lr0_on_subgrids = setInitialCondition_2x1d_lr_subgrids(subgrids, option_cond="la
 ### Final configuration
 lr_on_subgrids, time, rank_on_subgrids_adapted, rank_on_subgrids_dropped = integrate(
     lr0_on_subgrids, subgrids, t_f, dt, option_scheme=option_scheme, 
-    tol_sing_val=1e-3, drop_tol=1e-5, option_problem=option_problem, snapshots=snapshots
+    tol_sing_val=1e-6, drop_tol=5e-10, 
+    option_problem=option_problem, snapshots=snapshots
     )
 
 plot_ranks_subgrids(subgrids, time, rank_on_subgrids_adapted, rank_on_subgrids_dropped,
                     option="hohlraum")
+
+
+
+### Compare to higher rank solution
+
+### Initial configuration
+grid_2 = Grid_2x1d(Nx, Ny, Nphi, r, _option_dd="dd")
+subgrids_2 = grid_2.split_grid_into_subgrids(option_split="hohlraum")
+
+
+lr0_on_subgrids_2 = setInitialCondition_2x1d_lr_subgrids(subgrids_2, 
+                                                         option_cond="lattice")
+
+### Final configuration
+(lr_on_subgrids_2, time_2, rank_on_subgrids_adapted_2, 
+rank_on_subgrids_dropped_2) = integrate(
+    lr0_on_subgrids_2, subgrids_2, t_f, dt, option_scheme=option_scheme, 
+    tol_sing_val=1e-9, drop_tol=5e-13, 
+    option_problem=option_problem, snapshots=snapshots
+    )
+
+plot_ranks_subgrids(subgrids_2, time_2, 
+                    rank_on_subgrids_adapted_2, rank_on_subgrids_dropped_2,
+                    option="hohlraum")
+
+
+Frob = 0
+TwoNorm = 0
+
+n_split_x = subgrids[0][0].n_split_x
+n_split_y = subgrids[0][0].n_split_y
+
+for j in range(n_split_y):
+    for i in range(n_split_x):
+
+        f = (lr_on_subgrids[j][i].U @ lr_on_subgrids[j][i].S @ 
+                lr_on_subgrids[j][i].V.T)
+        
+        f_2 = (lr_on_subgrids_2[j][i].U @ lr_on_subgrids_2[j][i].S @ 
+                lr_on_subgrids_2[j][i].V.T)
+        
+        Frob += (np.linalg.norm(f - f_2, ord='fro'))**2
+
+        TwoNorm += (np.linalg.norm(f - f_2, ord=2))**2
+
+Frob = np.sqrt(Frob)
+TwoNorm = np.sqrt(TwoNorm)
+
+print("Frobenius: ", Frob)
+print("Two: ", TwoNorm)
