@@ -113,6 +113,8 @@ option_grid = "dd"      # Just changes how gridpoints are chosen
 option_scheme = "upwind"
 option_timescheme = "RK4"
 
+option_error_estimate = True
+
 fs = 16
 savepath = "plots/"
 
@@ -289,45 +291,46 @@ plt.savefig(savepath + "1domainsim_rank_dropped.pdf")
 
 
 ### Compare to higher rank solution
+if option_error_estimate:
 
-### Setup grid and initial condition
-grid_2 = Grid_2x1d(Nx, Ny, Nphi, r, _option_dd=option_grid, _coeff=[c_adv, c_s, c_t])
-lr0_2 = setInitialCondition_2x1d_lr(grid_2, option_cond="lattice")
-f0_2 = lr0_2.U @ lr0_2.S @ lr0_2.V.T
+    ### Setup grid and initial condition
+    grid_2 = Grid_2x1d(Nx, Ny, Nphi, r, _option_dd=option_grid, 
+                       _coeff=[c_adv, c_s, c_t])
+    lr0_2 = setInitialCondition_2x1d_lr(grid_2, option_cond="lattice")
+    f0_2 = lr0_2.U @ lr0_2.S @ lr0_2.V.T
 
-### Run code and do the plotting
-lr_2, time_2, rank_adapted_2, rank_dropped_2 = integrate(
-                     lr0_2, grid_2, t_f, dt, source=source, 
-                     option_scheme=option_scheme, option_timescheme=option_timescheme,
-                     option_bc=option_bc, tol_sing_val=tol_sing_val*0.001, 
-                     drop_tol=drop_tol*0.001, 
-                     tol_lattice=tol_lattice*0.001, snapshots=snapshots,
-                     plot_name_add = "high_rank_")
-
-
-f = lr.U @ lr.S @ lr.V.T
-
-f_2 = lr_2.U @ lr_2.S @ lr_2.V.T
+    ### Run code and do the plotting
+    lr_2, time_2, rank_adapted_2, rank_dropped_2 = integrate(
+                        lr0_2, grid_2, t_f, dt, source=source, 
+                        option_scheme=option_scheme, 
+                        option_timescheme=option_timescheme,
+                        option_bc=option_bc, tol_sing_val=tol_sing_val*0.001, 
+                        drop_tol=drop_tol*0.001, 
+                        tol_lattice=tol_lattice*0.001, snapshots=snapshots,
+                        plot_name_add = "high_rank_")
 
 
-Frob = np.linalg.norm(f - f_2, ord='fro')
+    f = lr.U @ lr.S @ lr.V.T
 
-TwoNorm = np.linalg.norm(f - f_2, ord=2)
+    f_2 = lr_2.U @ lr_2.S @ lr_2.V.T
 
-print("Frobenius: ", Frob)
 
-fig, axes = plt.subplots(1, 1, figsize=(10, 8))
-plt.plot(time_2, rank_adapted_2)
-plt.title("adapted rank " + option_bc + " simulation")
-axes.set_xlabel("$t$", fontsize=fs)
-axes.set_ylabel("$r(t)$", fontsize=fs)
-axes.set_xlim(time[0], time[-1]) # Remove extra padding: set x-limits to data range  
-plt.savefig(savepath + "high_rank_1domainsim_rank_adapted_2.pdf")
+    Frob = np.linalg.norm(f - f_2, ord='fro')
 
-fig, axes = plt.subplots(1, 1, figsize=(10, 8))
-plt.plot(time_2, rank_dropped_2)
-plt.title("dropped rank " + option_bc + " simulation")
-axes.set_xlabel("$t$", fontsize=fs)
-axes.set_ylabel("$r(t)$", fontsize=fs)
-axes.set_xlim(time[0], time[-1]) # Remove extra padding: set x-limits to data range  
-plt.savefig(savepath + "high_rank_1domainsim_rank_dropped_2.pdf")
+    print("Frobenius: ", Frob)
+
+    fig, axes = plt.subplots(1, 1, figsize=(10, 8))
+    plt.plot(time_2, rank_adapted_2)
+    plt.title("adapted rank " + option_bc + " simulation")
+    axes.set_xlabel("$t$", fontsize=fs)
+    axes.set_ylabel("$r(t)$", fontsize=fs)
+    axes.set_xlim(time[0], time[-1]) # Remove extra padding: set x-limits to data range
+    plt.savefig(savepath + "high_rank_1domainsim_rank_adapted_2.pdf")
+
+    fig, axes = plt.subplots(1, 1, figsize=(10, 8))
+    plt.plot(time_2, rank_dropped_2)
+    plt.title("dropped rank " + option_bc + " simulation")
+    axes.set_xlabel("$t$", fontsize=fs)
+    axes.set_ylabel("$r(t)$", fontsize=fs)
+    axes.set_xlim(time[0], time[-1]) # Remove extra padding: set x-limits to data range
+    plt.savefig(savepath + "high_rank_1domainsim_rank_dropped_2.pdf")
