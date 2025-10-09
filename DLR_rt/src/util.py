@@ -194,7 +194,7 @@ def computeD_upwind_2x1d(grid: Grid_2x1d, option_dd: str = "no_dd"):
     return DX_0.tocsr(), DX_1.tocsr(), DY_0.tocsr(), DY_1.tocsr()
 
 def plot_rho_subgrids(subgrids, lr_on_subgrids, fs = 16, savepath = "plots/", t = 0.0, 
-                      plot_option = "normal"):
+                      plot_option = "normal", plot_name_add = ""):
     """
     Plot rho over x and y.
 
@@ -265,9 +265,11 @@ def plot_rho_subgrids(subgrids, lr_on_subgrids, fs = 16, savepath = "plots/", t 
 
     plt.tight_layout()
     if plot_option == "normal":
-        plt.savefig(savepath + "dd_splitting_2x1d_subgrids_rho_t" + str(t) + ".pdf")
+        plt.savefig(savepath + plot_name_add + "dd_splitting_2x1d_subgrids_rho_t" 
+                    + str(t) + ".pdf")
     elif plot_option == "log":
-        plt.savefig(savepath + "dd_splitting_2x1d_subgrids_rho_t" + str(t) + "_log.pdf")
+        plt.savefig(savepath + plot_name_add + "dd_splitting_2x1d_subgrids_rho_t" 
+                    + str(t) + "_log.pdf")
     
     plt.close()
 
@@ -275,7 +277,8 @@ def plot_rho_subgrids(subgrids, lr_on_subgrids, fs = 16, savepath = "plots/", t 
 
 def plot_ranks_subgrids(subgrids, time, 
                         rank_on_subgrids_adapted, rank_on_subgrids_dropped, 
-                        fs = 16, savepath = "plots/", option = "lattice"):
+                        fs = 16, savepath = "plots/", option = "lattice",
+                        plot_name_add = ""):
     
     ### Plot for rank over time
 
@@ -292,7 +295,8 @@ def plot_ranks_subgrids(subgrids, time,
     axes.set_xlabel("$t$", fontsize=fs)
     axes.set_ylabel("$r(t)$", fontsize=fs)
     axes.set_xlim(time[0], time[-1]) # Remove extra padding: set x-limits to data range
-    plt.savefig(savepath + "dd_splitting_2x1d_subgrids_rank_adapted.pdf")
+    plt.savefig(savepath + plot_name_add 
+                + "dd_splitting_2x1d_subgrids_rank_adapted.pdf")
 
     fig, axes = plt.subplots(1, 1, figsize=(10, 8))
     for j in range(n_split_y):
@@ -304,7 +308,8 @@ def plot_ranks_subgrids(subgrids, time,
     axes.set_xlabel("$t$", fontsize=fs)
     axes.set_ylabel("$r(t)$", fontsize=fs)
     axes.set_xlim(time[0], time[-1]) # Remove extra padding: set x-limits to data range
-    plt.savefig(savepath + "dd_splitting_2x1d_subgrids_rank_dropped.pdf")
+    plt.savefig(savepath + plot_name_add 
+                + "dd_splitting_2x1d_subgrids_rank_dropped.pdf")
 
     ### Plot for final rank
 
@@ -370,7 +375,8 @@ def plot_ranks_subgrids(subgrids, time,
         ax.set_title("Final adapted ranks for subdomains")
         ax.set_aspect('equal')
 
-    plt.savefig(savepath + "dd_splitting_2x1d_subgrids_rank_adapted_final.pdf")
+    plt.savefig(savepath + plot_name_add 
+                + "dd_splitting_2x1d_subgrids_rank_adapted_final.pdf")
 
     # Example data for each cell (ny rows, nx columns)
     data = np.zeros((n_split_x, n_split_y))
@@ -434,13 +440,14 @@ def plot_ranks_subgrids(subgrids, time,
         ax.set_title("Final dropped ranks for subdomains")
         ax.set_aspect('equal')
 
-    plt.savefig(savepath + "dd_splitting_2x1d_subgrids_rank_dropped_final.pdf")
+    plt.savefig(savepath + plot_name_add 
+                + "dd_splitting_2x1d_subgrids_rank_dropped_final.pdf")
     plt.close()
 
     return
 
 def plot_rho_onedomain(grid, lr, fs = 16, savepath = "plots/", t = 0.0, 
-                      plot_option = "log"):
+                      plot_option = "log", plot_name_add = ""):
     """
     Plot rho over x and y.
 
@@ -476,7 +483,7 @@ def plot_rho_onedomain(grid, lr, fs = 16, savepath = "plots/", t = 0.0,
     cbar_fixed.ax.tick_params(labelsize=fs)
 
     plt.tight_layout()
-    plt.savefig(savepath + "2x1d_rho_t" + str(t) + "_spacedepcoeff.pdf")
+    plt.savefig(savepath + plot_name_add + "2x1d_rho_t" + str(t) + "_spacedepcoeff.pdf")
     plt.close()
 
     return

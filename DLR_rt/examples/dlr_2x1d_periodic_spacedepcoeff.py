@@ -18,7 +18,7 @@ def integrate(lr0: LR, grid: Grid_2x1d, t_f: float, dt: float,
               option: str = "lie", source = None, 
               option_scheme : str = "cendiff", option_timescheme : str = "RK4",
               option_bc : str = "standard", tol_sing_val = 1e-2, drop_tol = 1e-3, 
-              tol_lattice = 1e-5, snapshots: int = 2):
+              tol_lattice = 1e-5, snapshots: int = 2, plot_name_add = ""):
     
     min_rank = grid.r
 
@@ -52,7 +52,7 @@ def integrate(lr0: LR, grid: Grid_2x1d, t_f: float, dt: float,
 
     # --- Initial snapshot ---
     print(f"📸 Snapshot 1/{snapshots} at t = {t:.4f}")
-    plot_rho_onedomain(grid, lr, t=t)
+    plot_rho_onedomain(grid, lr, t=t, plot_name_add=plot_name_add)
 
     with tqdm(total=t_f / dt, desc="Running Simulation") as pbar:
         while t < t_f:
@@ -92,7 +92,7 @@ def integrate(lr0: LR, grid: Grid_2x1d, t_f: float, dt: float,
             # --- Check for snapshot condition ---
             if next_snapshot_idx < snapshots and t >= snapshot_times[next_snapshot_idx]:
                 print(f"📸 Snapshot {next_snapshot_idx+1}/{snapshots} at t = {t:.4f}")
-                plot_rho_onedomain(grid, lr, t=t)
+                plot_rho_onedomain(grid, lr, t=t, plot_name_add=plot_name_add)
                 next_snapshot_idx += 1
 
     return lr, time, rank_adapted, rank_dropped
@@ -301,7 +301,8 @@ lr_2, time_2, rank_adapted_2, rank_dropped_2 = integrate(
                      option_scheme=option_scheme, option_timescheme=option_timescheme,
                      option_bc=option_bc, tol_sing_val=tol_sing_val*0.001, 
                      drop_tol=drop_tol*0.001, 
-                     tol_lattice=tol_lattice*0.001, snapshots=snapshots)
+                     tol_lattice=tol_lattice*0.001, snapshots=snapshots,
+                     plot_name_add = "high_rank_")
 
 
 f = lr.U @ lr.S @ lr.V.T
@@ -321,7 +322,7 @@ plt.title("adapted rank " + option_bc + " simulation")
 axes.set_xlabel("$t$", fontsize=fs)
 axes.set_ylabel("$r(t)$", fontsize=fs)
 axes.set_xlim(time[0], time[-1]) # Remove extra padding: set x-limits to data range  
-plt.savefig(savepath + "1domainsim_rank_adapted_2.pdf")
+plt.savefig(savepath + "high_rank_1domainsim_rank_adapted_2.pdf")
 
 fig, axes = plt.subplots(1, 1, figsize=(10, 8))
 plt.plot(time_2, rank_dropped_2)
@@ -329,4 +330,4 @@ plt.title("dropped rank " + option_bc + " simulation")
 axes.set_xlabel("$t$", fontsize=fs)
 axes.set_ylabel("$r(t)$", fontsize=fs)
 axes.set_xlim(time[0], time[-1]) # Remove extra padding: set x-limits to data range  
-plt.savefig(savepath + "1domainsim_rank_dropped_2.pdf")
+plt.savefig(savepath + "high_rank_1domainsim_rank_dropped_2.pdf")

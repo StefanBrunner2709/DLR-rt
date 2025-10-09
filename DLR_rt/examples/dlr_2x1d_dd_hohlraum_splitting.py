@@ -16,7 +16,7 @@ from DLR_rt.src.util import (
 def integrate(lr0_on_subgrids: LR, subgrids: Grid_2x1d, t_f: float, dt: float,
                tol_sing_val: float = 1e-3, drop_tol: float = 1e-7, method="lie", 
                option_scheme: str = "cendiff", option_problem : str = "hohlraum",
-               snapshots: int = 2):
+               snapshots: int = 2, plot_name_add = ""):
     
     lr_on_subgrids = lr0_on_subgrids
     t = 0
@@ -72,7 +72,8 @@ def integrate(lr0_on_subgrids: LR, subgrids: Grid_2x1d, t_f: float, dt: float,
 
     # --- Initial snapshot ---
     print(f"📸 Snapshot 1/{snapshots} at t = {t:.4f}")
-    plot_rho_subgrids(subgrids, lr_on_subgrids, t=t, plot_option="log")
+    plot_rho_subgrids(subgrids, lr_on_subgrids, t=t, plot_option="log", 
+                      plot_name_add=plot_name_add)
 
     with tqdm(total=t_f / dt, desc="Running Simulation") as pbar:
         while t < t_f:
@@ -215,7 +216,8 @@ def integrate(lr0_on_subgrids: LR, subgrids: Grid_2x1d, t_f: float, dt: float,
             # --- Check for snapshot condition ---
             if next_snapshot_idx < snapshots and t >= snapshot_times[next_snapshot_idx]:
                 print(f"📸 Snapshot {next_snapshot_idx+1}/{snapshots} at t = {t:.4f}")
-                plot_rho_subgrids(subgrids, lr_on_subgrids, t=t, plot_option="log")
+                plot_rho_subgrids(subgrids, lr_on_subgrids, t=t, plot_option="log", 
+                                  plot_name_add=plot_name_add)
                 next_snapshot_idx += 1
 
     return lr_on_subgrids, time, rank_on_subgrids_adapted, rank_on_subgrids_dropped
@@ -271,16 +273,14 @@ lr0_on_subgrids_2 = setInitialCondition_2x1d_lr_subgrids(subgrids_2,
 rank_on_subgrids_dropped_2) = integrate(
     lr0_on_subgrids_2, subgrids_2, t_f, dt, option_scheme=option_scheme, 
     tol_sing_val=1e-9, drop_tol=5e-13, 
-    option_problem=option_problem, snapshots=snapshots
+    option_problem=option_problem, snapshots=snapshots, plot_name_add="high_rank_"
     )
 
 plot_ranks_subgrids(subgrids_2, time_2, 
                     rank_on_subgrids_adapted_2, rank_on_subgrids_dropped_2,
-                    option="hohlraum")
-
+                    option="hohlraum", plot_name_add="high_rank_")
 
 Frob = 0
-TwoNorm = 0
 
 n_split_x = subgrids[0][0].n_split_x
 n_split_y = subgrids[0][0].n_split_y
@@ -296,10 +296,6 @@ for j in range(n_split_y):
         
         Frob += (np.linalg.norm(f - f_2, ord='fro'))**2
 
-        TwoNorm += (np.linalg.norm(f - f_2, ord=2))**2
-
 Frob = np.sqrt(Frob)
-TwoNorm = np.sqrt(TwoNorm)
 
 print("Frobenius: ", Frob)
-print("Two: ", TwoNorm)
