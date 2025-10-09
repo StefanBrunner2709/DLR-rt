@@ -189,8 +189,8 @@ Ny = 252
 Nphi = 252
 dt = 0.5 / Nx
 r = 5
-t_f = 0.7
-snapshots = 8
+t_f = 0.1
+snapshots = 2
 fs = 16
 savepath = "plots/"
 method = "lie"
@@ -210,7 +210,51 @@ lr0_on_subgrids = setInitialCondition_2x1d_lr_subgrids(subgrids, option_cond="la
 lr_on_subgrids, time, rank_on_subgrids_adapted, rank_on_subgrids_dropped = integrate(
     lr0_on_subgrids, subgrids, t_f, dt, 
     option_scheme=option_scheme, option_timescheme=option_timescheme,
-    tol_sing_val=1e-2, drop_tol=1e-5, snapshots=snapshots
+    tol_sing_val=1e-8, drop_tol=2e-12, snapshots=snapshots
     )
 
 plot_ranks_subgrids(subgrids, time, rank_on_subgrids_adapted, rank_on_subgrids_dropped)
+
+
+### Compare to higher rank solution
+
+### Initial configuration
+grid_2 = Grid_2x1d(Nx, Ny, Nphi, r, _option_dd="dd", _coeff=[1.0, 1.0, 1.0])
+subgrids_2 = grid_2.split_grid_into_subgrids(option_coeff="lattice", 
+                                             n_split_y=7, n_split_x=7)
+
+
+lr0_on_subgrids_2 = setInitialCondition_2x1d_lr_subgrids(subgrids_2, 
+                                                         option_cond="lattice")
+
+### Final configuration
+(lr_on_subgrids_2, time_2, rank_on_subgrids_adapted_2, 
+rank_on_subgrids_dropped_2) = integrate(
+    lr0_on_subgrids_2, subgrids_2, t_f, dt, option_scheme=option_scheme, 
+    option_timescheme=option_timescheme, tol_sing_val=1e-11, drop_tol=2e-15, 
+    snapshots=snapshots
+    )
+
+plot_ranks_subgrids(subgrids_2, time_2, 
+                    rank_on_subgrids_adapted_2, rank_on_subgrids_dropped_2)
+
+
+Frob = 0
+
+n_split_x = subgrids[0][0].n_split_x
+n_split_y = subgrids[0][0].n_split_y
+
+for j in range(n_split_y):
+    for i in range(n_split_x):
+
+        f = (lr_on_subgrids[j][i].U @ lr_on_subgrids[j][i].S @ 
+                lr_on_subgrids[j][i].V.T)
+        
+        f_2 = (lr_on_subgrids_2[j][i].U @ lr_on_subgrids_2[j][i].S @ 
+                lr_on_subgrids_2[j][i].V.T)
+        
+        Frob += (np.linalg.norm(f - f_2, ord='fro'))**2
+
+Frob = np.sqrt(Frob)
+
+print("Frobenius: ", Frob)
