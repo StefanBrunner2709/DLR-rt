@@ -1,9 +1,16 @@
 import numpy as np
 
 from DLR_rt.src.grid import Grid_2x1d
-from DLR_rt.src.initial_condition import setInitialCondition_2x1d_lr_subgrids
-from DLR_rt.src.run_functions import integrate_dd_hohlraum
-from DLR_rt.src.util import plot_ranks_subgrids
+from DLR_rt.src.initial_condition import (
+    setInitialCondition_2x1d_lr,
+    setInitialCondition_2x1d_lr_subgrids,
+)
+from DLR_rt.src.run_functions import integrate_1domain, integrate_dd_hohlraum
+from DLR_rt.src.util import (
+    generate_full_f,
+    plot_ranks_subgrids,
+    setup_coeff_source_1domain,
+)
 
 ### Plotting
 
@@ -12,18 +19,20 @@ Ny = 200
 Nphi = 200
 dt = 0.5 / Nx
 r = 5
-t_f = 0.1
+t_f = 0.7
 snapshots = 2
 fs = 16
 savepath = "plots/"
 method = "lie"
 option_scheme = "upwind"
 option_problem = "hohlraum"
+option_timescheme = "RK4"
 
 option_error_estimate = True
 
 tol_sing_val = 1e-6
 drop_tol = 5e-10
+tol_lattice = 2e-11
 
 
 ### Initial configuration
@@ -46,45 +55,35 @@ plot_ranks_subgrids(subgrids, time, rank_on_subgrids_adapted, rank_on_subgrids_d
 
 
 
-### Compare to higher rank solution
+### Compare to higher rank solution on 1 domain
 if option_error_estimate:
 
-    ### Initial configuration
-    grid_2 = Grid_2x1d(Nx, Ny, Nphi, r, _option_dd="dd")
-    subgrids_2 = grid_2.split_grid_into_subgrids(option_split="hohlraum")
+    ### Setup coefficients and source
+    (c_adv, c_s, c_t, source, 
+     c_s_matrix, c_t_matrix) = setup_coeff_source_1domain(Nx, Ny, option_problem)
+    # Prepare source for code
+    source = source.flatten()[:, None]
 
+    ### Setup grid and initial condition
+    grid_2 = Grid_2x1d(Nx, Ny, Nphi, r, _option_dd="dd", 
+                       _coeff=[c_adv, c_s, c_t])
+    lr0_2 = setInitialCondition_2x1d_lr(grid_2, option_cond=option_problem)
+    f0_2 = lr0_2.U @ lr0_2.S @ lr0_2.V.T
 
-    lr0_on_subgrids_2 = setInitialCondition_2x1d_lr_subgrids(subgrids_2, 
-                                                            option_cond="lattice")
+    ### Run code and do the plotting
+    lr_2, time_2, rank_adapted_2, rank_dropped_2 = integrate_1domain(
+                        lr0_2, grid_2, t_f, dt, source=source, 
+                        option_scheme=option_scheme, 
+                        option_timescheme=option_timescheme,
+                        option_bc=option_problem, tol_sing_val=tol_sing_val*0.001, 
+                        drop_tol=drop_tol*0.001, 
+                        tol_lattice=tol_lattice*0.001, snapshots=snapshots,
+                        plot_name_add = "high_rank_")
 
-    ### Final configuration
-    (lr_on_subgrids_2, time_2, rank_on_subgrids_adapted_2, 
-    rank_on_subgrids_dropped_2) = integrate_dd_hohlraum(
-        lr0_on_subgrids_2, subgrids_2, t_f, dt, option_scheme=option_scheme, 
-        tol_sing_val=tol_sing_val*0.001, drop_tol=drop_tol*0.001, 
-        option_problem=option_problem, snapshots=snapshots, plot_name_add="high_rank_"
-        )
+    f_2 = lr_2.U @ lr_2.S @ lr_2.V.T
 
-    plot_ranks_subgrids(subgrids_2, time_2, 
-                        rank_on_subgrids_adapted_2, rank_on_subgrids_dropped_2,
-                        option="hohlraum", plot_name_add="high_rank_")
+    f = generate_full_f(lr_on_subgrids, subgrids, grid)
 
-    Frob = 0
-
-    n_split_x = subgrids[0][0].n_split_x
-    n_split_y = subgrids[0][0].n_split_y
-
-    for j in range(n_split_y):
-        for i in range(n_split_x):
-
-            f = (lr_on_subgrids[j][i].U @ lr_on_subgrids[j][i].S @ 
-                    lr_on_subgrids[j][i].V.T)
-            
-            f_2 = (lr_on_subgrids_2[j][i].U @ lr_on_subgrids_2[j][i].S @ 
-                    lr_on_subgrids_2[j][i].V.T)
-            
-            Frob += (np.linalg.norm(f - f_2, ord='fro'))**2
-
-    Frob = np.sqrt(Frob)
+    Frob = np.linalg.norm(f - f_2, ord='fro')
 
     print("Frobenius: ", Frob)

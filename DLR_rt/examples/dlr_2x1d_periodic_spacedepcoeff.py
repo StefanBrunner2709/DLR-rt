@@ -10,7 +10,7 @@ from DLR_rt.src.util import setup_coeff_source_1domain
 
 option_bc = "hohlraum"
 r = 5
-t_f = 0.1
+t_f = 0.7
 snapshots = 2
 tol_sing_val = 1e-6
 drop_tol = 5e-10
@@ -117,8 +117,7 @@ axes.set_xlim(time[0], time[-1]) # Remove extra padding: set x-limits to data ra
 plt.savefig(savepath + "1domainsim_rank_dropped.pdf")
 
 
-
-### Compare to higher rank solution
+### Compare to higher rank solution on 1 domain
 if option_error_estimate:
 
     ### Setup grid and initial condition
@@ -137,11 +136,9 @@ if option_error_estimate:
                         tol_lattice=tol_lattice*0.001, snapshots=snapshots,
                         plot_name_add = "high_rank_")
 
-
     f = lr.U @ lr.S @ lr.V.T
 
     f_2 = lr_2.U @ lr_2.S @ lr_2.V.T
-
 
     Frob = np.linalg.norm(f - f_2, ord='fro')
 
