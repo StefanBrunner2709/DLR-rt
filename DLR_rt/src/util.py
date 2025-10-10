@@ -487,3 +487,36 @@ def plot_rho_onedomain(grid, lr, fs = 16, savepath = "plots/", t = 0.0,
     plt.close()
 
     return
+
+def generate_full_f(lr_on_subgrids, subgrids, grid):
+
+    n_split_x = subgrids[0][0].n_split_x
+    n_split_y = subgrids[0][0].n_split_y
+
+    Nx = grid.Nx
+    Ny = grid.Ny
+    Nphi = grid.Nphi
+
+    f_dd = np.zeros((Nx*Ny,Nphi))
+
+    start = 0
+    for j in range(n_split_y):
+        f_block = np.zeros((Nx*subgrids[j][0].Ny,Nphi))
+        starting_gridpoints_x = 0
+        for i in range(n_split_x):
+
+            f = (lr_on_subgrids[j][i].U @ lr_on_subgrids[j][i].S @ 
+                    lr_on_subgrids[j][i].V.T)
+            
+            for k in range(subgrids[j][i].Ny):
+                f_block[k*Nx+starting_gridpoints_x:
+                        k*Nx+starting_gridpoints_x+subgrids[j][i].Nx,
+                        :] = f[k*subgrids[j][i].Nx:(k+1)*subgrids[j][i].Nx,:]
+
+            starting_gridpoints_x += subgrids[j][i].Nx
+
+        f_dd[start:start+subgrids[j][i].Ny * Nx,:] = f_block
+
+        start += subgrids[j][i].Ny * Nx
+
+    return f_dd
