@@ -1,102 +1,10 @@
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.sparse import diags
-from tqdm import tqdm
 
 from DLR_rt.src.grid import Grid_2x1d
 from DLR_rt.src.initial_condition import setInitialCondition_2x1d_lr
-from DLR_rt.src.integrators import PSI_lie
-from DLR_rt.src.lr import LR, computeF_b_2x1d_X, computeF_b_2x1d_Y
-from DLR_rt.src.util import (
-    computeD_cendiff_2x1d,
-    computeD_upwind_2x1d,
-    plot_rho_onedomain,
-)
-
-
-def integrate(lr0: LR, grid: Grid_2x1d, t_f: float, dt: float, 
-              option: str = "lie", source = None, 
-              option_scheme : str = "cendiff", option_timescheme : str = "RK4",
-              option_bc : str = "standard", tol_sing_val = 1e-2, drop_tol = 1e-3, 
-              tol_lattice = 1e-5, snapshots: int = 2, plot_name_add = ""):
-    
-    min_rank = grid.r
-
-    if option_bc == "lattice" or option_bc == "hohlraum" or option_bc == "pointsource":
-        rank_adapted = [grid.r]
-        rank_dropped = [grid.r]
-    else:
-        rank_adapted = None
-        rank_dropped = None
-
-    lr = lr0
-    t = 0
-    time = []
-    time.append(t)
-
-    DX, DY = computeD_cendiff_2x1d(grid, "dd")
-
-    if option_scheme == "upwind":
-        DX_0, DX_1, DY_0, DY_1 = computeD_upwind_2x1d(grid, "dd")
-    else:
-        DX_0 = None
-        DX_1 = None
-        DY_0 = None
-        DY_1 = None
-
-    # --- SNAPSHOT setup ---
-    if snapshots < 2:
-        snapshots = 2  # At least initial and final
-    snapshot_times = [i * t_f / (snapshots - 1) for i in range(snapshots)]
-    next_snapshot_idx = 1  # first snapshot after t=0
-
-    # --- Initial snapshot ---
-    print(f"📸 Snapshot 1/{snapshots} at t = {t:.4f}")
-    plot_rho_onedomain(grid, lr, t=t, plot_name_add=plot_name_add)
-
-    with tqdm(total=t_f / dt, desc="Running Simulation") as pbar:
-        while t < t_f:
-            pbar.update(1)
-
-            if t + dt > t_f:
-                dt = t_f - t
-
-            if (option_bc == "lattice" or option_bc == "hohlraum" 
-                or option_bc == "pointsource"):
-
-                f = lr.U @ lr.S @ lr.V.T
-
-                F_b_X = computeF_b_2x1d_X(f, grid, option_bc = option_bc)
-                F_b_Y = computeF_b_2x1d_Y(f, grid, option_bc = option_bc)
-
-            else:
-                F_b_X = None
-                F_b_Y = None
-
-            if option == "lie":
-                (lr, grid, 
-                 rank_adapted, rank_dropped) = PSI_lie(lr, grid, dt, DX=DX, DY=DY, 
-                                   dimensions="2x1d", option_coeff="space_dep", 
-                                   source=source, option_scheme=option_scheme,
-                                   DX_0=DX_0, DX_1=DX_1, DY_0=DY_0, DY_1=DY_1,
-                                   option_timescheme=option_timescheme,
-                                   option_bc = option_bc, F_b_X = F_b_X, F_b_Y = F_b_Y,
-                                   tol_sing_val=tol_sing_val, drop_tol=drop_tol, 
-                                   min_rank=min_rank, 
-                                   rank_adapted=rank_adapted, rank_dropped=rank_dropped,
-                                   tol_lattice=tol_lattice)
-
-            t += dt
-            time.append(t)
-
-            # --- Check for snapshot condition ---
-            if next_snapshot_idx < snapshots and t >= snapshot_times[next_snapshot_idx]:
-                print(f"📸 Snapshot {next_snapshot_idx+1}/{snapshots} at t = {t:.4f}")
-                plot_rho_onedomain(grid, lr, t=t, plot_name_add=plot_name_add)
-                next_snapshot_idx += 1
-
-    return lr, time, rank_adapted, rank_dropped
-
+from DLR_rt.src.run_functions import integrate_1domain
 
 ### Plotting
 
@@ -264,7 +172,8 @@ source = source.flatten()[:, None]
 
 
 ### Run code and do the plotting
-lr, time, rank_adapted, rank_dropped = integrate(lr0, grid, t_f, dt, source=source, 
+lr, time, rank_adapted, rank_dropped = integrate_1domain(lr0, grid, 
+                                                         t_f, dt, source=source, 
                      option_scheme=option_scheme, option_timescheme=option_timescheme,
                      option_bc=option_bc, tol_sing_val=tol_sing_val, drop_tol=drop_tol, 
                      tol_lattice=tol_lattice, snapshots=snapshots)
@@ -300,7 +209,7 @@ if option_error_estimate:
     f0_2 = lr0_2.U @ lr0_2.S @ lr0_2.V.T
 
     ### Run code and do the plotting
-    lr_2, time_2, rank_adapted_2, rank_dropped_2 = integrate(
+    lr_2, time_2, rank_adapted_2, rank_dropped_2 = integrate_1domain(
                         lr0_2, grid_2, t_f, dt, source=source, 
                         option_scheme=option_scheme, 
                         option_timescheme=option_timescheme,
