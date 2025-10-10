@@ -1,10 +1,10 @@
 import matplotlib.pyplot as plt
 import numpy as np
-from scipy.sparse import diags
 
 from DLR_rt.src.grid import Grid_2x1d
 from DLR_rt.src.initial_condition import setInitialCondition_2x1d_lr
 from DLR_rt.src.run_functions import integrate_1domain
+from DLR_rt.src.util import setup_coeff_source_1domain
 
 ### Plotting
 
@@ -45,71 +45,9 @@ elif option_bc == "pointsource":
 dt = 0.5 / Nx
 
 
-
-if option_bc == "lattice":
-    ### Full lattice setup
-    c_adv_vec = np.ones(Nx*Ny)
-    c_adv = diags(c_adv_vec)
-
-    # Parameters
-    num_blocks = 7        # number of blocks in each row/col
-    block_size = int(Nx/num_blocks)        # size of each block
-
-    # Pattern of blocks
-    block_pattern_s = np.array([[1,1,1,1,1,1,1],
-                                [1,0,1,0,1,0,1],
-                                [1,1,0,1,0,1,1],
-                                [1,0,1,1,1,0,1],
-                                [1,1,0,1,0,1,1],
-                                [1,0,1,1,1,0,1],
-                                [1,1,1,1,1,1,1]])
-    block_pattern_t = np.array([[1,1,1,1,1,1,1],
-                                [1,10,1,10,1,10,1],
-                                [1,1,10,1,10,1,1],
-                                [1,10,1,1,1,10,1],
-                                [1,1,10,1,10,1,1],
-                                [1,10,1,1,1,10,1],
-                                [1,1,1,1,1,1,1]])
-
-    # Expand each block into block_size x block_size
-    c_s_matrix = np.kron(block_pattern_s, np.ones((block_size, block_size), dtype=int))
-    c_t_matrix = np.kron(block_pattern_t, np.ones((block_size, block_size), dtype=int))
-
-    # Change to vector
-    c_s_vec = c_s_matrix.flatten()
-    c_t_vec = c_t_matrix.flatten()
-
-    # Change to diag matrix
-    c_s = diags(c_s_vec)
-    c_t = diags(c_t_vec)
-
-elif option_bc == "hohlraum" or option_bc == "pointsource":
-    ### Full hohlraum setup
-    c_adv_vec = np.ones(Nx*Ny)
-    c_adv = diags(c_adv_vec)
-
-    c_s_matrix = np.zeros((Nx,Ny))
-    c_t_matrix = np.zeros((Nx,Ny))
-
-    # Set c_t for absorbing parts
-    for i in range(Nx):
-        for j in range(Ny):
-
-            if j <= 0.05*Ny or j >= 0.95*Ny:    # upper and lower blocks
-                c_t_matrix[j,i] = 100
-
-            else:
-                if (i >= 0.95*Nx or i<=0.05*Nx and (0.25*Ny <= j <= 0.75*Ny)
-                    or (0.25*Nx <= i <= 0.75*Nx) and (0.25*Ny <= j <= 0.75*Ny)):
-                    c_t_matrix[j,i] = 100
-
-    # Change to vector
-    c_s_vec = c_s_matrix.flatten()
-    c_t_vec = c_t_matrix.flatten()
-
-    # Change to diag matrix
-    c_s = diags(c_s_vec)
-    c_t = diags(c_t_vec)
+### Setup coefficients and source
+c_adv, c_s, c_t, source, c_s_matrix, c_t_matrix = setup_coeff_source_1domain(Nx, Ny, 
+                                                                             option_bc)
 
 
 ### Setup grid and initial condition
@@ -132,25 +70,6 @@ axes.tick_params(axis="both", labelsize=fs, pad=10)
 
 plt.tight_layout()
 plt.savefig(savepath + "lattice1.pdf")
-
-
-if option_bc == "lattice":
-    ### Do normal 1 source
-    # Start with all zeros
-    block_matrix = np.zeros((num_blocks, num_blocks))
-
-    # Set block (4,4) to 1
-    block_row = 3
-    block_col = 3
-    block_matrix[block_row, block_col] = 1
-
-    # Expand to full matrix
-    source = np.kron(block_matrix, np.ones((block_size, block_size)))
-
-elif option_bc == "hohlraum" or option_bc == "pointsource":
-    ### Hohlraum and pointsource already have inflow source
-    source = np.zeros((Nx,Ny))
-
 
 ### Plot source
 extent = [grid.X[0], grid.X[-1], grid.Y[0], grid.Y[-1]]
